@@ -86,7 +86,7 @@ def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
         #print ("Path probs:", path_probs, sum(path_probs))
         
         loss=torch.zeros(1)
-        print ("Sizes::", (path_probs.view(1,-1)).size(), data[0].view(1,-1) )
+        #print ("Sizes::", (path_probs.view(1,-1)).size(), data[0].view(1,-1) )
         loss=sum([loss_function(path_probs.view(1,-1),data_sample.view(1)) for data_sample in data])
         print("Loss: ", loss)
         #net2.zero_grad()
