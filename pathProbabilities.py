@@ -49,10 +49,11 @@ def learnPathProbs(G, data, coverage_probs, Fv_torch, all_paths):
         
         phi_pred=net2(Fv_torch).view(-1)
         path_probs_pred=generate_PathProbs_from_Attractiveness(G, coverage_probs, phi_pred, all_paths, n_paths=len(all_paths))
-        data_sample=data[n_iterations%len(data)]
+        #data_sample=data[n_iterations%len(data)]
         
         loss=torch.zeros(1)
-        loss=sum([loss_function(path_probs_pred,data_sample) for data_sample in data])
+        print ("Sizes::", (path_probs_pred.view(1,-1)).size(), data[0].view(1,-1) )
+        loss=sum([loss_function(path_probs_pred.view(1,-1),data_sample.view(1)) for data_sample in data])
         print("Loss: ", loss)
         #net2.zero_grad()
         loss.backward(retain_graph=True)
