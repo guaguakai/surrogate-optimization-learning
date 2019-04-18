@@ -24,15 +24,15 @@ def returnGraph():
     G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)], source=0, target=6)
     return G
 
-def learnPathProbs(G, data, coverage_probs, Fv_torch, all_paths):
+def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
     
     A=nx.to_numpy_matrix(G)
     A_torch = torch.as_tensor(A, dtype=torch.float) 
-    
+    Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
     feature_size=Fv_torch.size()[1]
     
     net2= GCNPredictionNet(A_torch, feature_size)
-    optimizer=optim.SGD(net2.parameters(), lr=0.01)
+    optimizer=optim.SGD(net2.parameters(), lr=0.3)
     n_iterations=400
     #out=net2(x).view(1,-1)
     #print("out:", out)
@@ -42,18 +42,52 @@ def learnPathProbs(G, data, coverage_probs, Fv_torch, all_paths):
     #loss=nn.MSELoss()
     #print (loss(out, y))
     
-    for i in range(n_iterations):
+    for _ in range(n_iterations):
         optimizer.zero_grad()
         loss_function=nn.CrossEntropyLoss()
         #loss_function=nn.MSELoss()
         
         phi_pred=net2(Fv_torch).view(-1)
-        path_probs_pred=generate_PathProbs_from_Attractiveness(G, coverage_probs, phi_pred, all_paths, n_paths=len(all_paths))
+        #path_probs_pred=generate_PathProbs_from_Attractiveness(G, coverage_probs, phi_pred, all_paths, n_paths=len(all_paths))
         #data_sample=data[n_iterations%len(data)]
+        N=nx.number_of_nodes(G) 
+
+        # GENERATE EDGE PROBABILITIES 
+        omega=4
+        edge_probs=torch.zeros((N,N))
+        for i, node in enumerate(list(G.nodes())):
+            neighbors=list(nx.all_neighbors(G,node))
+            
+            smuggler_probs=torch.zeros(len(neighbors))
+            for j,neighbor in enumerate(neighbors):
+                e=(node, neighbor)
+                #pe= G.edge[node][neighbor]['coverage_prob']
+                pe=coverage_probs[node][neighbor]
+                smuggler_probs[j]=torch.exp(-omega*pe+phi_pred[neighbor])
+            
+            smuggler_probs=smuggler_probs/torch.sum(smuggler_probs)
+            
+            for j,neighbor in enumerate(neighbors):
+                edge_probs[node,neighbor]=smuggler_probs[j]
+              
+                
+                
+        # GENERATE PATH PROBABILITIES
+        n_paths=len(all_paths)
+        path_probs=torch.zeros(n_paths)
+        for path_number, path in enumerate(all_paths):
+            path_prob=torch.ones(1)
+            for i in range(len(path)-1):
+                path_prob*=edge_probs[path[i], path[i+1]]
+            path_probs[path_number]=path_prob
+        path_probs=path_probs/torch.sum(path_probs)
+        #print ("SUM: ",torch.sum(path_probs))
+        #path_probs=torch.from_numpy(path_probs)
+        #print ("Path probs:", path_probs, sum(path_probs))
         
         loss=torch.zeros(1)
-        print ("Sizes::", (path_probs_pred.view(1,-1)).size(), data[0].view(1,-1) )
-        loss=sum([loss_function(path_probs_pred.view(1,-1),data_sample.view(1)) for data_sample in data])
+        print ("Sizes::", (path_probs.view(1,-1)).size(), data[0].view(1,-1) )
+        loss=sum([loss_function(path_probs.view(1,-1),data_sample.view(1)) for data_sample in data])
         print("Loss: ", loss)
         #net2.zero_grad()
         loss.backward(retain_graph=True)

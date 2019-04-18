@@ -9,7 +9,7 @@ class GCNDataGenerationNet(nn.Module):
     For data generation, assume a 4 layer gcn to compress features, followed by a two layer NN to predict phi(v,f)
     
     """
-    def __init__(self,A, raw_feature_size, gcn_hidden_layer_sizes=[20,15,12,10], nn_hidden_layer_sizes=[6,4]):
+    def __init__(self,A, raw_feature_size, gcn_hidden_layer_sizes=[20,15,12,10], nn_hidden_layer_sizes=[7,4]):
         super(GCNDataGenerationNet, self).__init__()
         
         r1,r2,r3,r4=gcn_hidden_layer_sizes       

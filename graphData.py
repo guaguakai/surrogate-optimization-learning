@@ -23,6 +23,10 @@ Next, handle the data generation also here. So as part of this:
 
 def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_paths,omega=4):
     
+    #coverage_prob=torch.from_numpy(coverage_prob)
+    #all_paths=torch.from_numpy(all_paths)
+    #n_paths=torch.from_numpy(n_paths)
+
     N=nx.number_of_nodes(G) 
 
     # GENERATE EDGE PROBABILITIES 
@@ -45,14 +49,15 @@ def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_
             
             
     # GENERATE PATH PROBABILITIES
-    path_probs=np.zeros(n_paths)
+    path_probs=torch.zeros(n_paths)
     for path_number, path in enumerate(all_paths):
-        path_prob=1.0
+        path_prob=torch.ones(1)
         for i in range(len(path)-1):
             path_prob*=edge_probs[path[i], path[i+1]]
         path_probs[path_number]=path_prob
-    path_probs=path_probs/sum(path_probs)
-    path_probs=torch.from_numpy(path_probs)
+    path_probs=path_probs/torch.sum(path_probs)
+    print ("SUM1: ",torch.sum(path_probs))
+    #path_probs=torch.from_numpy(path_probs)
     #print ("Path probs:", path_probs, sum(path_probs))
     
     return path_probs
@@ -111,13 +116,13 @@ def generateSyntheticData(G,node_feature_size, omega=4, n_data_samples=1000):
      
     path_probs=generate_PathProbs_from_Attractiveness(G,coverage_prob,phi, all_paths, n_paths)
     
-    
+    print ("SUM2:", torch.sum(path_probs), path_probs)
     data=torch.from_numpy(np.random.choice(n_paths,size=n_data_samples, p=path_probs))
 
     return_dict={'data':data,
                  'paths': all_paths,
                  'coverage_probs':coverage_prob, 
-                 'features': Fv_torch}
+                 'features': Fv}
     
     return return_dict
 
