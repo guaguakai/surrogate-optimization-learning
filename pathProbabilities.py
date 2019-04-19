@@ -110,9 +110,27 @@ def learnPathProbs_simple(G, train_data, test_data):
     net2.train()
     optimizer=optim.SGD(net2.parameters(), lr=0.3)
     
-    n_epochs=200
+    n_epochs=50
     n_iterations=n_epochs*len(train_data)
     
+    # TESTING LOOP before training    
+    batch_loss=0.0
+    for iter_n in range(len(test_data)):
+        Fv, coverage_prob, phi, path_probs=test_data[iter_n]
+        Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
+        phi_pred=net2(Fv_torch).view(-1)
+        
+        all_paths=list(nx.all_simple_paths(G, source, target))
+        n_paths=len(all_paths)
+        path_probs_pred=generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi_pred, all_paths, n_paths)
+        
+        #loss_function=nn.CrossEntropyLoss()
+        loss_function=nn.MSELoss()
+        
+        loss=loss_function(path_probs_pred,path_probs)
+        batch_loss+=loss
+        #print ("Loss: ", loss)
+    print("Testing batch loss per sample:", batch_loss/len(test_data))
     # TRAINING LOOP
     batch_loss=0.0
     for iter_n in range(n_iterations):
@@ -120,14 +138,18 @@ def learnPathProbs_simple(G, train_data, test_data):
         if iter_n%len(train_data)==0:
             print("Epoch number/Batch loss/ Batch loss per sample: ", iter_n/len(train_data),batch_loss, batch_loss/len(train_data))
             batch_loss=0.0
-        Fv, coverage_prob, phi=train_data[iter_n%len(train_data)]
+        Fv, coverage_prob, phi, path_probs=train_data[iter_n%len(train_data)]
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        phi_pred=net2(Fv_torch).view(1,-1)
+        phi_pred=net2(Fv_torch).view(-1)
+        
+        all_paths=list(nx.all_simple_paths(G, source, target))
+        n_paths=len(all_paths)
+        path_probs_pred=generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi_pred, all_paths, n_paths)
         
         #loss_function=nn.CrossEntropyLoss()
         loss_function=nn.MSELoss()
         
-        loss=loss_function(phi_pred,phi)
+        loss=loss_function(path_probs_pred,path_probs)
         batch_loss+=loss
         #print ("Loss: ", loss)
         loss.backward(retain_graph=True)
@@ -138,14 +160,19 @@ def learnPathProbs_simple(G, train_data, test_data):
     # TESTING LOOP    
     batch_loss=0.0
     for iter_n in range(len(test_data)):
-        Fv, coverage_prob, phi=test_data[iter_n]
+        Fv, coverage_prob, phi, path_probs=test_data[iter_n]
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        phi_pred=net2(Fv_torch).view(1,-1)
+        phi_pred=net2(Fv_torch).view(-1)
+        
+        all_paths=list(nx.all_simple_paths(G, source, target))
+        n_paths=len(all_paths)
+        path_probs_pred=generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi_pred, all_paths, n_paths)
         
         #loss_function=nn.CrossEntropyLoss()
         loss_function=nn.MSELoss()
         
-        loss=loss_function(phi_pred,phi)
+        loss=loss_function(path_probs_pred,path_probs)
+        
         batch_loss+=loss
         #print ("Loss: ", loss)
     print("Testing batch loss per sample:", batch_loss/len(test_data))    

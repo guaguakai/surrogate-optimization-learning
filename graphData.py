@@ -30,38 +30,38 @@ def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_
     N=nx.number_of_nodes(G) 
 
     # GENERATE EDGE PROBABILITIES 
-    edge_probs=np.zeros((N,N))
+    edge_probs=torch.zeros((N,N))
     for i, node in enumerate(list(G.nodes())):
         neighbors=list(nx.all_neighbors(G,node))
         
-        smuggler_probs=np.zeros(len(neighbors))
+        smuggler_probs=torch.zeros(len(neighbors))
         for j,neighbor in enumerate(neighbors):
             e=(node, neighbor)
             #pe= G.edge[node][neighbor]['coverage_prob']
             pe=coverage_prob[node][neighbor]
             smuggler_probs[j]=torch.exp(-omega*pe+phi[neighbor])
         
-        smuggler_probs=smuggler_probs*1.0/sum(smuggler_probs)
+        smuggler_probs=smuggler_probs*1.0/torch.sum(smuggler_probs)
         
         for j,neighbor in enumerate(neighbors):
             edge_probs[node,neighbor]=smuggler_probs[j]
           
             
-    '''        
+    
     # GENERATE PATH PROBABILITIES
-    path_probs=np.zeros(n_paths)
+    path_probs=torch.zeros(n_paths)
     for path_number, path in enumerate(all_paths):
-        path_prob=1.0
+        path_prob=torch.ones(1)
         for i in range(len(path)-1):
-            path_prob*=edge_probs[path[i], path[i+1]]
+            path_prob=path_prob*(edge_probs[path[i], path[i+1]])
         path_probs[path_number]=path_prob
-    path_probs=path_probs/sum(path_probs)
-    path_probs[-1]=max(0.0, path_probs[-1]-(sum(path_probs)-1.000))
-    print ("SUM1: ",sum(path_probs))
+    path_probs=path_probs/torch.sum(path_probs)
+    path_probs[-1]=torch.max(torch.zeros(1), path_probs[-1]-(sum(path_probs)-1.000))
+    #print ("SUM1: ",sum(path_probs))
     #path_probs=torch.from_numpy(path_probs)
     #print ("Path probs:", path_probs, sum(path_probs))
-    '''
-    return edge_probs
+    
+    return path_probs
 
 def generateSyntheticData(G,node_feature_size, omega=4, n_data_samples=1000, testing_data_fraction=0.2):
     
@@ -110,17 +110,17 @@ def generateSyntheticData(G,node_feature_size, omega=4, n_data_samples=1000, tes
     
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         # Generate attractiveness values for nodes
-        phi=net1.forward(Fv_torch).view(1,-1)
+        phi=net1.forward(Fv_torch).view(-1)
         #phi=y.data.numpy()
         '''
         phi is the attractiveness function, phi(v,f) for each of the N nodes, v
         '''
          
-        #path_probs=generate_PathProbs_from_Attractiveness(G,coverage_prob,phi, all_paths, n_paths)
+        path_probs=generate_PathProbs_from_Attractiveness(G,coverage_prob,phi, all_paths, n_paths)
         #print ("SUM2:", torch.sum(path_probs), path_probs)
         #data_point=np.random.choice(n_paths,size=1, p=path_probs)
         #data_point=(Fv, coverage_prob, path_probs)
-        data_point=(Fv, coverage_prob, phi)
+        data_point=(Fv, coverage_prob, phi, path_probs)
         data.append(data_point)
         
     training_data=data[:int(n_data_samples*(1.0-testing_data_fraction))]
