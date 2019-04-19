@@ -32,6 +32,7 @@ def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
     feature_size=Fv_torch.size()[1]
     
     net2= GCNPredictionNet(A_torch, feature_size)
+    net2.train()
     optimizer=optim.SGD(net2.parameters(), lr=0.3)
     n_iterations=400
     #out=net2(x).view(1,-1)
@@ -48,6 +49,7 @@ def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
         #loss_function=nn.MSELoss()
         
         phi_pred=net2(Fv_torch).view(-1)
+        print("Flag:",phi_pred.requires_grad)
         #path_probs_pred=generate_PathProbs_from_Attractiveness(G, coverage_probs, phi_pred, all_paths, n_paths=len(all_paths))
         #data_sample=data[n_iterations%len(data)]
         N=nx.number_of_nodes(G) 
@@ -69,8 +71,8 @@ def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
             
             for j,neighbor in enumerate(neighbors):
                 edge_probs[node,neighbor]=smuggler_probs[j]
-              
-                
+                print(edge_probs[node, neighbor].requires_grad)        
+
                 
         # GENERATE PATH PROBABILITIES
         n_paths=len(all_paths)
@@ -81,30 +83,86 @@ def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
                 path_prob*=edge_probs[path[i], path[i+1]]
             path_probs[path_number]=path_prob
         path_probs=path_probs/torch.sum(path_probs)
+        print(path_probs[0].requires_grad)
         #print ("SUM: ",torch.sum(path_probs))
         #path_probs=torch.from_numpy(path_probs)
-        #print ("Path probs:", path_probs, sum(path_probs))
+        print ("Path probs:", path_probs, sum(path_probs))
         
         loss=torch.zeros(1)
         #print ("Sizes::", (path_probs.view(1,-1)).size(), data[0].view(1,-1) )
-        loss=sum([loss_function(path_probs.view(1,-1),data_sample.view(1)) for data_sample in data])
+        for data_sample in data:
+            loss+=loss_function(path_probs.view(1,-1),data_sample)
+        #print("Loss before:",loss.grad_fn.next_functions[0][0].grad)
+        #loss=([loss_function(path_probs.view(1,-1),data_sample.view(1)) for data_sample in data])
         print("Loss: ", loss)
         #net2.zero_grad()
-        loss.backward(retain_graph=True)
+        loss.backward()
+        print("Loss after:",loss.is_leaf, loss.grad)
+        
         optimizer.step()
     
+def learnPathProbs_simple(G, train_data, test_data):
     
+    A=nx.to_numpy_matrix(G)
+    A_torch = torch.as_tensor(A, dtype=torch.float) 
+    
+    net2= GCNPredictionNet(A_torch, feature_size)
+    net2.train()
+    optimizer=optim.SGD(net2.parameters(), lr=0.3)
+    
+    n_epochs=200
+    n_iterations=n_epochs*len(train_data)
+    
+    # TRAINING LOOP
+    batch_loss=0.0
+    for iter_n in range(n_iterations):
+        optimizer.zero_grad()
+        if iter_n%len(train_data)==0:
+            print("Epoch number/Batch loss/ Batch loss per sample: ", iter_n/len(train_data),batch_loss, batch_loss/len(train_data))
+            batch_loss=0.0
+        Fv, coverage_prob, phi=train_data[iter_n%len(train_data)]
+        Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
+        phi_pred=net2(Fv_torch).view(1,-1)
+        
+        #loss_function=nn.CrossEntropyLoss()
+        loss_function=nn.MSELoss()
+        
+        loss=loss_function(phi_pred,phi)
+        batch_loss+=loss
+        #print ("Loss: ", loss)
+        loss.backward(retain_graph=True)
+        optimizer.step()    
+
+
+
+    # TESTING LOOP    
+    batch_loss=0.0
+    for iter_n in range(len(test_data)):
+        Fv, coverage_prob, phi=test_data[iter_n]
+        Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
+        phi_pred=net2(Fv_torch).view(1,-1)
+        
+        #loss_function=nn.CrossEntropyLoss()
+        loss_function=nn.MSELoss()
+        
+        loss=loss_function(phi_pred,phi)
+        batch_loss+=loss
+        #print ("Loss: ", loss)
+    print("Testing batch loss per sample:", batch_loss/len(test_data))    
 
 if __name__=='__main__':
     
     G= returnGraph()
     feature_size=25
-    d=generateSyntheticData(G,feature_size)
+    #d=generateSyntheticData(G,feature_size)
     
+    train_data, test_data=generateSyntheticData(G,feature_size)
+    '''
     data=d['data']
     all_paths=d['paths']
     coverage_probs=d['coverage_probs']
-    Fv_torch=d['features'] 
+    Fv_torch=d['features']
+    '''
     """
     data: numpy array of samples, where each sample is the path_number, picked according to path probs. 
     all_paths: all possible paths from source to target
@@ -113,19 +171,5 @@ if __name__=='__main__':
     """
     
     
-    learnPathProbs(G, data, coverage_probs, Fv_torch, all_paths)
+    learnPathProbs_simple(G, train_data,test_data)
     
-    
-    
-    
-    
-    """
-    A=torch.rand(10,10)
-    x=torch.rand(10,25)
-    
-    
-    net1= GCNDataGenerationNet(A, 25)
-    y=net1.forward(x).view(1,-1)
-    #print (y.size())
-    #print("Y:", y)
-    """
