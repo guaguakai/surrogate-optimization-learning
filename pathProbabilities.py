@@ -107,7 +107,7 @@ def learnPathProbs_simple(G, train_data, test_data):
     A_torch = torch.as_tensor(A, dtype=torch.float) 
     source=G.graph['source']
     target=G.graph['target']
-    net2= GCNPredictionNet(A_torch, feature_size)
+    net2= GCNPredictionNet(feature_size)
     net2.train()
     optimizer=optim.SGD(net2.parameters(), lr=0.3)
     
@@ -119,7 +119,7 @@ def learnPathProbs_simple(G, train_data, test_data):
     for iter_n in range(len(test_data)):
         Fv, coverage_prob, phi, path_probs=test_data[iter_n]
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        phi_pred=net2(Fv_torch).view(-1)
+        phi_pred=net2(Fv_torch, A_torch).view(-1)
         
         all_paths=list(nx.all_simple_paths(G, source, target))
         n_paths=len(all_paths)
@@ -131,7 +131,8 @@ def learnPathProbs_simple(G, train_data, test_data):
         loss=loss_function(path_probs_pred,path_probs)
         batch_loss+=loss
         #print ("Loss: ", loss)
-    print("Testing batch loss per sample:", batch_loss/len(test_data))
+    print("Testing batch loss per sample before training:", batch_loss/len(test_data))
+    
     # TRAINING LOOP
     batch_loss=0.0
     for iter_n in range(n_iterations):
@@ -141,7 +142,7 @@ def learnPathProbs_simple(G, train_data, test_data):
             batch_loss=0.0
         Fv, coverage_prob, phi, path_probs=train_data[iter_n%len(train_data)]
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        phi_pred=net2(Fv_torch).view(-1)
+        phi_pred=net2(Fv_torch, A_torch).view(-1)
         
         all_paths=list(nx.all_simple_paths(G, source, target))
         n_paths=len(all_paths)
@@ -163,7 +164,7 @@ def learnPathProbs_simple(G, train_data, test_data):
     for iter_n in range(len(test_data)):
         Fv, coverage_prob, phi, path_probs=test_data[iter_n]
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        phi_pred=net2(Fv_torch).view(-1)
+        phi_pred=net2(Fv_torch, A_torch).view(-1)
         
         all_paths=list(nx.all_simple_paths(G, source, target))
         n_paths=len(all_paths)

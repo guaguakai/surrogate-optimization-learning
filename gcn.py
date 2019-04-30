@@ -58,7 +58,7 @@ class GCNDataGenerationNet(nn.Module):
 
 class GCNPredictionNet(nn.Module):
 
-    def __init__(self,A, raw_feature_size, gcn_hidden_layer_sizes=[15,10], nn_hidden_layer_sizes=5):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[15,10], nn_hidden_layer_sizes=5):
         super(GCNPredictionNet, self).__init__()
         
         r1,r2=gcn_hidden_layer_sizes       
@@ -72,12 +72,16 @@ class GCNPredictionNet(nn.Module):
         self.fc1 = nn.Linear(r2, r3)
         self.fc2 = nn.Linear(r3, 1)
         
-        self.node_adj=A
+        #self.node_adj=A
 
-    def forward(self, x):
+    def forward(self, x,A):
         
-        # Input, x is the nXk feature matrix with features for each of the n nodes. 
-        A=self.node_adj
+        ''' 
+        Input:
+            x is the nXk feature matrix with features for each of the n nodes.
+            A is the adjacency matrix for the graph under consideration
+        '''
+        
         x=F.relu(self.gcn1(torch.matmul(A+torch.eye(A.size()[0]),x)))
         x=F.relu(self.gcn2(torch.matmul(A+torch.eye(A.size()[0]),x)))
         
