@@ -20,7 +20,35 @@ Next, handle the data generation also here. So as part of this:
     Split the data set into training and testing
 
 """
-
+def returnGraph(fixed_graph=False):
+    
+    if fixed_graph:
+        # define an arbitrary graph with a source and target node
+        source=0
+        target=6
+        G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)], source=0, target=6)
+        return G
+    
+    else:
+        # HARD CODE THE BELOW TWO VALUES
+        N=np.random.randint(low=6, high=8)                     # Randomly pick number of Nodes
+        edge_prob=np.random.uniform(low=0.6, high=0.7)          # Randomly pick Edges probability                                          
+        
+        # Generate random graph
+        M=int(edge_prob*(N*(N-1)/2.0))                          # Calculate expected number of edges
+        G=nx.gnm_random_graph(N, M)
+        
+        # Pick source and target randomly and ensure that path exists
+        source, target= np.random.choice(list(G.nodes()), size=2, replace=False)
+        path_exists_between_source_target=nx.has_path(G, source, target)
+        while(not path_exists_between_source_target):
+            source, target= np.random.choice(list(G.nodes()), size=2, replace=False)
+            path_exists_between_source_target=nx.has_path(G, source, target)
+        G.graph['source']=source
+        G.graph['target']=target
+        
+        return G
+        
 def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_paths,omega=4):
     
     #coverage_prob=torch.from_numpy(coverage_prob)
@@ -63,19 +91,30 @@ def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_
     
     return path_probs
 
-def generateSyntheticData(G,node_feature_size, omega=4, n_data_samples=1000, testing_data_fraction=0.2):
+def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, testing_data_fraction=0.2, n_training_graphs=50, n_testing_graphs=200, fixed_graph=False):
     
-    data=[]
-    # COMPUTE ADJACENCY MATRIX
-    A=nx.to_numpy_matrix(G)
-    A_torch=torch.as_tensor(A, dtype=torch.float) 
-    #print("A:",A)
-        
+    data=[]    
     net1= GCNDataGenerationNet(node_feature_size)        
+    training_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_training_graphs)]
+    testing_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_testing_graphs)]
+    print ("GRAPHS N: ",len(training_graphs), len(testing_graphs))
+    n_training_samples=int(n_data_samples*(1.0-testing_data_fraction))
 
+    
     for sample_number in range(n_data_samples):
+        # Pick the graph in cyclic fashion from the correct list of graphs
+        graph_index=0
+        if sample_number<n_training_samples:
+            G=training_graphs[sample_number%n_training_graphs]
+            graph_index=sample_number%n_training_graphs
+        else:
+            G=testing_graphs[sample_number%n_testing_graphs]
+            graph_index=sample_number%n_testing_graphs
+
+        # COMPUTE ADJACENCY MATRIX
+        A=nx.to_numpy_matrix(G)
+        A_torch=torch.as_tensor(A, dtype=torch.float) 
         N=nx.number_of_nodes(G) 
-        #nx.draw(G)
         
         #  Define node features for each of the n nodes
         for node in list(G.nodes()):
@@ -120,13 +159,13 @@ def generateSyntheticData(G,node_feature_size, omega=4, n_data_samples=1000, tes
         #print ("SUM2:", torch.sum(path_probs), path_probs)
         #data_point=np.random.choice(n_paths,size=1, p=path_probs)
         #data_point=(Fv, coverage_prob, path_probs)
-        data_point=(Fv, coverage_prob, phi, path_probs)
+        data_point=(graph_index,Fv, coverage_prob, phi, path_probs)
         data.append(data_point)
         
     training_data=data[:int(n_data_samples*(1.0-testing_data_fraction))]
     testing_data=data[int(n_data_samples*(1.0-testing_data_fraction)):]
     
-    return training_data, testing_data
+    return training_data, testing_data, training_graphs, testing_graphs
 
 
 if __name__=="__main__":
@@ -135,5 +174,5 @@ if __name__=="__main__":
     source=0
     target=6
     G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)], source=0, target=6)
-    generateSyntheticData(G,25)
+    generateSyntheticData(25, fixed_graph=False)
     #pass

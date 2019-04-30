@@ -16,14 +16,6 @@ def get_one_hot(value, n_values):
     
     t=torch.zeros(n_values)
     
-def returnGraph():
-    
-    # define an arbitrary graph with a source and target node
-    source=0
-    target=6
-    G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)], source=0, target=6)
-    return G
-
 def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
     
     A=nx.to_numpy_matrix(G)
@@ -101,12 +93,8 @@ def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
         
         optimizer.step()
     
-def learnPathProbs_simple(G, train_data, test_data):
+def learnPathProbs_simple(train_data, test_data, training_graphs, testing_graphs):
     
-    A=nx.to_numpy_matrix(G)
-    A_torch = torch.as_tensor(A, dtype=torch.float) 
-    source=G.graph['source']
-    target=G.graph['target']
     net2= GCNPredictionNet(feature_size)
     net2.train()
     optimizer=optim.SGD(net2.parameters(), lr=0.3)
@@ -114,10 +102,19 @@ def learnPathProbs_simple(G, train_data, test_data):
     n_epochs=150
     n_iterations=n_epochs*len(train_data)
     
+    print ("N_training graphs/ N_samples: ",len(training_graphs), len(train_data))
+    print ("N_testing graphs/N_samples: ",len(testing_graphs), len(test_data))
+
     # TESTING LOOP before training    
     batch_loss=0.0
     for iter_n in range(len(test_data)):
-        Fv, coverage_prob, phi, path_probs=test_data[iter_n]
+        graph_index,Fv, coverage_prob, phi, path_probs=test_data[iter_n]
+        G=testing_graphs[graph_index]
+        A=nx.to_numpy_matrix(G)
+        A_torch = torch.as_tensor(A, dtype=torch.float) 
+        source=G.graph['source']
+        target=G.graph['target']
+        
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         phi_pred=net2(Fv_torch, A_torch).view(-1)
         
@@ -140,7 +137,14 @@ def learnPathProbs_simple(G, train_data, test_data):
         if iter_n%len(train_data)==0:
             print("Epoch number/Batch loss/ Batch loss per sample: ", iter_n/len(train_data),batch_loss, batch_loss/len(train_data))
             batch_loss=0.0
-        Fv, coverage_prob, phi, path_probs=train_data[iter_n%len(train_data)]
+        
+        graph_index, Fv, coverage_prob, phi, path_probs=train_data[iter_n%len(train_data)]
+        G=training_graphs[graph_index]
+        A=nx.to_numpy_matrix(G)
+        A_torch = torch.as_tensor(A, dtype=torch.float) 
+        source=G.graph['source']
+        target=G.graph['target']
+    
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         phi_pred=net2(Fv_torch, A_torch).view(-1)
         
@@ -162,7 +166,13 @@ def learnPathProbs_simple(G, train_data, test_data):
     # TESTING LOOP    
     batch_loss=0.0
     for iter_n in range(len(test_data)):
-        Fv, coverage_prob, phi, path_probs=test_data[iter_n]
+        graph_index,Fv, coverage_prob, phi, path_probs=test_data[iter_n]
+        G=testing_graphs[graph_index]
+        A=nx.to_numpy_matrix(G)
+        A_torch = torch.as_tensor(A, dtype=torch.float) 
+        source=G.graph['source']
+        target=G.graph['target']
+        
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         phi_pred=net2(Fv_torch, A_torch).view(-1)
         
@@ -178,14 +188,17 @@ def learnPathProbs_simple(G, train_data, test_data):
         batch_loss+=loss
         #print ("Loss: ", loss)
     print("Testing batch loss per sample:", batch_loss/len(test_data))    
+    
+    print ("N_training graphs/ N_samples: ",len(training_graphs), len(train_data))
+    print ("N_testing graphs/N_samples: ",len(testing_graphs), len(test_data))
 
 if __name__=='__main__':
     
-    G= returnGraph()
+    G= returnGraph(fixed_graph=True)
     feature_size=25
     #d=generateSyntheticData(G,feature_size)
     
-    train_data, test_data=generateSyntheticData(G,feature_size)
+    train_data, test_data, training_graphs, testing_graphs=generateSyntheticData(feature_size)
     '''
     data=d['data']
     all_paths=d['paths']
@@ -200,5 +213,5 @@ if __name__=='__main__':
     """
     
     
-    learnPathProbs_simple(G, train_data,test_data)
+    learnPathProbs_simple(train_data,test_data, training_graphs, testing_graphs)
     
