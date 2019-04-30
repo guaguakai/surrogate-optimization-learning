@@ -105,12 +105,13 @@ def learnPathProbs_simple(G, train_data, test_data):
     
     A=nx.to_numpy_matrix(G)
     A_torch = torch.as_tensor(A, dtype=torch.float) 
-    
+    source=G.graph['source']
+    target=G.graph['target']
     net2= GCNPredictionNet(A_torch, feature_size)
     net2.train()
     optimizer=optim.SGD(net2.parameters(), lr=0.3)
     
-    n_epochs=50
+    n_epochs=150
     n_iterations=n_epochs*len(train_data)
     
     # TESTING LOOP before training    

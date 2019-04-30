@@ -71,7 +71,7 @@ def generateSyntheticData(G,node_feature_size, omega=4, n_data_samples=1000, tes
     A_torch=torch.as_tensor(A, dtype=torch.float) 
     #print("A:",A)
         
-    net1= GCNDataGenerationNet(A_torch, node_feature_size)        
+    net1= GCNDataGenerationNet(node_feature_size)        
 
     for sample_number in range(n_data_samples):
         N=nx.number_of_nodes(G) 
@@ -110,7 +110,7 @@ def generateSyntheticData(G,node_feature_size, omega=4, n_data_samples=1000, tes
     
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         # Generate attractiveness values for nodes
-        phi=net1.forward(Fv_torch).view(-1)
+        phi=net1.forward(Fv_torch,A_torch).view(-1)
         #phi=y.data.numpy()
         '''
         phi is the attractiveness function, phi(v,f) for each of the N nodes, v
