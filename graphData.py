@@ -26,7 +26,14 @@ def returnGraph(fixed_graph=False):
         # define an arbitrary graph with a source and target node
         source=0
         target=6
-        G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)], source=0, target=6)
+        G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)])
+        G.graph['source']=source
+        G.graph['target']=target
+        G.graph['sources']=[source]
+        G.graph['targets']=[target]
+        
+        G.node[source]['utility']=10
+        
         return G
     
     else:
@@ -116,7 +123,7 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, testi
         A_torch=torch.as_tensor(A, dtype=torch.float) 
         N=nx.number_of_nodes(G) 
         
-        #  Define node features for each of the n nodes
+        # Define node features for each of the n nodes
         for node in list(G.nodes()):
             node_features=np.random.randn(node_feature_size)
             # TODO: Use a better feature computation for a given node

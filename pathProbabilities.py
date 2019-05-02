@@ -194,7 +194,7 @@ def learnPathProbs_simple(train_data, test_data, training_graphs, testing_graphs
 
 if __name__=='__main__':
     
-    G= returnGraph(fixed_graph=True)
+    #G= returnGraph(fixed_graph=True)
     feature_size=25
     #d=generateSyntheticData(G,feature_size)
     
