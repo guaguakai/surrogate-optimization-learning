@@ -4,7 +4,7 @@ Created on Tue Apr 30 01:25:29 2019
 
 @author: Aditya
 """
-import scipy
+from scipy.optimize import minimize 
 import networkx as nx
 import numpy as np
 from numpy.linalg import *
@@ -86,7 +86,7 @@ def get_optimal_coverage_prob(G, phi, U, initial_distribution, budget, omega=4):
     constraints=[{'type':'ineq','fun':lambda x: budget-sum(x)}]
     
     # Optimization step
-    coverage_prob_optimal= scipy.optimize.minimize(objective_function, initial_coverage_prob,args=(G, phi, U,omega), method='SLSQP', bounds=bounds, constraints=constraints)        
+    coverage_prob_optimal= minimize(objective_function, initial_coverage_prob,args=(G, phi, U,omega), method='SLSQP', bounds=bounds, constraints=constraints)        
     
     return coverage_prob_optimal
 
@@ -100,10 +100,11 @@ if __name__=='__main__':
     N=nx.number_of_nodes(G)
     nodes=list(G.nodes())
     sources=list(G.graph['sources'])
+    targets=list(G.graph['targets'])
     transients=[node for node in nodes if not (node in G.graph['targets'])]
     initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
     
-    U=[G.node[s]['utility'] for s in sources]
+    U=[G.node[t]['utility'] for t in targets]
     U.append(-20)
     print ('U:', U)
     U=np.array(U)

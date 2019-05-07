@@ -198,7 +198,7 @@ if __name__=='__main__':
     feature_size=25
     #d=generateSyntheticData(G,feature_size)
     
-    train_data, test_data, training_graphs, testing_graphs=generateSyntheticData(feature_size)
+    train_data, test_data, training_graphs, testing_graphs=generateSyntheticData(feature_size, n_training_graphs=800)
     '''
     data=d['data']
     all_paths=d['paths']
