@@ -2,7 +2,7 @@
 """
 Created on Wed Apr 17 17:49:05 2019
 
-@author: Aditya mate
+@author: Aditya shrikant mate
 """
 
 import torch
