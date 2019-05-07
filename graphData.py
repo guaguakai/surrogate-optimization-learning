@@ -102,13 +102,15 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, testi
     
     data=[]    
     net1= GCNDataGenerationNet(node_feature_size)        
-    training_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_training_graphs)]
-    testing_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_testing_graphs)]
-    print ("GRAPHS N: ",len(training_graphs), len(testing_graphs))
+    #training_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_training_graphs)]
+    #testing_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_testing_graphs)]
+    #print ("GRAPHS N: ",len(training_graphs), len(testing_graphs))
     n_training_samples=int(n_data_samples*(1.0-testing_data_fraction))
 
     
     for sample_number in range(n_data_samples):
+        
+        '''
         # Pick the graph in cyclic fashion from the correct list of graphs
         graph_index=0
         if sample_number<n_training_samples:
@@ -117,7 +119,8 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, testi
         else:
             G=testing_graphs[sample_number%n_testing_graphs]
             graph_index=sample_number%n_testing_graphs
-
+        '''
+        G=returnGraph(fixed_graph=fixed_graph)
         # COMPUTE ADJACENCY MATRIX
         A=nx.to_numpy_matrix(G)
         A_torch=torch.as_tensor(A, dtype=torch.float) 
@@ -166,13 +169,13 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, testi
         #print ("SUM2:", torch.sum(path_probs), path_probs)
         #data_point=np.random.choice(n_paths,size=1, p=path_probs)
         #data_point=(Fv, coverage_prob, path_probs)
-        data_point=(graph_index,Fv, coverage_prob, phi, path_probs)
+        data_point=(G,Fv, coverage_prob, phi, path_probs)
         data.append(data_point)
         
     training_data=data[:int(n_data_samples*(1.0-testing_data_fraction))]
     testing_data=data[int(n_data_samples*(1.0-testing_data_fraction)):]
     
-    return training_data, testing_data, training_graphs, testing_graphs
+    return training_data, testing_data
 
 
 if __name__=="__main__":
