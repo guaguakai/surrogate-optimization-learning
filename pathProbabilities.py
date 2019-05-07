@@ -152,7 +152,7 @@ def learnPathProbs_simple(train_data, test_data, training_graphs, testing_graphs
         n_paths=len(all_paths)
         path_probs_pred=generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi_pred, all_paths, n_paths)
         
-        # I am writing all this in data brach onlY.
+
         #loss_function=nn.CrossEntropyLoss()
         loss_function=nn.MSELoss()
         
