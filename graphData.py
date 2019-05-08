@@ -20,7 +20,31 @@ Next, handle the data generation also here. So as part of this:
     Split the data set into training and testing
 
 """
-def returnGraph(fixed_graph=False):
+
+def getMarkovianWalk(G, edge_probs):
+    '''
+    Return a list of edges corresponding to the random walk
+    '''
+    sources=G.graph['sources']
+    targets=G.graph['targets']
+    #initial_distribution= TODO:Assumed to be uniform for now
+    nodes=list(G.nodes())
+    start_node= np.random.choice(sources)
+    
+    edge_list=[]
+    current_node=start_node
+    while (not(current_node in targets)):
+        neighbors= list(nx.all_neighbors(G,current_node))
+        transition_probs=np.array([(edge_probs[current_node][n]).detach().numpy() for n in neighbors])
+        transition_probs/=(transition_probs).sum()
+        next_node=np.random.choice(neighbors, p=transition_probs)
+        edge_list.append((current_node, next_node))
+        current_node=next_node
+    
+    return edge_list    
+    
+    
+def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
     
     if fixed_graph:
         # define an arbitrary graph with a source and target node
@@ -46,6 +70,8 @@ def returnGraph(fixed_graph=False):
         G=nx.gnm_random_graph(N, M)
         
         # Pick source and target randomly and ensure that path exists
+        # TODO:
+        # Make size=src+trgt
         source, target= np.random.choice(list(G.nodes()), size=2, replace=False)
         path_exists_between_source_target=nx.has_path(G, source, target)
         while(not path_exists_between_source_target):
@@ -53,6 +79,12 @@ def returnGraph(fixed_graph=False):
             path_exists_between_source_target=nx.has_path(G, source, target)
         G.graph['source']=source
         G.graph['target']=target
+        G.graph['sources']=[source]
+        G.graph['targets']=[target]
+        
+        # Randomly assign utilities to targets in the RANGE HARD-CODED below
+        for target in G.graph['targets']:
+            G.node[target]['utility']=np.random.randint(10, high=50)
         
         return G
         
@@ -98,7 +130,32 @@ def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_
     
     return path_probs
 
-def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, testing_data_fraction=0.2, n_training_graphs=50, n_testing_graphs=200, fixed_graph=False):
+def generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi,omega=4):
+        
+    N=nx.number_of_nodes(G) 
+
+    # GENERATE EDGE PROBABILITIES 
+    edge_probs=torch.zeros((N,N))
+    for i, node in enumerate(list(G.nodes())):
+        neighbors=list(nx.all_neighbors(G,node))
+        
+        smuggler_probs=torch.zeros(len(neighbors))
+        for j,neighbor in enumerate(neighbors):
+            e=(node, neighbor)
+            #pe= G.edge[node][neighbor]['coverage_prob']
+            pe=coverage_prob[node][neighbor]
+            smuggler_probs[j]=torch.exp(-omega*pe+phi[neighbor])
+        
+        smuggler_probs=smuggler_probs*1.0/torch.sum(smuggler_probs)
+        
+        for j,neighbor in enumerate(neighbors):
+            edge_probs[node,neighbor]=smuggler_probs[j]
+            
+    return edge_probs
+
+def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, 
+                          testing_data_fraction=0.2, n_training_graphs=50, 
+                          n_testing_graphs=200, fixed_graph=False, path_type='random_walk'):
     
     data=[]    
     net1= GCNDataGenerationNet(node_feature_size)        
@@ -141,17 +198,6 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, testi
             coverage_prob[e[0]][e[1]]=private_coverage_prob[i]
             coverage_prob[e[1]][e[0]]=private_coverage_prob[i]
           
-            
-        
-        
-        # COMPUTE ALL POSSIBLE PATHS
-        source=G.graph['source']
-        target=G.graph['target']
-        all_paths=list(nx.all_simple_paths(G, source, target))
-        n_paths=len(all_paths)
-        
-        
-        # GENERATE SYNTHETIC DATA:
         # Generate features
         Fv=np.zeros((N,node_feature_size))
         for node in list(G.nodes()):
@@ -164,13 +210,32 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, testi
         '''
         phi is the attractiveness function, phi(v,f) for each of the N nodes, v
         '''
-         
-        path_probs=generate_PathProbs_from_Attractiveness(G,coverage_prob,phi, all_paths, n_paths)
-        #print ("SUM2:", torch.sum(path_probs), path_probs)
-        #data_point=np.random.choice(n_paths,size=1, p=path_probs)
-        #data_point=(Fv, coverage_prob, path_probs)
-        data_point=(G,Fv, coverage_prob, phi, path_probs)
-        data.append(data_point)
+        source=G.graph['source']
+        target=G.graph['target']
+                        
+        
+        if path_type=='simple':
+            
+            # COMPUTE ALL POSSIBLE PATHS
+            all_paths=list(nx.all_simple_paths(G, source, target))
+            n_paths=len(all_paths)
+        
+        
+            # GENERATE SYNTHETIC DATA:         
+            path_probs=generate_PathProbs_from_Attractiveness(G,coverage_prob,phi, all_paths, n_paths)
+            #print ("SUM2:", torch.sum(path_probs), path_probs)
+            #data_point=np.random.choice(n_paths,size=1, p=path_probs)
+            #data_point=(Fv, coverage_prob, path_probs)
+            data_point=(G,Fv, coverage_prob, phi, path_probs)
+            data.append(data_point)
+            
+        elif path_type=='random_walk':
+            
+            edge_probs=generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi)
+            path=getMarkovianWalk(G, edge_probs)
+            data_point=(G,Fv,coverage_prob, phi, path)
+            data.append(data_point)
+            
         
     training_data=data[:int(n_data_samples*(1.0-testing_data_fraction))]
     testing_data=data[int(n_data_samples*(1.0-testing_data_fraction)):]
@@ -184,5 +249,5 @@ if __name__=="__main__":
     source=0
     target=6
     G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)], source=0, target=6)
-    generateSyntheticData(25, fixed_graph=False, n_training_graphs=800)
+    generateSyntheticData(25, fixed_graph=False, n_training_graphs=800, path_type='simple')
     #pass
