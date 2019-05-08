@@ -236,6 +236,15 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000,
             data_point=(G,Fv,coverage_prob, phi, path)
             data.append(data_point)
             
+        elif path_type=='random_walk_distribution':
+            
+            edge_probs=generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi)
+            path=getMarkovianWalk(G, edge_probs)
+            log_prob=torch.zeros(1)
+            for e in path: 
+                log_prob-=torch.log(edge_probs[e[0]][e[1]])
+            data_point=(G,Fv,coverage_prob, phi, path, log_prob)
+            data.append(data_point)
         
     training_data=data[:int(n_data_samples*(1.0-testing_data_fraction))]
     testing_data=data[int(n_data_samples*(1.0-testing_data_fraction)):]

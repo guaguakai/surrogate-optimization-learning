@@ -10,7 +10,7 @@ import torch.optim as optim
 
 from gcn import * 
 from graphData import *
-
+from coverageProbability import *
 
 def get_one_hot(value, n_values):
     
@@ -192,7 +192,7 @@ def learnPathProbs_simple(train_data, test_data, lr=0.1):
     print ("N_testing graphs/N_samples: ",len(testing_graphs), len(test_data))
 
 
-def learnEdgeProbs_simple(train_data, test_data, lr=0.1):
+def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk'):
     
     net2= GCNPredictionNet(feature_size)
     net2.train()
@@ -207,7 +207,10 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1):
     # TESTING LOOP before training
     batch_loss=0.0    
     for iter_n in range(len(test_data)):
-        G,Fv, coverage_prob, phi, path=test_data[iter_n]
+        if path_model=='random_walk_distribution':
+            G,Fv, coverage_prob, phi, path, log_prob=test_data[iter_n]
+        else:
+            G,Fv, coverage_prob, phi, path=test_data[iter_n]
         A=nx.to_numpy_matrix(G)
         A_torch = torch.as_tensor(A, dtype=torch.float) 
         source=G.graph['source']
@@ -235,7 +238,10 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1):
             print("Epoch number/Batch loss/ Batch loss per sample: ", iter_n/len(train_data),batch_loss, batch_loss/len(train_data))
             batch_loss=0.0
         
-        G, Fv, coverage_prob, phi, path=train_data[iter_n%len(train_data)]
+        if path_model=='random_walk_distribution':
+            G,Fv, coverage_prob, phi, path, log_prob=train_data[iter_n%len(train_data)]
+        else:
+            G,Fv, coverage_prob, phi, path=train_data[iter_n%len(train_data)]       
         A=nx.to_numpy_matrix(G)
         A_torch = torch.as_tensor(A, dtype=torch.float) 
         source=G.graph['source']
@@ -246,21 +252,39 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1):
         
         edge_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred)
         
+        '''
         loss=torch.zeros(1)
         for e in path: 
             loss-=torch.log(edge_probs_pred[e[0]][e[1]])
+        '''
+        if path_model=='random_walk_distribution':
+            log_prob_pred=torch.zeros(1)
+            for e in path: 
+                log_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]]) 
+            
+            
+            loss_function=nn.MSELoss()
+            loss=loss_function(log_prob_pred,log_prob)
+        else:
+            loss=torch.zeros(1)
+            for e in path: 
+                loss-=torch.log(edge_probs_pred[e[0]][e[1]])
         
         batch_loss+=loss
         #print ("Loss: ", loss)
         loss.backward(retain_graph=True)
         optimizer.step()    
+        #defender_utility=calculateDefenderUtility(net2, test_data)
 
 
 
     # TESTING LOOP    
     batch_loss=0.0
     for iter_n in range(len(test_data)):
-        G,Fv, coverage_prob, phi, path=test_data[iter_n]
+        if path_model=='random_walk_distribution':
+            G,Fv, coverage_prob, phi, path, log_prob=test_data[iter_n]
+        else:
+            G,Fv, coverage_prob, phi, path=test_data[iter_n]        
         A=nx.to_numpy_matrix(G)
         A_torch = torch.as_tensor(A, dtype=torch.float) 
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
@@ -276,36 +300,54 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1):
         batch_loss+=loss
         #print ("Loss: ", loss)
     print("Testing batch loss per sample:", batch_loss/len(test_data))
+    
+    return net2
 
-
+def calculateDefenderUtility(net2, test_data):
+    
+    total_ideal_defender_utility=0.0
+    total_pred_defender_utility=0.0
+    
+    for indx in range(len(test_data)):
+        G,Fv, coverage_prob, phi, path=test_data[indx]
+        # TODO: add these two in createGraph() method while creating random graphs
+        #budget= 
+        #U=
+        #Fv_torch=
+        #A_torch=
+        
+        phi_pred=net2(Fv_torch, A_torch).view(-1)
+        
+        pred_optimal_coverage=get_optimal_coverage_prob(G, phi_pred, U, initial_distribution, budget, omega=4)
+        ideal_optimal_coverage=get_optimal_coverage_prob(G, phi, U, initial_distribution, budget, omega=4)
+        
+        total_pred_defender_utility+=   -(objective_function(pred_optimal_coverage,G, phi, U, omega=4))
+        total_ideal_defender_utility+=  -(objective_function(ideal_optimal_coverage,G, phi, U, omega=4))
+        
+    return total_ideal_defender_utility, total_pred_defender_utility
+    
+    
 
 
 if __name__=='__main__':
     
-    #G= returnGraph(fixed_graph=True)
     feature_size=25
-    #d=generateSyntheticData(G,feature_size)
-    path_model_type='random_walk'
-    #path_model_type='simple'
+    #path_model_type='random_walk_distribution'      
+    path_model_type='random_walk'      
+         
     train_data, test_data=generateSyntheticData(feature_size, 
-                                                n_training_graphs=800, path_type=path_model_type, 
-                                                n_data_samples=10000)
-    '''
-    data=d['data']
-    all_paths=d['paths']
-    coverage_probs=d['coverage_probs']
-    Fv_torch=d['features']
-    '''
-    """
-    data: numpy array of samples, where each sample is the path_number, picked according to path probs. 
-    all_paths: all possible paths from source to target
-    coverage_prob: randomly generated coverage prob
-    Fv_torch: Feature tensor
-    """
+                                             path_type=path_model_type, 
+                                                n_data_samples=1000, fixed_graph=False)
     
+    
+    # Learn the neural networks:
     if path_model_type=='simple':
-        learnPathProbs_simple(train_data,test_data)
+        net2=learnPathProbs_simple(train_data,test_data)
     elif path_model_type=='random_walk':
-        learnEdgeProbs_simple(train_data,test_data, lr=0.05)
+        net2=learnEdgeProbs_simple(train_data,test_data, lr=0.05)
+    elif path_model_type=='random_walk_distribution':
+        net2=learnEdgeProbs_simple(train_data,test_data, lr=0.05, path_model=path_model_type)
+    
+    # Determine the optimal coverage: 
         
     
