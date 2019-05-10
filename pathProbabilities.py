@@ -364,6 +364,7 @@ def testModel(test_data, net2, path_model):
         u_target=G.node[target]['utility']
         u_caught=U[-1]
         
+        # TODO: BUG IN FOLLOWING LINES. modify coverage prob and change it to output of optimal coverage probability
         prob_reaching_target=1.0
         for e in path: 
             prob_reaching_target*=(1.0-coverage_prob[e[0]][e[1]])
