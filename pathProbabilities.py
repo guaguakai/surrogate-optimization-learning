@@ -192,7 +192,8 @@ def learnPathProbs_simple(train_data, test_data, lr=0.1):
     print ("N_testing graphs/N_samples: ",len(testing_graphs), len(test_data))
 
 
-def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk',n_epochs=150):
+def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk'
+                          ,n_epochs=150, batch_size=100):
     
     net2= GCNPredictionNet(feature_size)
     net2.train()
@@ -205,45 +206,18 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
     #print ("N_testing graphs/N_samples: ",len(testing_graphs), len(test_data))
     print ("Testing performance BEFORE training:")
     testModel(test_data,net2,path_model)
-    print ("Training...")
-    '''
-    # TESTING LOOP before training
-    batch_loss=0.0    
-    for iter_n in range(len(test_data)):
-        if path_model=='random_walk_distribution':
-            G,Fv, coverage_prob, phi, path, log_prob=test_data[iter_n]
-        else:
-            G,Fv, coverage_prob, phi, path=test_data[iter_n]
-        A=nx.to_numpy_matrix(G)
-        A_torch = torch.as_tensor(A, dtype=torch.float) 
-        source=G.graph['source']
-        target=G.graph['target']
-        
-        Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        phi_pred=net2(Fv_torch, A_torch).view(-1)
-        
-        edge_probs_pred=generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred)
-        
-        loss=torch.zeros(1)
-        for e in path: 
-            loss-=torch.log(edge_probs_pred[e[0]][e[1]])
-        
-        batch_loss+=loss
-        #print ("Loss: ", loss)
-    print("Testing batch loss per sample before training:", batch_loss/len(test_data))
-    
-    '''
-    
+    print ("Training...") 
     # TRAINING LOOP
-    
-    batch_loss=0.0
+    training_loss=0.0
+    batch_loss=torch.zeros(1)
     for iter_n in range(n_iterations):
+
         optimizer.zero_grad()
         if iter_n%len(train_data)==0:
             np.random.shuffle(train_data)
-            print("Epoch number/Batch loss/ Batch loss per sample: ", iter_n/len(train_data),batch_loss, batch_loss/len(train_data))
-            batch_loss=0.0
-        
+            print("Epoch number/Training loss/ Training loss per sample: ", iter_n/len(train_data),training_loss, training_loss/len(train_data))
+            training_loss=0.0
+            np.random.shuffle(train_data)
         if path_model=='random_walk_distribution':
             G,Fv, coverage_prob, phi, path, log_prob=train_data[iter_n%len(train_data)]
         else:
@@ -258,28 +232,26 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
         
         edge_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred)
         
-        '''
-        loss=torch.zeros(1)
-        for e in path: 
-            loss-=torch.log(edge_probs_pred[e[0]][e[1]])
-        '''
+        
         if path_model=='random_walk_distribution':
             log_prob_pred=torch.zeros(1)
             for e in path: 
                 log_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]]) 
-            
-            
             loss_function=nn.MSELoss()
             loss=loss_function(log_prob_pred,log_prob)
-        else:
+        elif path_model=='random_walk':
             loss=torch.zeros(1)
             for e in path: 
                 loss-=torch.log(edge_probs_pred[e[0]][e[1]])
         
         batch_loss+=loss
-        #print ("Loss: ", loss)
-        loss.backward(retain_graph=True)
-        optimizer.step()    
+        training_loss+=loss
+        if iter_n%batch_size==(batch_size-1):
+            #print ("Loss: ", loss)
+            batch_loss.backward(retain_graph=True)
+            optimizer.step()
+            batch_loss=torch.zeros(1)
+
         #defender_utility=calculateDefenderUtility(net2, test_data)
 
     print ("Testing performance AFTER training:")
@@ -408,12 +380,17 @@ def testModel(test_data, net2, path_model):
 
 if __name__=='__main__':
     
-    feature_size=25     
-    path_model_type='random_walk_distribution'      
+    feature_size=25
+    N_EPOCHS=200
+    LR=0.01
+    BATCH_SIZE= 100
+    path_model_type='random_walk'
+
+      
     train_data, test_data=generateSyntheticData(feature_size, path_type=path_model_type, 
-                        n_training_graphs=2, n_testing_graphs=1000, 
-                        training_samples_per_graph=500,testing_samples_per_graph=1,
-                        fixed_graph=True)
+                        n_training_graphs=10, n_testing_graphs=1000, 
+                        training_samples_per_graph=100,testing_samples_per_graph=1,
+                        fixed_graph=False)
     
     np.random.shuffle(train_data)
     np.random.shuffle(train_data)
@@ -424,16 +401,13 @@ if __name__=='__main__':
     if path_model_type=='simple_paths':
         net2=learnPathProbs_simple(train_data,test_data)
     elif path_model_type=='random_walk':
-        net2=learnEdgeProbs_simple(train_data,test_data, lr=0.001,
-                                   path_model=path_model_type,n_epochs=200 )
+        net2=learnEdgeProbs_simple(train_data,test_data, path_model=path_model_type,
+                                   lr=LR,n_epochs=N_EPOCHS, batch_size=BATCH_SIZE )
     elif path_model_type=='random_walk_distribution':
-        net2=learnEdgeProbs_simple(train_data,test_data, lr=0.01, path_model=path_model_type)
-    
-    # Test the learnt model
-    
-    #test_model(test_data, net2)
-    
-    # Determine the optimal coverage: 
-    get_optimal_coverage_prob(G, phi, U, initial_distribution, budget, omega=4)
+        net2=learnEdgeProbs_simple(train_data,test_data, path_model=path_model_type,
+                                   lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE)
+        
+    print("Model parameters: ", "\nPath type:", path_model_type, 
+          "\nEpochs: ", N_EPOCHS, "\nLearning rate: ", LR, "\nBatch size: ", BATCH_SIZE)
         
     

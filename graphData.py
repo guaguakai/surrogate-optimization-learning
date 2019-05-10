@@ -317,6 +317,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             else:
                 for _ in range(testing_samples_per_graph):
                     path=getMarkovianWalk(G, edge_probs)
+                    log_prob=torch.zeros(1)
                     for e in path: 
                         log_prob-=torch.log(edge_probs[e[0]][e[1]])
                     data_point=(G,Fv,coverage_prob, phi, path, log_prob)                    
