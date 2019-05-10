@@ -11,7 +11,7 @@ from numpy.linalg import *
 from graphData import *
 import torch
 
-def objective_function(coverage_probs,G, phi, U, omega=4):
+def objective_function(coverage_probs,G, phi, U, initial_distribution, omega=4):
     
     # Pre-compute the following parameters: Graph edges, targets, transient nodes
     N=nx.number_of_nodes(G)
@@ -86,7 +86,7 @@ def get_optimal_coverage_prob(G, phi, U, initial_distribution, budget, omega=4):
     constraints=[{'type':'ineq','fun':lambda x: budget-sum(x)}]
     
     # Optimization step
-    coverage_prob_optimal= minimize(objective_function, initial_coverage_prob,args=(G, phi, U,omega), method='SLSQP', bounds=bounds, constraints=constraints)        
+    coverage_prob_optimal= minimize(objective_function,initial_coverage_prob,args=(G, phi, U,initial_distribution,omega), method='SLSQP', bounds=bounds, constraints=constraints)        
     
     return coverage_prob_optimal
 

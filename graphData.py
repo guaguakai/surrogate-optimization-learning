@@ -31,6 +31,8 @@ def getMarkovianWalk(G, edge_probs):
     nodes=list(G.nodes())
     start_node= np.random.choice(sources)
     
+    
+    
     edge_list=[]
     current_node=start_node
     while (not(current_node in targets)):
@@ -55,9 +57,15 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
         G.graph['target']=target
         G.graph['sources']=[source]
         G.graph['targets']=[target]
+        G.graph['U']=np.array([10, -20])
+        G.graph['budget']=0.5*nx.number_of_edges(G)
         
         G.node[target]['utility']=10
-        
+        sources=G.graph['sources']
+        nodes=list(G.nodes())
+        transients=[node for node in nodes if not (node in G.graph['targets'])]
+        initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
+        G.graph['initial_distribution']=initial_distribution
         return G
     
     else:
@@ -81,10 +89,21 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
         G.graph['target']=target
         G.graph['sources']=[source]
         G.graph['targets']=[target]
+        G.graph['budget']=0.5*nx.number_of_edges(G)
+        G.graph['U']=[]
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
             G.node[target]['utility']=np.random.randint(10, high=50)
+            G.graph['U'].append(G.node[target]['utility'])
+        G.graph['U'].append(np.random.randint(-80, high=-60))
+        G.graph['U']=np.array(G.graph['U'])
+        
+        sources=G.graph['sources']
+        nodes=list(G.nodes())
+        transients=[node for node in nodes if not (node in G.graph['targets'])]
+        initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
+        G.graph['initial_distribution']=initial_distribution
         
         return G
         
@@ -153,19 +172,27 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi,omega=4):
             
     return edge_probs
 
-def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000, 
-                          testing_data_fraction=0.2, n_training_graphs=50, 
-                          n_testing_graphs=200, fixed_graph=False, path_type='random_walk'):
+def generateSyntheticData(node_feature_size, omega=4, 
+                          n_training_graphs=80, n_testing_graphs=200, 
+                          training_samples_per_graph=1, testing_samples_per_graph=1,
+                          fixed_graph=False, path_type='random_walk'):
+    '''
+    '''
     
-    data=[]    
+    data=[]             # Not used anymore  
+    training_data=[]
+    testing_data=[]
     net1= GCNDataGenerationNet(node_feature_size)        
     #training_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_training_graphs)]
     #testing_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_testing_graphs)]
     #print ("GRAPHS N: ",len(training_graphs), len(testing_graphs))
-    n_training_samples=int(n_data_samples*(1.0-testing_data_fraction))
-
+    #n_training_samples=int(n_data_samples*(1.0-testing_data_fraction))
+    n_training_samples=n_training_graphs*training_samples_per_graph
+    n_testing_samples=n_testing_graphs*testing_samples_per_graph
+    n_data_samples=n_training_samples+n_testing_samples
     
-    for sample_number in range(n_data_samples):
+    print("N_samples, Training/Testing: ", n_training_samples, n_testing_samples)
+    for graph_number in range(n_training_graphs+n_testing_graphs):
         
         '''
         # Pick the graph in cyclic fashion from the correct list of graphs
@@ -183,11 +210,6 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000,
         A_torch=torch.as_tensor(A, dtype=torch.float) 
         N=nx.number_of_nodes(G) 
         
-        # Define node features for each of the n nodes
-        for node in list(G.nodes()):
-            node_features=np.random.randn(node_feature_size)
-            # TODO: Use a better feature computation for a given node
-            G.node[node]['node_features']=node_features
             
         # Randomly assign coverage probability
         private_coverage_prob=np.random.rand(nx.number_of_edges(G))
@@ -197,7 +219,13 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000,
             #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
             coverage_prob[e[0]][e[1]]=private_coverage_prob[i]
             coverage_prob[e[1]][e[0]]=private_coverage_prob[i]
-          
+        
+        # Define node features for each of the n nodes
+        for node in list(G.nodes()):
+            node_features=np.random.randn(node_feature_size)
+            # TODO: Use a better feature computation for a given node
+            G.node[node]['node_features']=node_features
+        
         # Generate features
         Fv=np.zeros((N,node_feature_size))
         for node in list(G.nodes()):
@@ -214,42 +242,88 @@ def generateSyntheticData(node_feature_size, omega=4, n_data_samples=1000,
         target=G.graph['target']
                         
         
-        if path_type=='simple':
+        if path_type=='simple_paths':
+
+            if graph_number<n_training_graphs:
+                n_samples_for_current_graph=training_samples_per_graph
+                list_name=training_data
+            else:
+                n_samples_for_current_graph=testing_samples_per_graph
+                list_name=testing_data
+            for _ in range(n_samples_for_current_graph):    
+                
+                # Define node features for each of the n nodes
+                for node in list(G.nodes()):
+                    node_features=np.random.randn(node_feature_size)
+                    # TODO: Use a better feature computation for a given node
+                    G.node[node]['node_features']=node_features
+                
+                # Generate features
+                Fv=np.zeros((N,node_feature_size))
+                for node in list(G.nodes()):
+                    Fv[node]=G.node[node]['node_features']
             
-            # COMPUTE ALL POSSIBLE PATHS
-            all_paths=list(nx.all_simple_paths(G, source, target))
-            n_paths=len(all_paths)
+                Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
+                # Generate attractiveness values for nodes
+                phi=net1.forward(Fv_torch,A_torch).view(-1)
+                #phi=y.data.numpy()
+                '''
+                phi is the attractiveness function, phi(v,f) for each of the N nodes, v
+                '''           
+                # COMPUTE ALL POSSIBLE PATHS
+                all_paths=list(nx.all_simple_paths(G, source, target))
+                n_paths=len(all_paths)
+                       
+                # GENERATE SYNTHETIC DATA:         
+                path_probs=generate_PathProbs_from_Attractiveness(G,coverage_prob,phi, all_paths, n_paths)
+                #print ("SUM2:", torch.sum(path_probs), path_probs)
+                #data_point=np.random.choice(n_paths,size=1, p=path_probs)
+                #data_point=(Fv, coverage_prob, path_probs)
+                data_point=(G,Fv, coverage_prob, phi, path_probs)
+                list_name.append(data_point)
+            
         
         
-            # GENERATE SYNTHETIC DATA:         
-            path_probs=generate_PathProbs_from_Attractiveness(G,coverage_prob,phi, all_paths, n_paths)
-            #print ("SUM2:", torch.sum(path_probs), path_probs)
-            #data_point=np.random.choice(n_paths,size=1, p=path_probs)
-            #data_point=(Fv, coverage_prob, path_probs)
-            data_point=(G,Fv, coverage_prob, phi, path_probs)
-            data.append(data_point)
-            
+        
         elif path_type=='random_walk':
             
             edge_probs=generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi)
-            path=getMarkovianWalk(G, edge_probs)
-            data_point=(G,Fv,coverage_prob, phi, path)
-            data.append(data_point)
+                
+            if graph_number<n_training_graphs:
+                for _ in range(training_samples_per_graph):
+                    path=getMarkovianWalk(G, edge_probs)
+                    data_point=(G,Fv,coverage_prob, phi, path)
+                    training_data.append(data_point)
+            else:
+                for _ in range(testing_samples_per_graph):
+                    path=getMarkovianWalk(G, edge_probs)
+                    data_point=(G,Fv,coverage_prob, phi, path)
+                    testing_data.append(data_point)
             
+        
+        
+        
         elif path_type=='random_walk_distribution':
             
             edge_probs=generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi)
-            path=getMarkovianWalk(G, edge_probs)
-            log_prob=torch.zeros(1)
-            for e in path: 
-                log_prob-=torch.log(edge_probs[e[0]][e[1]])
-            data_point=(G,Fv,coverage_prob, phi, path, log_prob)
-            data.append(data_point)
-        
-    training_data=data[:int(n_data_samples*(1.0-testing_data_fraction))]
-    testing_data=data[int(n_data_samples*(1.0-testing_data_fraction)):]
-    
-    return training_data, testing_data
+            if graph_number<n_training_graphs:
+                for _ in range(training_samples_per_graph):
+                    path=getMarkovianWalk(G, edge_probs)
+                    log_prob=torch.zeros(1)
+                    for e in path: 
+                        log_prob-=torch.log(edge_probs[e[0]][e[1]])
+                    data_point=(G,Fv,coverage_prob, phi,path, log_prob)
+                    training_data.append(data_point)
+            else:
+                for _ in range(testing_samples_per_graph):
+                    path=getMarkovianWalk(G, edge_probs)
+                    for e in path: 
+                        log_prob-=torch.log(edge_probs[e[0]][e[1]])
+                    data_point=(G,Fv,coverage_prob, phi, path, log_prob)                    
+                    testing_data.append(data_point)
+                    
+                    
+    return np.array(training_data), np.array(testing_data)
 
 
 if __name__=="__main__":
