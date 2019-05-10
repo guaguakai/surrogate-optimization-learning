@@ -364,10 +364,18 @@ def testModel(test_data, net2, path_model):
         u_target=G.node[target]['utility']
         u_caught=U[-1]
         
+        
+        N=nx.number_of_nodes(G)
+        coverage_prob_matrix=np.zeros((N,N))
+        for i, e in enumerate(list(G.edges())):
+            #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
+            coverage_prob_matrix[e[0]][e[1]]=pred_optimal_coverage[i]
+            coverage_prob_matrix[e[1]][e[0]]=pred_optimal_coverage[i]
+        
         # TODO: BUG IN FOLLOWING LINES. modify coverage prob and change it to output of optimal coverage probability
         prob_reaching_target=1.0
         for e in path: 
-            prob_reaching_target*=(1.0-coverage_prob[e[0]][e[1]])
+            prob_reaching_target*=(1.0-coverage_prob_matrix[e[0]][e[1]])
         
         E_attacker_utility=u_target*prob_reaching_target+u_caught*(1.0-prob_reaching_target)
         path_specific_defender_utility-=E_attacker_utility
@@ -382,10 +390,10 @@ def testModel(test_data, net2, path_model):
 if __name__=='__main__':
     
     feature_size=25
-    N_EPOCHS=200
+    N_EPOCHS=100
     LR=0.01
-    BATCH_SIZE= 100
-    path_model_type='random_walk'
+    BATCH_SIZE= 200
+    path_model_type='random_walk_distribution'
 
       
     train_data, test_data=generateSyntheticData(feature_size, path_type=path_model_type, 
