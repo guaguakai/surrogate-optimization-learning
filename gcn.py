@@ -52,6 +52,7 @@ class GCNDataGenerationNet(nn.Module):
         x=F.relu(self.fc1(x))
         x=F.relu(self.fc2(x))
         x=F.sigmoid(self.fc3(x))
+        #x=torch.mul(x, 1)
         # Now, x is a nX1 tensor consisting of phi(v,f) for each of the n nodes v.
         
         return x
@@ -88,6 +89,7 @@ class GCNPredictionNet(nn.Module):
         x=F.relu(self.fc1(x))
         x=F.sigmoid(self.fc2(x))
         # Now, x is a nX1 tensor consisting of the predicted phi(v,f) for each of the n nodes v.
+        #x=torch.mul(x, 1)
         
         return x
 

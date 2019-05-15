@@ -44,6 +44,53 @@ def getMarkovianWalk(G, edge_probs):
         current_node=next_node
     
     return edge_list    
+
+
+def generateFeatures(G, feature_length):
+    
+    N= nx.number_of_nodes(G)
+    # Define node features for each of the n nodes
+    #possible_feature_ranges=[(0,1),(4,6),(20,30)]
+    possible_feature_ranges=[(0,1)]
+    for node in list(G.nodes()):
+        #node_features=np.random.randn(feature_length)
+        # TODO: Use a better feature computation for a given node
+        ranges=np.random.choice(len(possible_feature_ranges),feature_length)
+        ranges=[possible_feature_ranges[r] for r in ranges]
+        lower_bounds=[r[0] for r in ranges]
+        upper_bounds=[r[1] for r in ranges]
+        node_features=np.random.uniform(lower_bounds, upper_bounds)
+        G.node[node]['node_features']=node_features
+    
+    # Generate features
+    Fv=np.zeros((N,feature_length))
+    for node in list(G.nodes()):
+            Fv[node]=G.node[node]['node_features']
+    return Fv        
+
+def getSimplePath(G, path):
+    
+    """
+    Collapses the input path which may contain cycles to obtain a simple path and returns the same.
+    Input: path is a list of edges
+    """
+    path_nodes=[path[0][0]]+[e[1] for e in path]
+    simple_path_nodes=[]
+    
+    # Generate node list of simple path
+    idx=0
+    while idx<len(path_nodes):
+        node=path_nodes[idx]
+        if not (node in path_nodes[idx+1:]):
+            simple_path_nodes.append(node)
+            idx+=1
+        else:
+            idx+=(path_nodes[idx+1:].index(node)+1)
+    
+    simple_path_edges=[(simple_path_nodes[i],simple_path_nodes[i+1]) for i in range(len(simple_path_nodes)-1)]
+    
+    return simple_path_edges
+    
     
     
 def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
@@ -219,7 +266,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
             coverage_prob[e[0]][e[1]]=private_coverage_prob[i]
             coverage_prob[e[1]][e[0]]=private_coverage_prob[i]
-        
+        '''
         # Define node features for each of the n nodes
         for node in list(G.nodes()):
             node_features=np.random.randn(node_feature_size)
@@ -228,9 +275,11 @@ def generateSyntheticData(node_feature_size, omega=4,
         
         # Generate features
         Fv=np.zeros((N,node_feature_size))
+        
         for node in list(G.nodes()):
             Fv[node]=G.node[node]['node_features']
-    
+        '''
+        Fv= generateFeatures(G, node_feature_size)
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         # Generate attractiveness values for nodes
         phi=net1.forward(Fv_torch,A_torch).view(-1)
@@ -252,16 +301,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                 list_name=testing_data
             for _ in range(n_samples_for_current_graph):    
                 
-                # Define node features for each of the n nodes
-                for node in list(G.nodes()):
-                    node_features=np.random.randn(node_feature_size)
-                    # TODO: Use a better feature computation for a given node
-                    G.node[node]['node_features']=node_features
-                
-                # Generate features
-                Fv=np.zeros((N,node_feature_size))
-                for node in list(G.nodes()):
-                    Fv[node]=G.node[node]['node_features']
+                Fv= generateFeatures(G, node_feature_size)
             
                 Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
                 # Generate attractiveness values for nodes
@@ -329,9 +369,9 @@ def generateSyntheticData(node_feature_size, omega=4,
 
 if __name__=="__main__":
     
+    
     # define an arbitrary graph with a source and target node
     source=0
     target=6
     G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)], source=0, target=6)
-    generateSyntheticData(25, fixed_graph=False, n_training_graphs=800, path_type='simple')
-    #pass
+    

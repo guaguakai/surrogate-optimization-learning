@@ -221,7 +221,8 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
         if path_model=='random_walk_distribution':
             G,Fv, coverage_prob, phi, path, log_prob=train_data[iter_n%len(train_data)]
         else:
-            G,Fv, coverage_prob, phi, path=train_data[iter_n%len(train_data)]       
+            G,Fv, coverage_prob, phi, path=train_data[iter_n%len(train_data)]
+            path=getSimplePath(G, path)
         A=nx.to_numpy_matrix(G)
         A_torch = torch.as_tensor(A, dtype=torch.float) 
         source=G.graph['source']
@@ -243,6 +244,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
             loss=torch.zeros(1)
             for e in path: 
                 loss-=torch.log(edge_probs_pred[e[0]][e[1]])
+            #print (loss)    
         
         batch_loss+=loss
         training_loss+=loss
@@ -294,6 +296,8 @@ def testModel(test_data, net2, path_model):
             G,Fv, coverage_prob, phi, path, log_prob=test_data[iter_n]
         elif path_model=='random_walk':
             G,Fv, coverage_prob, phi, path=test_data[iter_n]
+            #print("Lenghts:", len(path), len(getSimplePath(G,path)), path,getSimplePath(G,path) )
+            path=getSimplePath(G,path)
         
         
 
@@ -391,14 +395,14 @@ if __name__=='__main__':
     
     feature_size=25
     N_EPOCHS=100
-    LR=0.01
+    LR=0.005
     BATCH_SIZE= 200
-    path_model_type='random_walk_distribution'
+    path_model_type='random_walk'
 
       
     train_data, test_data=generateSyntheticData(feature_size, path_type=path_model_type, 
                         n_training_graphs=10, n_testing_graphs=1000, 
-                        training_samples_per_graph=100,testing_samples_per_graph=1,
+                        training_samples_per_graph=500,testing_samples_per_graph=1,
                         fixed_graph=False)
     
     np.random.shuffle(train_data)
