@@ -143,7 +143,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
         for target in G.graph['targets']:
             G.node[target]['utility']=np.random.randint(10, high=50)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(-80, high=-60))
+        G.graph['U'].append(np.random.randint(-800, high=-600))
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
