@@ -117,7 +117,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
     
     else:
         # HARD CODE THE BELOW TWO VALUES
-        N=np.random.randint(low=6, high=8)                     # Randomly pick number of Nodes
+        N=np.random.randint(low=16, high=20)                     # Randomly pick number of Nodes
         edge_prob=np.random.uniform(low=0.6, high=0.7)          # Randomly pick Edges probability                                          
         
         # Generate random graph
@@ -141,9 +141,9 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
-            G.node[target]['utility']=np.random.randint(10, high=50)
+            G.node[target]['utility']=np.random.randint(1, high=5)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(-800, high=-600))
+        G.graph['U'].append(np.random.randint(-80, high=-60))
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']

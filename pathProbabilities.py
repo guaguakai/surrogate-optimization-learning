@@ -16,7 +16,7 @@ def get_one_hot(value, n_values):
     
     t=torch.zeros(n_values)
     
-def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
+def learnPathProbs(G, data, coverage_probs, Fv, all_paths, omega=4):
     
     A=nx.to_numpy_matrix(G)
     A_torch = torch.as_tensor(A, dtype=torch.float) 
@@ -47,7 +47,7 @@ def learnPathProbs(G, data, coverage_probs, Fv, all_paths):
         N=nx.number_of_nodes(G) 
 
         # GENERATE EDGE PROBABILITIES 
-        omega=4
+        
         edge_probs=torch.zeros((N,N))
         for i, node in enumerate(list(G.nodes())):
             neighbors=list(nx.all_neighbors(G,node))
@@ -407,10 +407,10 @@ def testModel(test_data, net2, path_model, omega=4):
 if __name__=='__main__':
     
     feature_size=25
-    OMEGA=4
-    N_EPOCHS=1000
+    OMEGA=0
+    N_EPOCHS=100
     LR=0.0005
-    BATCH_SIZE= 100
+    BATCH_SIZE= 200
     OPTIMIZER='adam'
     path_model_type='random_walk'
 
@@ -436,7 +436,7 @@ if __name__=='__main__':
         net2=learnEdgeProbs_simple(train_data,test_data, path_model=path_model_type,
                                    lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                    optimizer=OPTIMIZER, omega=OMEGA)
-        
+    print ("Now running: ", "Large graphs sizes")    
     print("Model parameters: ", "\nPath type:", path_model_type, 
           "\nEpochs: ", N_EPOCHS, "\nLearning rate: ", LR, "\nBatch size: ", BATCH_SIZE,
           "\nOptimizer: ", OPTIMIZER, "\nOmega: ", OMEGA)
