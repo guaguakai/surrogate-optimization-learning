@@ -416,8 +416,8 @@ if __name__=='__main__':
 
       
     train_data, test_data=generateSyntheticData(feature_size, path_type=path_model_type, 
-                        n_training_graphs=100, n_testing_graphs=1000, 
-                        training_samples_per_graph=50,testing_samples_per_graph=1,
+                        n_training_graphs=100, n_testing_graphs=10000, 
+                        training_samples_per_graph=500,testing_samples_per_graph=1,
                         fixed_graph=False, omega=OMEGA)
     
     np.random.shuffle(train_data)
