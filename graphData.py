@@ -93,7 +93,7 @@ def getSimplePath(G, path):
     
     
     
-def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
+def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20, e_low=0.6, e_high=0.7):
     
     if fixed_graph:
         # define an arbitrary graph with a source and target node
@@ -117,8 +117,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1):
     
     else:
         # HARD CODE THE BELOW TWO VALUES
-        N=np.random.randint(low=16, high=20)                     # Randomly pick number of Nodes
-        edge_prob=np.random.uniform(low=0.6, high=0.7)          # Randomly pick Edges probability                                          
+        N=np.random.randint(low=N_low, high=N_high)                     # Randomly pick number of Nodes
+        edge_prob=np.random.uniform(low=e_low, high=e_high)          # Randomly pick Edges probability                                          
         
         # Generate random graph
         M=int(edge_prob*(N*(N-1)/2.0))                          # Calculate expected number of edges
@@ -222,7 +222,8 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi,omega=4):
 def generateSyntheticData(node_feature_size, omega=4, 
                           n_training_graphs=80, n_testing_graphs=200, 
                           training_samples_per_graph=1, testing_samples_per_graph=1,
-                          fixed_graph=False, path_type='random_walk'):
+                          fixed_graph=False, path_type='random_walk',
+                          N_low=16, N_high=20, e_low=0.6, e_high=0.7):
     '''
     '''
     
@@ -251,7 +252,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             G=testing_graphs[sample_number%n_testing_graphs]
             graph_index=sample_number%n_testing_graphs
         '''
-        G=returnGraph(fixed_graph=fixed_graph)
+        G=returnGraph(fixed_graph=fixed_graph,N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high)
         # COMPUTE ADJACENCY MATRIX
         A=nx.to_numpy_matrix(G)
         A_torch=torch.as_tensor(A, dtype=torch.float) 

@@ -7,6 +7,8 @@ Created on Wed Apr 17 17:49:05 2019
 
 import torch
 import torch.optim as optim
+import time 
+from termcolor import cprint
 
 from gcn import * 
 from graphData import *
@@ -195,6 +197,7 @@ def learnPathProbs_simple(train_data, test_data, lr=0.1):
 def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4):
     
+    time1=time.time()
     net2= GCNPredictionNet(feature_size)
     net2.train()
     if optimizer=='adam':
@@ -213,19 +216,25 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
     #print ("N_training graphs/ N_samples: ",len(training_graphs), len(train_data))
     #print ("N_testing graphs/N_samples: ",len(testing_graphs), len(test_data))
     print ("Testing performance BEFORE training:")
-    testModel(test_data,net2,path_model, omega=omega)
+    #testModel(test_data,net2,path_model, omega=omega)
     print ("Training...") 
-    
-    
+    time2=time.time()
+    if time_analysis:
+        cprint (("TOTAL TESTING TIME: ", time2-time1),'red')
     # TRAINING LOOP
     training_loss=0.0
     batch_loss=torch.zeros(1)
+    time3=time.time()
     for iter_n in range(n_iterations):
 
         optimizer.zero_grad()
         if iter_n%len(train_data)==0:
             np.random.shuffle(train_data)
             print("Epoch number/Training loss/ Training loss per sample: ", iter_n/len(train_data),training_loss, training_loss/len(train_data))
+            time4=time.time()
+            if time_analysis:
+                cprint (("TRAINING TIME FOR THIS BATCH:", time4-time3),'red')
+            time3=time4
             training_loss=0.0
             np.random.shuffle(train_data)
         if path_model=='random_walk_distribution':
@@ -267,6 +276,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
             optimizer.step()
             #print ("GCN1:", list(net2.parameters())[0].grad)
             batch_loss=torch.zeros(1)
+            
 
         #defender_utility=calculateDefenderUtility(net2, test_data)
 
@@ -303,6 +313,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
 
 def testModel(test_data, net2, path_model, omega=4):
     
+    time1=time.time()
     # COMPUTE TEST LOSS
     total_loss=0.0    
     for iter_n in range(len(test_data)):
@@ -342,7 +353,9 @@ def testModel(test_data, net2, path_model, omega=4):
         #print ("Loss: ", loss)
     print("Testing loss per sample:", total_loss/len(test_data))
   
-    
+    time2=time.time()
+    if time_analysis:
+        cprint (("TESTING TIME: ", time2-time1),'red')
     # COMPUTE THE EXPECTED DEFENDER UTILITY  
     total_ideal_defender_utility=0.0
     total_pred_defender_utility=0.0
@@ -396,7 +409,9 @@ def testModel(test_data, net2, path_model, omega=4):
         
         E_attacker_utility=u_target*prob_reaching_target+u_caught*(1.0-prob_reaching_target)
         path_specific_defender_utility-=E_attacker_utility
-        
+    time3=time.time()
+    if time_analysis:
+        cprint (("DEFENDER UTILITY CALCULATION: ", time3-time2), 'red')
         
         
     print("Defender utility: ideal/model/path_specific: ", total_ideal_defender_utility, total_pred_defender_utility, path_specific_defender_utility)
@@ -406,25 +421,46 @@ def testModel(test_data, net2, path_model, omega=4):
 
 if __name__=='__main__':
     
+    time_analysis=True
+    
+    time1 =time.time()
+    
+    path_model_type='random_walk'
     feature_size=25
     OMEGA=0
-    N_EPOCHS=100
+    
+    GRAPH_N_LOW=18
+    GRAPH_N_HIGH=20
+    GRAPH_E_PROB_LOW=0.6
+    GRAPH_E_PROB_HIGH=0.7
+    
+    TRAINING_GRAPHS=100
+    SAMPLES_PER_TRAINING_GRAPH=5
+    TESTING_GRAPHS=1000
+    SAMPLES_PER_TESTING_GRAPH=1
+    
+    N_EPOCHS=10
     LR=0.0005
     BATCH_SIZE= 200
     OPTIMIZER='adam'
-    path_model_type='random_walk'
-
+    
       
     train_data, test_data=generateSyntheticData(feature_size, path_type=path_model_type, 
-                        n_training_graphs=100, n_testing_graphs=10000, 
-                        training_samples_per_graph=500,testing_samples_per_graph=1,
-                        fixed_graph=False, omega=OMEGA)
+                        n_training_graphs=TRAINING_GRAPHS, n_testing_graphs=TESTING_GRAPHS, 
+                        training_samples_per_graph=SAMPLES_PER_TRAINING_GRAPH,
+                        testing_samples_per_graph=SAMPLES_PER_TESTING_GRAPH,
+                        fixed_graph=False, omega=OMEGA,
+                        N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH)
     
+    time2 =time.time()
+    if time_analysis:
+        cprint (("DATA GENERATION: ", time2-time1), 'red')
     np.random.shuffle(train_data)
     np.random.shuffle(train_data)
 
     print ("Data length train/test:", len(train_data), len(test_data))
     
+    time3=time.time()
     # Learn the neural networks:
     if path_model_type=='simple_paths':
         net2=learnPathProbs_simple(train_data,test_data)
@@ -436,9 +472,22 @@ if __name__=='__main__':
         net2=learnEdgeProbs_simple(train_data,test_data, path_model=path_model_type,
                                    lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                    optimizer=OPTIMIZER, omega=OMEGA)
-    print ("Now running: ", "Large graphs sizes")    
-    print("Model parameters: ", "\nPath type:", path_model_type, 
-          "\nEpochs: ", N_EPOCHS, "\nLearning rate: ", LR, "\nBatch size: ", BATCH_SIZE,
-          "\nOptimizer: ", OPTIMIZER, "\nOmega: ", OMEGA)
+    time4=time.time()
+    if time_analysis:
+        cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')
+    #print ("Now running: ", "Large graphs sizes")    
+    all_params={"Path type": path_model_type,
+                "Number of Epochs: ": N_EPOCHS, 
+                "Learning rate: ": LR, 
+                "Batch size: ": BATCH_SIZE,
+                "Optimizer": OPTIMIZER, 
+                "Omega ": OMEGA,
+                "Graph size (nodes)": (GRAPH_N_LOW, GRAPH_N_HIGH),
+                "Training data size (#graphs, #samples)": (TRAINING_GRAPHS, SAMPLES_PER_TRAINING_GRAPH),
+                "Testing data size (#graphs, #samples)": (TESTING_GRAPHS, SAMPLES_PER_TESTING_GRAPH),
+                "Running time": time4-time3} 
+    
+    cprint (all_params, 'green')
+                
         
     
