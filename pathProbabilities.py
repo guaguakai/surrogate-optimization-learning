@@ -216,7 +216,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
     #print ("N_training graphs/ N_samples: ",len(training_graphs), len(train_data))
     #print ("N_testing graphs/N_samples: ",len(testing_graphs), len(test_data))
     print ("Testing performance BEFORE training:")
-    #testModel(test_data,net2,path_model, omega=omega)
+    testModel(test_data,net2,path_model, omega=omega)
     print ("Training...") 
     time2=time.time()
     if time_analysis:
@@ -383,7 +383,9 @@ def testModel(test_data, net2, path_model, omega=4):
         #print ("This point: ", len(list(G.nodes())), len(Fv), len(Fv_torch), len(A_torch), len(A))
         phi_pred=net2(Fv_torch, A_torch).view(-1).detach().numpy()
         phi_true=phi_true.detach().numpy()
-        pred_optimal_coverage=get_optimal_coverage_prob(G, phi_pred, U, initial_distribution, budget, omega=omega)['x']
+        pred_optimal_coverage=get_optimal_coverage_prob(G, phi_pred, U, initial_distribution, budget, omega=omega)
+        #print (pred_optimal_coverage)
+        pred_optimal_coverage=pred_optimal_coverage['x']
         ideal_optimal_coverage=get_optimal_coverage_prob(G, phi_true, U, initial_distribution, budget, omega=omega)['x']
         
         total_pred_defender_utility+=   -(objective_function(pred_optimal_coverage,G, phi_true, U,initial_distribution, omega=omega))
@@ -421,25 +423,26 @@ def testModel(test_data, net2, path_model, omega=4):
 
 if __name__=='__main__':
     
-    time_analysis=True
+    
     
     time1 =time.time()
     
+    time_analysis=False
     path_model_type='random_walk'
-    feature_size=25
-    OMEGA=0
+    feature_size=5
+    OMEGA=4
     
-    GRAPH_N_LOW=18
-    GRAPH_N_HIGH=20
-    GRAPH_E_PROB_LOW=0.6
-    GRAPH_E_PROB_HIGH=0.7
+    GRAPH_N_LOW=16
+    GRAPH_N_HIGH=18
+    GRAPH_E_PROB_LOW=0.1
+    GRAPH_E_PROB_HIGH=0.3
     
     TRAINING_GRAPHS=100
-    SAMPLES_PER_TRAINING_GRAPH=5
+    SAMPLES_PER_TRAINING_GRAPH=50
     TESTING_GRAPHS=1000
     SAMPLES_PER_TESTING_GRAPH=1
     
-    N_EPOCHS=10
+    N_EPOCHS=100
     LR=0.0005
     BATCH_SIZE= 200
     OPTIMIZER='adam'
