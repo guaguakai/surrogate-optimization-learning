@@ -429,21 +429,21 @@ if __name__=='__main__':
     
     time_analysis=False
     path_model_type='random_walk'
-    feature_size=5
+    feature_size=50
     OMEGA=4
     
-    GRAPH_N_LOW=16
-    GRAPH_N_HIGH=18
-    GRAPH_E_PROB_LOW=0.1
-    GRAPH_E_PROB_HIGH=0.3
+    GRAPH_N_LOW=10
+    GRAPH_N_HIGH=12
+    GRAPH_E_PROB_LOW=0.4
+    GRAPH_E_PROB_HIGH=0.5
     
     TRAINING_GRAPHS=100
     SAMPLES_PER_TRAINING_GRAPH=50
-    TESTING_GRAPHS=1000
+    TESTING_GRAPHS=100
     SAMPLES_PER_TESTING_GRAPH=1
     
     N_EPOCHS=100
-    LR=0.0005
+    LR=0.001
     BATCH_SIZE= 200
     OPTIMIZER='adam'
     

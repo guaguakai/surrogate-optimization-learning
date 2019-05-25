@@ -68,6 +68,36 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
+def generatePhi(G, possible_ranges=[(0,1), (1,8), (8,10)]):
+    
+    N= nx.number_of_nodes(G)
+    sources=G.graph['sources']
+    targets=G.graph['targets']
+    
+    for node in list(G.nodes()):
+        
+        if node in sources:
+            range_of_phi=possible_ranges[0]
+        elif node in targets:
+            range_of_phi=possible_ranges[-1]
+        else:
+            range_of_phi=possible_ranges[1]
+        #node_features=np.random.randn(feature_length)
+        # TODO: Use a better feature computation for a given node
+        #r=np.random.choice(len(possible_ranges))
+        #range_of_phi=possible_ranges[r]
+        lower_bounds=range_of_phi[0]
+        upper_bounds=range_of_phi[1]
+        node_phi=np.random.uniform(lower_bounds, upper_bounds)
+        G.node[node]['node_phi']=node_phi
+    
+    # Generate features
+    phi=np.zeros(N)
+    for node in list(G.nodes()):
+            phi[node]=G.node[node]['node_phi']
+    return phi        
+
+
 def getSimplePath(G, path):
     
     """
@@ -230,7 +260,7 @@ def generateSyntheticData(node_feature_size, omega=4,
     data=[]             # Not used anymore  
     training_data=[]
     testing_data=[]
-    net1= GCNDataGenerationNet(node_feature_size)        
+    net3= featureGenerationNet(node_feature_size)        
     #training_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_training_graphs)]
     #testing_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_testing_graphs)]
     #print ("GRAPHS N: ",len(training_graphs), len(testing_graphs))
@@ -280,10 +310,30 @@ def generateSyntheticData(node_feature_size, omega=4,
         for node in list(G.nodes()):
             Fv[node]=G.node[node]['node_features']
         '''
+        #
+        #
+        #   
+        """
         Fv= generateFeatures(G, node_feature_size)
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         # Generate attractiveness values for nodes
         phi=net1.forward(Fv_torch,A_torch).view(-1)
+        """
+        #
+        #        
+        '''
+        REPLACE THE ABOVE CODE SNIPPET WITH FOLLOWING LINES TO GENERATE FEATURES FROM PHI INSTEAD OF OTHER WAY ROUND
+        '''
+        #
+        #
+        phi=generatePhi(G)
+        phi=torch.as_tensor(phi, dtype=torch.float)
+        #Generate features from phi values
+        Fv_torch=net3.forward(phi.view(-1,1), A_torch)
+        Fv=Fv_torch.detach().numpy()
+        
+        
+        
         #phi=y.data.numpy()
         '''
         phi is the attractiveness function, phi(v,f) for each of the N nodes, v
@@ -293,6 +343,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                         
         
         if path_type=='simple_paths':
+            # NOTE: THIS NEEDS TO BE MODIFIED WITH THE NEW DATA GENETATION SCHEME. CURRENTLY UNUSABLE
 
             if graph_number<n_training_graphs:
                 n_samples_for_current_graph=training_samples_per_graph
