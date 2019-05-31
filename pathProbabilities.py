@@ -453,6 +453,8 @@ if __name__=='__main__':
     LR=0.0005
     BATCH_SIZE= 100
     OPTIMIZER='adam'
+    
+    DEFENDER_BUDGET=0.05
     ###############################
       
     ############################### Data genaration:
@@ -461,7 +463,8 @@ if __name__=='__main__':
                         training_samples_per_graph=SAMPLES_PER_TRAINING_GRAPH,
                         testing_samples_per_graph=SAMPLES_PER_TESTING_GRAPH,
                         fixed_graph=False, omega=OMEGA,
-                        N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH)
+                        N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH
+                        budget=DEFENDER_BUDGET)
     
     time2 =time.time()
     if time_analysis:

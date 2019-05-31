@@ -123,7 +123,7 @@ def getSimplePath(G, path):
     
     
     
-def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20, e_low=0.6, e_high=0.7):
+def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05):
     
     if fixed_graph:
         # define an arbitrary graph with a source and target node
@@ -166,7 +166,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['target']=target
         G.graph['sources']=[source]
         G.graph['targets']=[target]
-        G.graph['budget']=0.5*nx.number_of_edges(G)
+        G.graph['budget']=max(1.0, budget*nx.number_of_edges(G))
         G.graph['U']=[]
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
@@ -253,7 +253,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                           n_training_graphs=80, n_testing_graphs=200, 
                           training_samples_per_graph=1, testing_samples_per_graph=1,
                           fixed_graph=False, path_type='random_walk',
-                          N_low=16, N_high=20, e_low=0.6, e_high=0.7):
+                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05):
     '''
     '''
     
@@ -283,7 +283,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             G=testing_graphs[sample_number%n_testing_graphs]
             graph_index=sample_number%n_testing_graphs
         '''
-        G=returnGraph(fixed_graph=fixed_graph,N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high)
+        G=returnGraph(fixed_graph=fixed_graph,N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high, budget=budget)
         # COMPUTE ADJACENCY MATRIX
         A=nx.to_numpy_matrix(G)
         A_torch=torch.as_tensor(A, dtype=torch.float) 
