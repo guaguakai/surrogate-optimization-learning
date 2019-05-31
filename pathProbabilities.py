@@ -451,7 +451,7 @@ if __name__=='__main__':
     
     N_EPOCHS=100
     LR=0.0005
-    BATCH_SIZE= 400
+    BATCH_SIZE= 100
     OPTIMIZER='adam'
     ###############################
       

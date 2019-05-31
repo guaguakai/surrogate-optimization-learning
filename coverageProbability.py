@@ -64,7 +64,7 @@ def objective_function(coverage_probs,G, phi, U, initial_distribution, omega=4):
             R[transients.index(u)][-1]=caught_probability        
     
     # Q and R are computed by now
-    print ("Not singular")
+    #print ("Not singular")
     N_matrix= np.linalg.inv((np.identity(Q.shape[0])-Q))
     B= np.matmul(N_matrix, R)
     obj=np.matmul(np.matmul(initial_distribution, B),U)

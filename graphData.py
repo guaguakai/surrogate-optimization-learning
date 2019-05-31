@@ -260,6 +260,7 @@ def generateSyntheticData(node_feature_size, omega=4,
     data=[]             # Not used anymore  
     training_data=[]
     testing_data=[]
+    net1=GCNDataGenerationNet(node_feature_size)
     net3= featureGenerationNet(node_feature_size)        
     #training_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_training_graphs)]
     #testing_graphs= [returnGraph(fixed_graph=fixed_graph) for _ in range(n_testing_graphs)]
@@ -326,7 +327,8 @@ def generateSyntheticData(node_feature_size, omega=4,
         '''
         #
         #
-	'''
+        
+        '''
         phi=generatePhi(G)
         phi=torch.as_tensor(phi, dtype=torch.float)
         #Generate features from phi values
