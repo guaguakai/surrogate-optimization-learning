@@ -210,13 +210,18 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
     #optimizer=optim.SGD(net2.parameters(), lr=lr)
  
     
+    training_loss_list=[]
+    testing_loss_list=[]
+    defender_utility_list=[]
     
     n_iterations=n_epochs*len(train_data)
     
     #print ("N_training graphs/ N_samples: ",len(training_graphs), len(train_data))
     #print ("N_testing graphs/N_samples: ",len(testing_graphs), len(test_data))
     print ("Testing performance BEFORE training:")
-    testModel(test_data,net2,path_model, omega=omega)
+    defender_utility, testing_loss=testModel(test_data,net2,path_model, omega=omega)
+    defender_utility_list.append(defender_utility)
+    testing_loss_list.append(testing_loss)    
     print ("Training...") 
     time2=time.time()
     if time_analysis:
@@ -281,8 +286,9 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
         #defender_utility=calculateDefenderUtility(net2, test_data)
 
     print ("Testing performance AFTER training:")
-    testModel(test_data,net2,path_model, omega=omega)
-    
+    defender_utility, testing_loss=testModel(test_data,net2,path_model, omega=omega)
+    defender_utility_list.append(defender_utility)
+    testing_loss_list.append(testing_loss)
     '''
     # TESTING LOOP    
     batch_loss=0.0
@@ -307,7 +313,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
         #print ("Loss: ", loss)
     print("Testing batch loss per sample:", batch_loss/len(test_data))
     '''
-    return net2
+    return net2 ,training_loss_list, testing_loss_list, defender_utility_list
 
 
 
@@ -351,7 +357,8 @@ def testModel(test_data, net2, path_model, omega=4):
         
         total_loss+=loss
         #print ("Loss: ", loss)
-    print("Testing loss per sample:", total_loss/len(test_data))
+    testing_loss=total_loss/len(test_data)
+    print("Testing loss per sample:", testing_loss)
   
     time2=time.time()
     if time_analysis:
@@ -418,24 +425,24 @@ def testModel(test_data, net2, path_model, omega=4):
         
     print("Defender utility: ideal/model/path_specific: ", total_ideal_defender_utility, total_pred_defender_utility, path_specific_defender_utility)
     
-    return    
+    return total_pred_defender_utility, testing_loss
 
 
 if __name__=='__main__':
     
     
-    
+    ############################# Parameters and settings:
     time1 =time.time()
     
-    time_analysis=False
+    time_analysis=True
     path_model_type='random_walk'
     feature_size=50
     OMEGA=4
     
-    GRAPH_N_LOW=10
-    GRAPH_N_HIGH=12
-    GRAPH_E_PROB_LOW=0.4
-    GRAPH_E_PROB_HIGH=0.5
+    GRAPH_N_LOW=12
+    GRAPH_N_HIGH=14
+    GRAPH_E_PROB_LOW=0.1
+    GRAPH_E_PROB_HIGH=0.2
     
     TRAINING_GRAPHS=100
     SAMPLES_PER_TRAINING_GRAPH=50
@@ -446,8 +453,9 @@ if __name__=='__main__':
     LR=0.001
     BATCH_SIZE= 200
     OPTIMIZER='adam'
-    
+    ###############################
       
+    ############################### Data genaration:
     train_data, test_data=generateSyntheticData(feature_size, path_type=path_model_type, 
                         n_training_graphs=TRAINING_GRAPHS, n_testing_graphs=TESTING_GRAPHS, 
                         training_samples_per_graph=SAMPLES_PER_TRAINING_GRAPH,
@@ -460,24 +468,30 @@ if __name__=='__main__':
         cprint (("DATA GENERATION: ", time2-time1), 'red')
     np.random.shuffle(train_data)
     np.random.shuffle(train_data)
-
     print ("Data length train/test:", len(train_data), len(test_data))
-    
+    ##############################
+
+    ############################## Training the ML models:    
     time3=time.time()
     # Learn the neural networks:
     if path_model_type=='simple_paths':
         net2=learnPathProbs_simple(train_data,test_data)
     elif path_model_type=='random_walk':
-        net2=learnEdgeProbs_simple(train_data,test_data, path_model=path_model_type,
+        net2, tr_loss, test_loss, def_u=learnEdgeProbs_simple(train_data,test_data, 
+                                                              path_model=path_model_type,
                                    lr=LR,n_epochs=N_EPOCHS, batch_size=BATCH_SIZE, 
                                    optimizer=OPTIMIZER, omega=OMEGA)
     elif path_model_type=='random_walk_distribution':
-        net2=learnEdgeProbs_simple(train_data,test_data, path_model=path_model_type,
+        net2,tr_loss, test_loss, def_u=learnEdgeProbs_simple(train_data,test_data, 
+                                                             path_model=path_model_type,
                                    lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                    optimizer=OPTIMIZER, omega=OMEGA)
     time4=time.time()
     if time_analysis:
         cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')
+    #############################
+    
+    ############################# Print the summary:
     #print ("Now running: ", "Large graphs sizes")    
     all_params={"Path type": path_model_type,
                 "Number of Epochs: ": N_EPOCHS, 
@@ -488,9 +502,11 @@ if __name__=='__main__':
                 "Graph size (nodes)": (GRAPH_N_LOW, GRAPH_N_HIGH),
                 "Training data size (#graphs, #samples)": (TRAINING_GRAPHS, SAMPLES_PER_TRAINING_GRAPH),
                 "Testing data size (#graphs, #samples)": (TESTING_GRAPHS, SAMPLES_PER_TESTING_GRAPH),
-                "Running time": time4-time3} 
+                "Running time": time4-time3, 
+                "Defender utility:": def_u,
+                "Test Loss:": test_loss} 
     
     cprint (all_params, 'green')
-                
+    #############################            
         
     
