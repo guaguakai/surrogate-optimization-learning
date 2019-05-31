@@ -312,26 +312,27 @@ def generateSyntheticData(node_feature_size, omega=4,
         '''
         #
         #
-        #   
-        """
+        #
+        
         Fv= generateFeatures(G, node_feature_size)
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         # Generate attractiveness values for nodes
         phi=net1.forward(Fv_torch,A_torch).view(-1)
-        """
+        
         #
-        #        
+        #
         '''
         REPLACE THE ABOVE CODE SNIPPET WITH FOLLOWING LINES TO GENERATE FEATURES FROM PHI INSTEAD OF OTHER WAY ROUND
         '''
         #
         #
+	'''
         phi=generatePhi(G)
         phi=torch.as_tensor(phi, dtype=torch.float)
         #Generate features from phi values
         Fv_torch=net3.forward(phi.view(-1,1), A_torch)
         Fv=Fv_torch.detach().numpy()
-        
+        '''
         
         
         #phi=y.data.numpy()
