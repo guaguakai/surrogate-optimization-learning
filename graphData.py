@@ -129,7 +129,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         # define an arbitrary graph with a source and target node
         source=0
         target=6
-        G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)])
+        G= nx.DiGraph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)])
         G.graph['source']=source
         G.graph['target']=target
         G.graph['sources']=[source]
