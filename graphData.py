@@ -153,6 +153,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         # Generate random graph
         M=int(edge_prob*(N*(N-1)/2.0))                          # Calculate expected number of edges
         G=nx.gnm_random_graph(N, M)
+        G=G.to_directed()                                       # Change the undirected graph to directed graph
         
         # Pick source and target randomly and ensure that path exists
         # TODO:
