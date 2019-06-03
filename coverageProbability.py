@@ -36,7 +36,7 @@ def objective_function(coverage_probs,G, phi, U, initial_distribution, omega=4):
     # EDGE TRANSITION PROBABILITY MATRIX     
     edge_probs=np.zeros((N,N))
     for i, u in enumerate(list(G.nodes())):
-        neighbors=list(nx.all_neighbors(G,u))
+        neighbors = list(G[u])                  # for directed graph
         # Compute apriori neighbor transition probs (without considering coverage)
         neighbor_transition_probs=np.zeros(len(neighbors))
         for j,neighbor in enumerate(neighbors):
@@ -85,8 +85,8 @@ def get_optimal_coverage_prob(G, phi, U, initial_distribution, budget, omega=4):
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for item in initial_coverage_prob]
-    eq_fn = lambda x: budget - sum(x)
-    constraints=[{'type':'ineq','fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
+    ineq_fn = lambda x: budget - sum(x)
+    constraints=[{'type':'ineq','fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)}]
     
     # Optimization step
     coverage_prob_optimal= minimize(objective_function_matrix_form,initial_coverage_prob,args=(G, phi, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method='SLSQP', jac=dobj_dx_matrix_form, bounds=bounds, constraints=constraints)

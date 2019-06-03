@@ -36,7 +36,6 @@ def getMarkovianWalk(G, edge_probs):
     edge_list=[]
     current_node=start_node
     while (not(current_node in targets)):
-        # neighbors= list(nx.all_neighbors(G,current_node)) # works for undirected graph only
         neighbors = list(G[current_node]) # works for directed graph
         transition_probs=np.array([(edge_probs[current_node][n]).detach().numpy() for n in neighbors])
         transition_probs/=(transition_probs).sum()
@@ -197,7 +196,7 @@ def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_
     # GENERATE EDGE PROBABILITIES 
     edge_probs=torch.zeros((N,N))
     for i, node in enumerate(list(G.nodes())):
-        neighbors=list(nx.all_neighbors(G,node))
+        nieghbors = list(G[node])
         
         smuggler_probs=torch.zeros(len(neighbors))
         for j,neighbor in enumerate(neighbors):
@@ -235,7 +234,7 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi,omega=4):
     # GENERATE EDGE PROBABILITIES 
     edge_probs=torch.zeros((N,N))
     for i, node in enumerate(list(G.nodes())):
-        neighbors=list(nx.all_neighbors(G,node))
+        neighbors = list(G[node])
         
         smuggler_probs=torch.zeros(len(neighbors))
         for j,neighbor in enumerate(neighbors):

@@ -53,7 +53,7 @@ def learnPathProbs(G, data, coverage_probs, Fv, all_paths, omega=4):
         
         edge_probs=torch.zeros((N,N))
         for i, node in enumerate(list(G.nodes())):
-            neighbors=list(nx.all_neighbors(G,node))
+            neighbors=list(G[node])
             
             smuggler_probs=torch.zeros(len(neighbors))
             for j,neighbor in enumerate(neighbors):
@@ -348,11 +348,11 @@ def getDefUtility(single_data, phi_pred, path_model, omega=4):
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, phi_pred, U, initial_distribution, omega=omega, lib=torch)
         p = jac.view(1, -1) - torch.Tensor(pred_optimal_coverage) @ Q
 
-        print(Q, p)
-        print("Eigen decomposition: {}".format(np.linalg.eig(Q.detach().numpy())))
-        coverage_qp_solution = qp_solver(Q, p, G_matrix, h_matrix, torch.Tensor(), torch.Tensor())
-        print(pred_optimal_coverage)
-        print(coverage_qp_solution)
+        # print(Q, p)
+        # print("Eigen decomposition: {}".format(np.linalg.eig(Q.detach().numpy())))
+        # coverage_qp_solution = qp_solver(Q, p, G_matrix, h_matrix, torch.Tensor(), torch.Tensor())
+        # print(pred_optimal_coverage)
+        # print(coverage_qp_solution)
 
 
         break # TODO
