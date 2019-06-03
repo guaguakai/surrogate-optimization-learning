@@ -388,15 +388,17 @@ def testModel(test_data, net2, path_model, omega=4):
         A=nx.to_numpy_matrix(G)
         A_torch = torch.as_tensor(A, dtype=torch.float)
         #print ("This point: ", len(list(G.nodes())), len(Fv), len(Fv_torch), len(A_torch), len(A))
-        phi_pred=net2(Fv_torch, A_torch).view(-1).detach().numpy()
-        phi_true=phi_true.detach().numpy()
-        pred_optimal_coverage=get_optimal_coverage_prob(G, phi_pred, U, initial_distribution, budget, omega=omega)
+        phi_pred=net2(Fv_torch, A_torch).view(-1) #.detach().numpy()
+        phi_true=phi_true # .detach().numpy()
+        pred_optimal_coverage=get_optimal_coverage_prob(G, phi_pred.detach(), U, initial_distribution, budget, omega=omega)
         #print (pred_optimal_coverage)
         pred_optimal_coverage=pred_optimal_coverage['x']
-        ideal_optimal_coverage=get_optimal_coverage_prob(G, phi_true, U, initial_distribution, budget, omega=omega)['x']
+        ideal_optimal_coverage=get_optimal_coverage_prob(G, phi_true.detach(), U, initial_distribution, budget, omega=omega)['x']
         
-        total_pred_defender_utility+=   -(objective_function(pred_optimal_coverage,G, phi_true, U,initial_distribution, omega=omega))
-        total_ideal_defender_utility+=  -(objective_function(ideal_optimal_coverage,G, phi_true, U,initial_distribution, omega=omega))
+        total_pred_defender_utility  += -(objective_function_matrix_form(pred_optimal_coverage,  G, phi_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+        total_ideal_defender_utility += -(objective_function_matrix_form(ideal_optimal_coverage, G, phi_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+        # total_pred_defender_utility  += -(objective_function(pred_optimal_coverage,G, phi_true, U,initial_distribution, omega=omega))
+        # total_ideal_defender_utility += -(objective_function(ideal_optimal_coverage,G, phi_true, U,initial_distribution, omega=omega))
         
         
         # PATH SPECIFIC DEF UTILITY

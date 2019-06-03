@@ -87,18 +87,23 @@ def dobj_dx_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4
     print(dfull_dx.shape)
     dQ_dx = dfull_dx[transient_vector[:-1]][:,transient_vector,:]
     dR_dx = dfull_dx[transient_vector[:-1]][:,1-transient_vector,:]
-    print(dQ_dx.shape)
-    print(dR_dx.shape)
-    print(N.shape)
-    NdQ_dx = torch.einsum("ab,bcd->acd", N, dQ_dx)
-    print(NdQ_dx.shape)
-    print((N@R).shape)
-    NdQ_dxNR = torch.einsum("abc,bd->adc", NdQ_dx, (N @ R))
-    NdR_dx = torch.einsum("ab,bcd->acd", N, dR_dx)
-    print(NdQ_dxNR.shape)
-    dB_dx = NdQ_dxNR + NdR_dx  # TODO!! ERROR
-    print(dB_dx.shape)
-    dobj_dx = U @ torch.einsum("a,abc->bc", initial_distribution, dB_dx)
+    # print(dQ_dx.shape)
+    # print(dR_dx.shape)
+    # print(N.shape)
+    # NdQ_dx = torch.einsum("ab,bcd->acd", N, dQ_dx)
+    # print(NdQ_dx.shape)
+    # print((N@R).shape)
+    # NdQ_dxNR = torch.einsum("abc,bd->adc", NdQ_dx, (N @ R))
+    # NdR_dx = torch.einsum("ab,bcd->acd", N, dR_dx)
+    # print(NdQ_dxNR.shape)
+    # dB_dx = NdQ_dxNR + NdR_dx  # TODO!! ERROR
+    # print(dB_dx.shape)
+    # dobj_dx = U @ torch.einsum("a,abc->bc", initial_distribution, dB_dx)
+
+    distN = initial_distribution @ N
+    distNdQ_dxNRU = distN @ torch.einsum("abc,b->ac", dQ_dx, (N @ (R @ U)))
+    distNdR_dxU = distN @ (torch.einsum("abc,b->ac", dR_dx, U))
+    dobj_dx = distNdQ_dxNRU + distNdR_dxU
     print(dobj_dx.shape)
 
     return dobj_dx
