@@ -10,6 +10,7 @@ import numpy as np
 from numpy.linalg import *
 from graphData import *
 import torch
+import autograd
 
 def objective_function(coverage_probs,G, phi, U, initial_distribution, omega=4):
     
@@ -30,7 +31,7 @@ def objective_function(coverage_probs,G, phi, U, initial_distribution, omega=4):
     for i, e in enumerate(list(G.edges())):
         #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
-        coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i]
+        # coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i]
         
     # EDGE TRANSITION PROBABILITY MATRIX     
     edge_probs=np.zeros((N,N))
@@ -84,7 +85,8 @@ def get_optimal_coverage_prob(G, phi, U, initial_distribution, budget, omega=4):
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for item in initial_coverage_prob]
-    constraints=[{'type':'ineq','fun':lambda x: budget-sum(x)}]
+    eq_fn = lambda x: budget - sum(x)
+    constraints=[{'type':'ineq','fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
     
     # Optimization step
     coverage_prob_optimal= minimize(objective_function_matrix_form,initial_coverage_prob,args=(G, phi, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method='SLSQP', jac=dobj_dx_matrix_form, bounds=bounds, constraints=constraints)
@@ -186,7 +188,15 @@ def dobj_dx_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4
 
     return dobj_dx
 
+def obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4, lib=torch):
+    x = torch.autograd.Variable(coverage_probs.detach(), requires_grad=True)
+    dobj_dx = dobj_dx_matrix_form(torch.Tensor(x), G, phi, U, initial_distribution, omega=4, lib=torch)
+    m = len(x)
+    obj_hessian = torch.zeros((m,m))
+    for i in range(len(x)):
+        obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=True, retain_graph=True)[0]
 
+    return obj_hessian
 
 
 if __name__=='__main__':
