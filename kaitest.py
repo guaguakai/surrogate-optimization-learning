@@ -5,10 +5,12 @@ import torch
 import time
 import autograd
 
-from graphData import generateSyntheticData, returnGraph
+from graphData import generateSyntheticData, returnGraph, generatePhi
 from coverageProbability import objective_function
+from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 from gcn import GCNDataGenerationNet
 
+"""
 def objective_function_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4, lib=torch):
     n = len(G.nodes)
     targets = G.graph["targets"] + [n] # adding the caught node
@@ -19,8 +21,7 @@ def objective_function_matrix_form(coverage_probs, G, phi, U, initial_distributi
     for i, e in enumerate(list(G.edges())):
         #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
-        # coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i]
-
+        coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
     exponential_term = torch.exp(- omega * coverage_prob_matrix) * torch.exp(phi) * adj
@@ -35,6 +36,7 @@ def objective_function_matrix_form(coverage_probs, G, phi, U, initial_distributi
     N = (torch.eye(Q.shape[0]) - Q).inverse()
     B = N @ R
     obj = torch.Tensor(initial_distribution) @ B @ torch.Tensor(U)
+
     if lib == np:
         obj = obj.detach().numpy()
 
@@ -49,7 +51,7 @@ def dobj_dx_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4
     coverage_prob_matrix=torch.zeros((n,n))
     for i, e in enumerate(list(G.edges())):
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
-        # coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i]
+        coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
@@ -67,20 +69,26 @@ def dobj_dx_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4
 
     dP_dx = torch.zeros((n,n,len(coverage_probs)))
     dstate_dx = torch.zeros((n,n,len(coverage_probs)))
+
     for i, edge_i in enumerate(list(G.edges)):
-        (u, v) = edge_i
-        for j, edge_j in enumerate(list(G.edges)):
-            if edge_j[0] != u: # only proceed when edge_j = (u,w)
-                continue
-            (_, w) = edge_j
-            if v == w:
-                dP_dx[u,v,j] = omega * (-1 + marginal_prob[u,v])
-                dstate_dx[u,v,j] = omega * (1 - coverage_prob_matrix[u,v]) * (-1 + marginal_prob[u,v]) - 1
-            else:
-                dP_dx[u,v,j] = omega * marginal_prob[u, w]
-                dstate_dx[u,v,j] = omega * (1 - coverage_prob_matrix[u,v]) * marginal_prob[u, w]
-        dP_dx[u,v,:] *= marginal_prob[u,v]
-        dstate_dx[u,v,:] *= marginal_prob[u,v]
+        for (u, v) in [(edge_i[0], edge_i[1]), (edge_i[1], edge_i[0])]:
+            for j, edge_j in enumerate(list(G.edges)): # TODO!! change it to the undirected version
+                if edge_j[0] == u: # only proceed when edge_j = (u,w)
+                    (_, w) = edge_j
+                elif edge_j[1] == u:
+                    (w, _) = edge_j
+                else:
+                    continue
+
+                if v == w:
+                    dP_dx[u,v,j] = omega * (-1 + marginal_prob[u,v])
+                    dstate_dx[u,v,j] = omega * (1 - coverage_prob_matrix[u,v]) * (-1 + marginal_prob[u,v]) - 1
+                else:
+                    dP_dx[u,v,j] = omega * marginal_prob[u, w]
+                    dstate_dx[u,v,j] = omega * (1 - coverage_prob_matrix[u,v]) * marginal_prob[u, w]
+
+            dP_dx[u,v,:] *= marginal_prob[u,v]
+            dstate_dx[u,v,:] *= marginal_prob[u,v]
 
     print(dstate_dx.shape)
     dcaught_dx = -torch.sum(dstate_dx, keepdim=True, dim=1)
@@ -118,10 +126,10 @@ def obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, ome
     m = len(x)
     obj_hessian = torch.zeros((m,m))
     for i in range(len(x)):
-        obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=True, retain_graph=True)[0]
+        obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
 
     return obj_hessian
-
+"""
 
 if __name__ == "__main__":
 
@@ -139,7 +147,7 @@ if __name__ == "__main__":
     U.append(-20)
     print ('U:', U)
     U=torch.Tensor(U)
-    budget=0.5*E
+    budget=0.1*E
 
     omega = 4
 
@@ -158,9 +166,15 @@ if __name__ == "__main__":
     # Generate attractiveness values for nodes
     A=nx.to_numpy_matrix(G)
     A_torch=torch.as_tensor(A, dtype=torch.float)
-    phi=(net1.forward(Fv_torch,A_torch).view(-1)).detach()
+    phi=torch.Tensor(generatePhi(G))
 
-    initial_coverage_prob = torch.rand(nx.number_of_edges(G), requires_grad=True)
+    # initial_coverage_prob = torch.rand(nx.number_of_edges(G), requires_grad=True) / 10
+    initial_coverage_prob = torch.autograd.Variable(torch.Tensor(
+        [0.13847153, 0.15538003, 0.05017027, 0.17054958, 0.04594738,
+       0.05113135, 0.05880545, 0.        , 0.02213619, 0.22139221,
+       0.19601601]
+        ), requires_grad=True)
+    # initial_coverage_prob = torch.zeros(nx.number_of_edges(G), requires_grad=True) / 10
     # initial_coverage_prob.retain_grad()
     coverage_probs = initial_coverage_prob
 
@@ -173,8 +187,10 @@ if __name__ == "__main__":
 
     start_time = time.time()
     for i in range(count):
-        obj_matrix_form = objective_function_matrix_form(initial_coverage_prob, G, torch.Tensor(phi), torch.Tensor(U), torch.Tensor(initial_distribution))
+        obj_matrix_form = objective_function_matrix_form(initial_coverage_prob, G, torch.Tensor(phi), torch.Tensor(U), torch.Tensor(initial_distribution), omega)
     print(time.time() - start_time)
+
+    
 
     # print("obj: {}\nobj matrix form: {}\n".format(obj, obj_matrix_form))
 
@@ -183,4 +199,30 @@ if __name__ == "__main__":
 
     torch_dobj_dx = torch.autograd.grad(obj_matrix_form, initial_coverage_prob)
 
-    torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4, lib=torch)
+    torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=omega, lib=torch)
+
+    print("Eigen decomposition:", np.linalg.eig(torch_obj_hessian))
+
+    # graph plotting
+    x_axis = np.linspace(-0.1, 0.1, 30)
+    input_points_torch = [torch.Tensor([x1,x2] + [0]*9) + initial_coverage_prob for x1 in x_axis for x2 in x_axis]
+    # input_points_torch = [torch.Tensor([x1,x2,x3,x4] + [0] * 7) + initial_coverage_prob for x1 in x_axis for x2 in x_axis for x3 in x_axis for x4 in x_axis]
+    input_points_np = np.array([[x1,x2] for x1 in x_axis for x2 in x_axis])
+    # input_points_np = np.array([[x1,x2,x3,x4] for x1 in x_axis for x2 in x_axis for x3 in x_axis for x4 in x_axis])
+
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    pca.fit(input_points_np)
+    input_points_pca = pca.transform(input_points_np)
+
+    labels = np.array([objective_function_matrix_form(x, G, torch.Tensor(phi), torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega).item() for x in input_points_torch])
+
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.scatter(input_points_np[:,0], input_points_np[:,1], labels)
+    plt.show()
+
+    print(np.linalg.eig(torch_obj_hessian))

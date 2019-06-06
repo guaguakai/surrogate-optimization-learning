@@ -129,13 +129,14 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         # define an arbitrary graph with a source and target node
         source=0
         target=6
-        G= nx.DiGraph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)])
+        G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]) # undirected graph
+        # G = nx.to_directed(G) # for directed graph
         G.graph['source']=source
         G.graph['target']=target
         G.graph['sources']=[source]
         G.graph['targets']=[target]
         G.graph['U']=np.array([10, -20])
-        G.graph['budget']=0.5*nx.number_of_edges(G)
+        G.graph['budget']=budget*nx.number_of_edges(G)
         
         G.node[target]['utility']=10
         sources=G.graph['sources']
@@ -153,7 +154,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         # Generate random graph
         M=int(edge_prob*(N*(N-1)/2.0))                          # Calculate expected number of edges
         G=nx.gnm_random_graph(N, M)
-        G=G.to_directed()                                       # Change the undirected graph to directed graph
+        # G=G.to_directed()                                       # Change the undirected graph to directed graph
         
         # Pick source and target randomly and ensure that path exists
         # TODO:
@@ -174,7 +175,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         for target in G.graph['targets']:
             G.node[target]['utility']=np.random.randint(1, high=5)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(-80, high=-60))
+        G.graph['U'].append(0) # indifferent of getting caught
+        # G.graph['U'].append(np.random.randint(-80, high=-60)) # negative payoff
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
@@ -316,10 +318,10 @@ def generateSyntheticData(node_feature_size, omega=4,
         #
         #
         
-        Fv= generateFeatures(G, node_feature_size)
-        Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        # Generate attractiveness values for nodes
-        phi=net1.forward(Fv_torch,A_torch).view(-1)
+        # Fv= generateFeatures(G, node_feature_size)
+        # Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
+        # # Generate attractiveness values for nodes
+        # phi=net1.forward(Fv_torch,A_torch).view(-1)
         
         #
         #
@@ -329,13 +331,13 @@ def generateSyntheticData(node_feature_size, omega=4,
         #
         #
         
-        '''
+        # '''
         phi=generatePhi(G)
         phi=torch.as_tensor(phi, dtype=torch.float)
         #Generate features from phi values
         Fv_torch=net3.forward(phi.view(-1,1), A_torch)
         Fv=Fv_torch.detach().numpy()
-        '''
+        # '''
         
         
         #phi=y.data.numpy()

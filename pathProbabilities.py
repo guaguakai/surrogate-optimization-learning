@@ -161,7 +161,7 @@ def learnPathProbs_simple(train_data, test_data, lr=0.1):
         loss=loss_function(path_probs_pred,path_probs)
         batch_loss+=loss
         #print ("Loss: ", loss)
-        loss.backward(retain_graph=True)
+        loss.backward()
         optimizer.step()    
 
 
@@ -196,7 +196,7 @@ def learnPathProbs_simple(train_data, test_data, lr=0.1):
 
 
 def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk',
-                          n_epochs=150, batch_size=100, optimizer='adam', omega=4, train_model='two-stage'):
+                          n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage'):
     
     time1=time.time()
     net2= GCNPredictionNet(feature_size)
@@ -276,14 +276,15 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
 
         # COMPUTING DEFENDER UTILITY
         single_data = train_data[iter_n % len(train_data)]
-        def_obj = -getDefUtility(single_data, phi_pred, path_model, omega=4)
+        def_obj = getDefUtility(single_data, phi_pred, path_model, omega=omega)
         print("Defender utility: {}".format(def_obj))
+        print("Phi pred: {}\nPhi true: {}\n".format(phi_pred, single_data[3]))
         
-        batch_loss += loss if train_model == "two-stage" else def_obj
+        batch_loss += loss if training_method == "two-stage" else -def_obj
         training_loss+=loss
         if iter_n%batch_size==(batch_size-1):
             #print ("Loss: ", loss)
-            batch_loss.backward(retain_graph=True)
+            batch_loss.backward()
             optimizer.step()
             #print ("GCN1:", list(net2.parameters())[0].grad)
             batch_loss=torch.zeros(1)
@@ -321,7 +322,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, path_model='random_walk
     '''
     return net2, training_loss_list, testing_loss_list, defender_utility_list
 
-def getDefUtility(single_data, phi_pred, path_model, omega=4):
+def getDefUtility(single_data, phi_pred, path_model, omega=4, verbose=False):
     if path_model=='random_walk_distribution':
         G, Fv, coverage_prob, phi_true, path, log_prob = single_data
     elif path_model=='random_walk':
@@ -330,37 +331,51 @@ def getDefUtility(single_data, phi_pred, path_model, omega=4):
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
+    options = {"maxiter": 100, "disp": verbose}
 
     m = G.number_of_edges()
     G_matrix = torch.cat((-torch.eye(m), torch.eye(m), torch.ones(1,m)))
     h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
-    print(G_matrix.shape)
-    print(h_matrix.shape)
+    # print(G_matrix.shape)
+    # print(h_matrix.shape)
 
     while True:
-        pred_optimal_res = get_optimal_coverage_prob(G, phi_pred.detach(), U, initial_distribution, budget, omega=omega)
-        print (pred_optimal_res)
-        pred_optimal_coverage  = pred_optimal_res['x']
+        pred_optimal_res = get_optimal_coverage_prob(G, phi_pred.detach(), U, initial_distribution, budget, omega=omega, options=options)
+        pred_optimal_coverage  = torch.Tensor(pred_optimal_res['x'])
         qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI,
                                        zhats=None, slacks=None, nus=None, lams=None)
 
-        Q = obj_hessian_matrix_form(torch.Tensor(pred_optimal_coverage), G, phi_pred, U, initial_distribution, omega=omega) + 0.01 * torch.eye(m) # TODO BUG!!! Non PSD Q
+        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, phi_pred, U, initial_distribution, omega=omega) # TODO BUG!!! Non PSD Qi
+        Q_sym = (Q + Q.t()) / 2
+        eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
+        Q_regularized = Q_sym - min((0, min([x.real for x in eigenvalues]) - 0.1)) * torch.eye(m)
+        # Q_regularized = 5 * torch.eye(m)
+        is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, phi_pred, U, initial_distribution, omega=omega, lib=torch)
-        p = jac.view(1, -1) - torch.Tensor(pred_optimal_coverage) @ Q
+        p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
+
+        coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, torch.Tensor(), torch.Tensor())[0]
 
         # print(Q, p)
-        # print("Eigen decomposition: {}".format(np.linalg.eig(Q.detach().numpy())))
-        # coverage_qp_solution = qp_solver(Q, p, G_matrix, h_matrix, torch.Tensor(), torch.Tensor())
-        # print(pred_optimal_coverage)
-        # print(coverage_qp_solution)
+        if verbose:
+            print(pred_optimal_res)
+            print("Phi: {}".format(phi_pred))
+            print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
+            print("Hessian: {}".format(Q_sym))
+            print("Gradient: {}".format(jac))
+            print("Eigen decomposition: {}".format(np.linalg.eig(Q_sym.detach().numpy())[0]))
+            print("Eigen decomposition: {}".format(np.linalg.eig(Q_regularized.detach().numpy())[0]))
+            print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, phi_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+            print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, phi_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+            print(pred_optimal_coverage, torch.sum(pred_optimal_coverage))
+            print(coverage_qp_solution, torch.sum(coverage_qp_solution))
+            print("Solution difference:", torch.norm(pred_optimal_coverage - coverage_qp_solution))
 
 
         break # TODO
 
 
-    # ideal_optimal_coverage = get_optimal_coverage_prob(G, phi_true.detach(), U, initial_distribution, budget, omega=omega)['x']
-    
-    pred_defender_utility  = (objective_function_matrix_form(pred_optimal_coverage,  G, phi_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+    pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution,  G, phi_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
     # ideal_defender_utility += (objective_function_matrix_form(ideal_optimal_coverage, G, phi_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
     return pred_defender_utility
@@ -462,7 +477,7 @@ def testModel(test_data, net2, path_model, omega=4):
         for i, e in enumerate(list(G.edges())):
             #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
             coverage_prob_matrix[e[0]][e[1]]=pred_optimal_coverage[i]
-            coverage_prob_matrix[e[1]][e[0]]=pred_optimal_coverage[i]
+            # coverage_prob_matrix[e[1]][e[0]]=pred_optimal_coverage[i]
         
         prob_reaching_target=1.0
         for e in path: 
@@ -487,9 +502,10 @@ if __name__=='__main__':
     time1 =time.time()
     
     time_analysis=True
-    path_model_type='random_walk'
+    path_model_type='random_walk_distribution'
+    training_method = 'two-stage' # 'decision-focused' # 'two-stage' or 'decision-focused'
     feature_size=50
-    OMEGA=4
+    OMEGA=2
     
     GRAPH_N_LOW=14
     GRAPH_N_HIGH=20
@@ -501,12 +517,12 @@ if __name__=='__main__':
     TESTING_GRAPHS=10
     SAMPLES_PER_TESTING_GRAPH=10
     
-    N_EPOCHS=100
-    LR=0.0005
-    BATCH_SIZE= 10
+    N_EPOCHS=10
+    LR=0.001
+    BATCH_SIZE= 1
     OPTIMIZER='adam'
     
-    DEFENDER_BUDGET=0.05
+    DEFENDER_BUDGET=0.1
     ###############################
       
     ############################### Data genaration:
@@ -514,7 +530,7 @@ if __name__=='__main__':
                         n_training_graphs=TRAINING_GRAPHS, n_testing_graphs=TESTING_GRAPHS, 
                         training_samples_per_graph=SAMPLES_PER_TRAINING_GRAPH,
                         testing_samples_per_graph=SAMPLES_PER_TESTING_GRAPH,
-                        fixed_graph=False, omega=OMEGA,
+                        fixed_graph=True, omega=OMEGA,
                         N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH,
                         budget=DEFENDER_BUDGET)
     
@@ -535,7 +551,7 @@ if __name__=='__main__':
         net2, tr_loss, test_loss, def_u=learnEdgeProbs_simple(train_data,test_data, 
                                                               path_model=path_model_type,
                                    lr=LR,n_epochs=N_EPOCHS, batch_size=BATCH_SIZE, 
-                                   optimizer=OPTIMIZER, omega=OMEGA)
+                                   optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
     elif path_model_type=='random_walk_distribution':
         net2,tr_loss, test_loss, def_u=learnEdgeProbs_simple(train_data,test_data, 
                                                              path_model=path_model_type,
