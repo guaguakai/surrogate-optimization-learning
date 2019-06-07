@@ -27,8 +27,8 @@ def plotEverything(all_params,tr_loss, test_loss, entire_graph_def_u, path_def_u
     
     # Training loss
     fig1= plt.figure()
-    x=range(len(tr_loss))
-    plt.plot(x, tr_loss, label='Training loss')
+    x=range(1,len(tr_loss))
+    plt.plot(x, tr_loss[1:], label='Training loss')
     
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
@@ -111,7 +111,7 @@ def learnEdgeProbs_simple(train_data, test_data, n_testing_graphs, lr=0.1, learn
     ######################################################
     #                   TRAINING LOOP
     ######################################################
-    training_loss=0.0
+    training_loss=torch.zeros(1)
     batch_loss=torch.zeros(1)
     phi_loss=0.0
     phi_corr=0.0
@@ -126,7 +126,7 @@ def learnEdgeProbs_simple(train_data, test_data, n_testing_graphs, lr=0.1, learn
         if iter_n%len(train_data)==0:
             np.random.shuffle(train_data)
             print("Epoch number/Training loss/ Training loss per sample/Phi Loss/corr_coeff: ", 
-                  iter_n/len(train_data),training_loss, training_loss/len(train_data), phi_loss, phi_corr/len(train_data))
+                  iter_n/len(train_data),training_loss.item(), training_loss.item()/len(train_data), phi_loss, phi_corr/len(train_data))
             
             ################################### Compute performance on test data
             defender_utility, testing_loss=testModel(n_testing_graphs,test_data,net2,learning_model, omega=omega, defender_utility_computation=True)
@@ -134,10 +134,10 @@ def learnEdgeProbs_simple(train_data, test_data, n_testing_graphs, lr=0.1, learn
             
             path_defender_utility_list.append(defender_utility['path'])
             entire_defender_utility_list.append(defender_utility['entire'])
-            testing_loss_list.append(testing_loss)
-            training_loss_list.append(training_loss)
+            testing_loss_list.append(testing_loss.item())
+            training_loss_list.append((training_loss.item())/len(train_data))
             ################################## Reinitialize to 0 
-            training_loss=0.0
+            training_loss=torch.zeros(1)
             phi_loss=0.0
             phi_corr=0.0
             np.random.shuffle(train_data)
@@ -238,6 +238,7 @@ def testModel(n_testing_graphs, test_data, net2, learning_model, omega=4, defend
         phi_pred=net2(Fv_torch, A_torch).view(-1)
         
         edge_probs_pred=generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+        edge_probs_pred.detach()
         
         loss=torch.zeros(1)
         if learning_model=='random_walk_distribution':
@@ -385,8 +386,8 @@ if __name__=='__main__':
     
     time_analysis=True
     plot_everything=True
-    #learning_model_type='random_walk_distribution'
-    learning_model_type='empirical_distribution'
+    learning_model_type='random_walk_distribution'
+    #learning_model_type='empirical_distribution'
     feature_size=50
     OMEGA=0
     
@@ -395,9 +396,9 @@ if __name__=='__main__':
     GRAPH_E_PROB_LOW=0.6
     GRAPH_E_PROB_HIGH=0.7
     
-    TRAINING_GRAPHS=10
+    TRAINING_GRAPHS=5
     SAMPLES_PER_TRAINING_GRAPH=100
-    TESTING_GRAPHS=1
+    TESTING_GRAPHS=2
     SAMPLES_PER_TESTING_GRAPH=20
     
     N_EPOCHS=10
@@ -462,6 +463,7 @@ if __name__=='__main__':
                 "Optimizer": OPTIMIZER, 
                 "Omega ": OMEGA,
                 "Graph size (nodes)": (GRAPH_N_LOW, GRAPH_N_HIGH),
+                "Graph edge prob: ": (GRAPH_E_PROB_LOW, GRAPH_E_PROB_HIGH),
                 "Training data size (#graphs, #samples)": (TRAINING_GRAPHS, SAMPLES_PER_TRAINING_GRAPH),
                 "Testing data size (#graphs, #samples)": (TESTING_GRAPHS, SAMPLES_PER_TESTING_GRAPH),
                 "Running time": time4-time3, 

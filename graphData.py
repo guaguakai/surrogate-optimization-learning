@@ -173,9 +173,9 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
-            G.node[target]['utility']=np.random.randint(1, high=5)
+            G.node[target]['utility']=np.random.randint(20, high=50)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(-800, high=-600))
+        G.graph['U'].append(np.random.randint(-40, high=-20))
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
