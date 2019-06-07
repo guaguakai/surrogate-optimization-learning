@@ -120,7 +120,7 @@ if __name__ == "__main__":
     U.append(-20)
     print ('U:', U)
     U=torch.Tensor(U)
-    budget=0.5*E
+    budget=0.05*E
 
     omega = 4
 

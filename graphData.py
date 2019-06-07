@@ -168,14 +168,14 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['target']=target
         G.graph['sources']=[source]
         G.graph['targets']=[target]
-        G.graph['budget']=max(1.0, budget*nx.number_of_edges(G))
+        G.graph['budget']=budget*nx.number_of_edges(G)
         G.graph['U']=[]
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
             G.node[target]['utility']=np.random.randint(1, high=5)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(-80, high=-60))
+        G.graph['U'].append(np.random.randint(-800, high=-600))
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
@@ -398,8 +398,6 @@ def generateSyntheticData(node_feature_size, omega=4,
                     testing_data.append(data_point)
             
         
-        
-        
         elif path_type=='random_walk_distribution':
             
             edge_probs=generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi)
@@ -420,7 +418,46 @@ def generateSyntheticData(node_feature_size, omega=4,
                     data_point=(G,Fv,coverage_prob, phi, path, log_prob)                    
                     testing_data.append(data_point)
                     
-                    
+        elif path_type=='empirical_distribution':
+            
+            edge_probs=generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi)
+                
+            if graph_number<n_training_graphs:
+                empirical_transition_prob=np.zeros((N,N))
+                
+                for _ in range(training_samples_per_graph):
+                    path=getMarkovianWalk(G, edge_probs)
+                    data_point=(G,Fv,coverage_prob, phi, path)
+                    training_data.append(data_point)
+                    for e in path:
+                        empirical_transition_prob[e[0]][e[1]]+=1
+                        
+                for n in range(len(empirical_transition_prob)):
+                    empirical_transition_prob[n]=empirical_transition_prob[n]/sum(empirical_transition_prob[n])
+                empirical_transition_prob=torch.tensor(empirical_transition_prob)   
+                for i in range(training_samples_per_graph):
+                    path=training_data[-1-i][-1]
+                    log_prob=torch.zeros(1)
+                    for e in path: 
+                        log_prob-=torch.log(empirical_transition_prob[e[0]][e[1]])
+                    training_data[-1-i]+=tuple([log_prob])
+                
+            
+            else:
+                for _ in range(testing_samples_per_graph):
+                    path=getMarkovianWalk(G, edge_probs)
+                    data_point=(G,Fv,coverage_prob, phi, path)
+                    testing_data.append(data_point)
+        
+    
+    if path_type=='empirical_distribution':
+        for graph_number in range(n_training_graphs):
+            pass
+            
+            
+        
+
+                
     return np.array(training_data), np.array(testing_data)
 
 

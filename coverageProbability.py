@@ -79,8 +79,10 @@ def get_optimal_coverage_prob(G, phi, U, initial_distribution, budget, omega=4):
         
     """    
     N=nx.number_of_nodes(G)
+    E=nx.number_of_edges(G)
     # Randomly initialize coverage probability distribution
     initial_coverage_prob=np.random.rand(nx.number_of_edges(G))
+    initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for item in initial_coverage_prob]

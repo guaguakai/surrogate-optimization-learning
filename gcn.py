@@ -148,7 +148,7 @@ class GCNPredictionNet(nn.Module):
         x=F.relu(self.fc1(x))
         x=F.sigmoid(self.fc2(x))
         # Now, x is a nX1 tensor consisting of the predicted phi(v,f) for each of the n nodes v.
-        #x=torch.mul(x, 1)
+        x=torch.mul(x, 1)
         
         return x
 
