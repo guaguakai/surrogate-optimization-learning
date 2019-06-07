@@ -36,7 +36,6 @@ def getMarkovianWalk(G, edge_probs):
     edge_list=[]
     current_node=start_node
     while (not(current_node in targets)):
-        # neighbors= list(nx.all_neighbors(G,current_node)) # works for undirected graph only
         neighbors = list(G[current_node]) # works for directed graph
         transition_probs=np.array([(edge_probs[current_node][n]).detach().numpy() for n in neighbors])
         transition_probs/=(transition_probs).sum()
@@ -130,13 +129,14 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         # define an arbitrary graph with a source and target node
         source=0
         target=6
-        G= nx.DiGraph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)])
+        G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]) # undirected graph
+        # G = nx.to_directed(G) # for directed graph
         G.graph['source']=source
         G.graph['target']=target
         G.graph['sources']=[source]
         G.graph['targets']=[target]
         G.graph['U']=np.array([10, -20])
-        G.graph['budget']=0.5*nx.number_of_edges(G)
+        G.graph['budget']=budget*nx.number_of_edges(G)
         
         G.node[target]['utility']=10
         sources=G.graph['sources']
@@ -154,7 +154,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         # Generate random graph
         M=int(edge_prob*(N*(N-1)/2.0))                          # Calculate expected number of edges
         G=nx.gnm_random_graph(N, M)
-        G=G.to_directed()                                       # Change the undirected graph to directed graph
+        # G=G.to_directed()                                       # Change the undirected graph to directed graph
         
         # Pick source and target randomly and ensure that path exists
         # TODO:
@@ -176,6 +176,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             G.node[target]['utility']=np.random.randint(20, high=50)
             G.graph['U'].append(G.node[target]['utility'])
         G.graph['U'].append(np.random.randint(-40, high=-20))
+        #G.graph['U'].append(0) # indifferent of getting caught
+        # G.graph['U'].append(np.random.randint(-80, high=-60)) # negative payoff
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
@@ -197,7 +199,7 @@ def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_
     # GENERATE EDGE PROBABILITIES 
     edge_probs=torch.zeros((N,N))
     for i, node in enumerate(list(G.nodes())):
-        neighbors=list(nx.all_neighbors(G,node))
+        nieghbors = list(G[node])
         
         smuggler_probs=torch.zeros(len(neighbors))
         for j,neighbor in enumerate(neighbors):
@@ -235,7 +237,7 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi,omega=4):
     # GENERATE EDGE PROBABILITIES 
     edge_probs=torch.zeros((N,N))
     for i, node in enumerate(list(G.nodes())):
-        neighbors=list(nx.all_neighbors(G,node))
+        neighbors = list(G[node])
         
         smuggler_probs=torch.zeros(len(neighbors))
         for j,neighbor in enumerate(neighbors):
@@ -346,7 +348,6 @@ def generateSyntheticData(node_feature_size, omega=4,
         source=G.graph['source']
         target=G.graph['target']
                         
-        
         if path_type=='simple_paths':
             # NOTE: THIS NEEDS TO BE MODIFIED WITH THE NEW DATA GENETATION SCHEME. CURRENTLY UNUSABLE
 

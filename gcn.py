@@ -23,7 +23,7 @@ class GCNDataGenerationNet(nn.Module):
         
         #Define the layers of NN to predict the attractiveness function for every node
         self.fc1 = nn.Linear(r4, r5)
-        self.fc2= nn.Linear (r5,r6)
+        self.fc2= nn.Linear (r5, r6)
         self.fc3 = nn.Linear(r6, 1)
         
         #self.node_adj=A
@@ -51,7 +51,7 @@ class GCNDataGenerationNet(nn.Module):
         
         x=F.relu(self.fc1(x))
         x=F.relu(self.fc2(x))
-        x=F.sigmoid(self.fc3(x))
+        x=F.sigmoid(self.fc3(x)) * 10 # scale up
         #x=torch.mul(x, 1)
         # Now, x is a nX1 tensor consisting of phi(v,f) for each of the n nodes v.
         
@@ -146,7 +146,7 @@ class GCNPredictionNet(nn.Module):
         x=F.relu(self.gcn2(torch.matmul(A+torch.eye(A.size()[0]),x)))
         
         x=F.relu(self.fc1(x))
-        x=F.sigmoid(self.fc2(x))
+        x=F.sigmoid(self.fc2(x)) * 10 # scale up
         # Now, x is a nX1 tensor consisting of the predicted phi(v,f) for each of the n nodes v.
         x=torch.mul(x, 1)
         
