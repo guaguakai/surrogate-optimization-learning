@@ -7,7 +7,7 @@ import autograd
 
 from graphData import generateSyntheticData, returnGraph, generatePhi
 from coverageProbability import objective_function
-from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
+from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, dobj_dx_matrix_form_np, obj_hessian_matrix_form, obj_hessian_matrix_form_np
 from gcn import GCNDataGenerationNet
 
 """
@@ -129,7 +129,7 @@ def obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, ome
         obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
 
     return obj_hessian
-"""
+# """
 
 if __name__ == "__main__":
 
@@ -146,10 +146,10 @@ if __name__ == "__main__":
     U=[G.node[t]['utility'] for t in targets]
     U.append(-20)
     print ('U:', U)
-    U=torch.Tensor(U)
+    U=torch.Tensor([1,-1])
     
-    budget=0.01*E
-    omega = 4
+    budget=0.1*E
+    omega = 10
 
 
     # CODE BLOCK FOR GENERATING PHI (GROUND TRUTH PHI GENERATED FOR NOW)
@@ -169,11 +169,9 @@ if __name__ == "__main__":
     phi=torch.Tensor(generatePhi(G))
 
     # initial_coverage_prob = torch.rand(nx.number_of_edges(G), requires_grad=True) / 10
-    initial_coverage_prob = torch.autograd.Variable(torch.Tensor(
-        [0.13847153, 0.15538003, 0.05017027, 0.17054958, 0.04594738,
-       0.05113135, 0.05880545, 0.        , 0.02213619, 0.22139221,
-       0.19601601]
-        ), requires_grad=True)
+    initial_coverage_prob_res = get_optimal_coverage_prob(G, phi, U, initial_distribution, budget, omega=omega)
+    initial_coverage_prob = torch.autograd.Variable(torch.Tensor(initial_coverage_prob_res['x']), requires_grad=True)
+
     # initial_coverage_prob = torch.zeros(nx.number_of_edges(G), requires_grad=True) / 10
     # initial_coverage_prob.retain_grad()
     coverage_probs = initial_coverage_prob
@@ -196,18 +194,26 @@ if __name__ == "__main__":
 
     # derivatives...
     dobj_dx = dobj_dx_matrix_form(initial_coverage_prob, G, phi, U, initial_distribution, omega)
+    np_dobj_dx = dobj_dx_matrix_form_np(initial_coverage_prob.detach().numpy(), G, phi.numpy(), U.numpy(), initial_distribution.numpy(), omega)
 
-    torch_dobj_dx = torch.autograd.grad(obj_matrix_form, initial_coverage_prob)
+    torch_dobj_dx = torch.autograd.grad(obj_matrix_form, initial_coverage_prob, create_graph=True, retain_graph=True)[0]
 
-    torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=omega, lib=torch)
+    torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=omega)
+    # np_obj_hessian = obj_hessian_matrix_form_np(coverage_probs.detach().numpy(), G, phi.detach().numpy(), U.numpy(), initial_distribution.numpy(), omega=omega)
 
-    print("Eigen decomposition:", np.linalg.eig(torch_obj_hessian))
+    eigenvalues, eigenvectors = np.linalg.eig(torch_obj_hessian)
+    indices = sorted(enumerate(eigenvalues), reverse=False, key = lambda x: x[1])
+    i1, i2 = indices[0][0], indices[1][0]
+    v1, v2 = torch.Tensor(eigenvectors[i1]), torch.Tensor(eigenvectors[i2])
+    print("Eigen decomposition:", eigenvalues)
 
     # graph plotting
-    x_axis = np.linspace(-0.1, 0.1, 30)
-    input_points_torch = [torch.Tensor([x1,x2] + [0]*9) + initial_coverage_prob for x1 in x_axis for x2 in x_axis]
+    x_axis = np.linspace(-0.01, 0.01, 30)
+    y_axis = -x_axis
+    input_points_np = np.array(list(zip(x_axis, y_axis)))
+    input_points_np = np.array([[x1, x2] for x1 in x_axis for x2 in x_axis])
+    input_points_torch = [initial_coverage_prob + v1 * x1 + v2 * x2 for (x1,x2) in input_points_np]
     # input_points_torch = [torch.Tensor([x1,x2,x3,x4] + [0] * 7) + initial_coverage_prob for x1 in x_axis for x2 in x_axis for x3 in x_axis for x4 in x_axis]
-    input_points_np = np.array([[x1,x2] for x1 in x_axis for x2 in x_axis])
     # input_points_np = np.array([[x1,x2,x3,x4] for x1 in x_axis for x2 in x_axis for x3 in x_axis for x4 in x_axis])
 
     from sklearn.decomposition import PCA

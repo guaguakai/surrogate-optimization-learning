@@ -7,8 +7,17 @@ Created on Wed Apr 17 02:33:57 2019
 import networkx as nx 
 import numpy as np
 import torch
+import random
 
 from gcn import * 
+
+# Random Seed Initialization
+SEED = 1234 # random.randint(0,10000)
+print("Random seed: {}".format(SEED))
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+random.seed(SEED)
+
 
 """
 Create the graph here. Define source and target. compute the adjacency matrix here. Compute all possible paths. 
@@ -319,10 +328,10 @@ def generateSyntheticData(node_feature_size, omega=4,
         #
         #
         
-        Fv= generateFeatures(G, node_feature_size)
-        Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        # Generate attractiveness values for nodes
-        phi=net1.forward(Fv_torch,A_torch).view(-1)
+        # Fv= generateFeatures(G, node_feature_size)
+        # Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
+        # # Generate attractiveness values for nodes
+        # phi=net1.forward(Fv_torch,A_torch).view(-1)
         
         #
         #
@@ -332,13 +341,13 @@ def generateSyntheticData(node_feature_size, omega=4,
         #
         #
         
-        '''
+        # '''
         phi=generatePhi(G)
         phi=torch.as_tensor(phi, dtype=torch.float)
         #Generate features from phi values
         Fv_torch=net3.forward(phi.view(-1,1), A_torch)
         Fv=Fv_torch.detach().numpy()
-        '''
+        # '''
         
         
         #phi=y.data.numpy()
@@ -416,7 +425,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     log_prob=torch.zeros(1)
                     for e in path: 
                         log_prob-=torch.log(edge_probs[e[0]][e[1]])
-                    data_point=(G,Fv,coverage_prob, phi, path, log_prob)                    
+                    data_point=(G,Fv,coverage_prob, phi, path, log_prob)
                     testing_data.append(data_point)
                     
         elif path_type=='empirical_distribution':
