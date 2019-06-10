@@ -490,14 +490,14 @@ if __name__=='__main__':
     GRAPH_E_PROB_LOW=0.6
     GRAPH_E_PROB_HIGH=0.7
     
-    TRAINING_GRAPHS=5
+    TRAINING_GRAPHS=20
     SAMPLES_PER_TRAINING_GRAPH=100
-    TESTING_GRAPHS=2
+    TESTING_GRAPHS=20
     SAMPLES_PER_TESTING_GRAPH=20
     
-    N_EPOCHS=10
+    N_EPOCHS=20
     LR=0.0005
-    BATCH_SIZE= 10
+    BATCH_SIZE= 100
     OPTIMIZER='adam'    
     DEFENDER_BUDGET=0.01 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
 
@@ -508,7 +508,7 @@ if __name__=='__main__':
                         n_training_graphs=TRAINING_GRAPHS, n_testing_graphs=TESTING_GRAPHS, 
                         training_samples_per_graph=SAMPLES_PER_TRAINING_GRAPH,
                         testing_samples_per_graph=SAMPLES_PER_TESTING_GRAPH,
-                        fixed_graph=True, omega=OMEGA,
+                        fixed_graph=False, omega=OMEGA,
                         N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH,
                         budget=DEFENDER_BUDGET)
     
