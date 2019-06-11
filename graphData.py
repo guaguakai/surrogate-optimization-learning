@@ -12,7 +12,7 @@ import random
 from gcn import featureGenerationNet2
 
 # Random Seed Initialization
-SEED = random.randint(0,10000)
+SEED = 12345 # random.randint(0,10000)
 print("Random seed: {}".format(SEED))
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -367,7 +367,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                 log_prob=torch.zeros(1)
                 for e in edge_list:
                     log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
-                data_point=(G,Fv,coverage_prob,phi,path,log_prob)
+                data_point=(G,Fv,coverage_prob,phi,edge_list,log_prob)
 
             else:
                 raise(TypeError)

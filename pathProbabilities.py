@@ -141,8 +141,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
         elif learning_model=='empirical_distribution':
             G,Fv, coverage_prob, phi, path, log_prob = train_data[iter_n%len(train_data)]
         else:
-            G,Fv, coverage_prob, phi, path=train_data[iter_n%len(train_data)]
-            # path=getSimplePath(G, path)
+            raise(TypeError)
         
         ################################### Compute edge probabilities
         A=nx.to_numpy_matrix(G)
@@ -165,7 +164,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
             log_prob_pred=torch.zeros(1)
             for e in path: 
                 log_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]])
-            loss = log_prob_pred # / len(path)
+            loss = log_prob_pred - log_prob # / len(path)
             # loss_function=nn.MSELoss()
             # loss=loss_function(log_prob_pred,log_prob)
             # loss=loss_function(edge_probs_true, edge_probs_pred)
@@ -176,17 +175,10 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
             log_prob_pred=torch.zeros(1)
             for e in path: 
                 log_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]]) 
-            loss = log_prob_pred # / len(path)
+            loss = log_prob_pred - log_prob # / len(path)
             # loss_function=nn.MSELoss()
             # loss=loss_function(log_prob_pred,log_prob)
             # loss=loss_function(edge_probs_true, edge_probs_pred)
-
-        elif learning_model=='random_walk':
-            loss_prob_pred=torch.zeros(1)
-            for e in path: 
-                loss_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]])
-            loss = log_prob_pred
-            #print (loss)    
         
         # COMPUTE DEFENDER UTILITY 
         if not(training_method == "two-stage"):
@@ -286,10 +278,6 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
         elif learning_model=='empirical_distribution':
             G,Fv, coverage_prob, phi, path, log_prob = single_data
         
-        elif learning_model=='random_walk':
-            G,Fv, coverage_prob, phi, path = single_data
-            # path=getSimplePath(G,path)
-                
         A=nx.to_numpy_matrix(G)
         A_torch = torch.as_tensor(A, dtype=torch.float) 
         source=G.graph['source']
@@ -306,6 +294,7 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
         loss=torch.zeros(1)
         for e in path: 
             loss -= torch.log(edge_probs_pred[e[0]][e[1]])
+        loss = loss - log_prob
         # loss /= len(path)
         
         total_loss+=loss
@@ -434,7 +423,7 @@ if __name__=='__main__':
     ############################# Parameters and settings:
     time1 =time.time()
     
-    time_analysis=True
+    time_analysis=False
 
     plot_everything=True
     learning_model_type = 'random_walk_distribution' 
@@ -449,11 +438,11 @@ if __name__=='__main__':
     GRAPH_E_PROB_HIGH=0.3
     
     NUMBER_OF_GRAPHS=10
-    SAMPLES_PER_GRAPH=10
+    SAMPLES_PER_GRAPH=100
     
     N_EPOCHS=20
     LR=0.005
-    BATCH_SIZE= 1
+    BATCH_SIZE= 10
     OPTIMIZER='adam'    
     DEFENDER_BUDGET=0.01 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
 
