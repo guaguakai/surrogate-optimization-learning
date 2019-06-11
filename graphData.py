@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import random
 
-from gcn import * 
+from gcn import featureGenerationNet2
 
 # Random Seed Initialization
 SEED = random.randint(0,10000)
@@ -252,7 +252,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                           N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05, train_test_split_ratio=0.8):
     
     data=[] # aggregate all the data first then split into training and testing
-    net3= featureGenerationNet(node_feature_size)        
+    net3= featureGenerationNet2(node_feature_size)        
     n_samples = n_graphs * samples_per_graph
     
     print("N_samples: ", n_samples)
@@ -272,6 +272,7 @@ def generateSyntheticData(node_feature_size, omega=4,
         # COMPUTE ADJACENCY MATRIX
         A=nx.to_numpy_matrix(G)
         A_torch=torch.as_tensor(A, dtype=torch.float) 
+        edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         N=nx.number_of_nodes(G) 
         
             
@@ -300,7 +301,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             phi=generatePhi(G)
             phi=torch.as_tensor(phi, dtype=torch.float)
             #Generate features from phi values
-            Fv_torch=net3.forward(phi.view(-1,1), A_torch)
+            Fv_torch=net3.forward(phi.view(-1,1), edge_index)
             Fv=Fv_torch.detach().numpy()
             
             # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
