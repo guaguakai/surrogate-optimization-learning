@@ -12,7 +12,7 @@ from termcolor import cprint
 from scipy.stats.stats import pearsonr
 import matplotlib.pyplot as plt
 
-from gcn import * 
+from gcn import GCNPredictionNet, GCNPredictionNet2
 from graphData import *
 from coverageProbability import *
 from obsoleteCode import *
@@ -75,7 +75,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
 
     
     time1=time.time()
-    net2= GCNPredictionNet(feature_size)
+    net2= GCNPredictionNet2(feature_size)
     net2.train()
     if optimizer=='adam':
         optimizer=optim.Adam(net2.parameters(), lr=lr)
@@ -151,10 +151,11 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
         target=G.graph['target']
     
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        phi_pred=net2(Fv_torch, A_torch).view(-1)
+        edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
+        phi_pred=net2(Fv_torch, edge_index).view(-1)
+        # phi_pred=net2(Fv_torch, A_torch).view(-1)
         transition_probs_pred = phi2prob(G, phi_pred)
         #print ("PHI PRED:", phi_pred)
-        #print ("GCN1:", list(net2.parameters())[0].grad)
         #print ("PHI ACTUAL:", phi)
         
         edge_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
@@ -164,7 +165,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
             log_prob_pred=torch.zeros(1)
             for e in path: 
                 log_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]])
-            loss = log_prob_pred / len(path)
+            loss = log_prob_pred # / len(path)
             # loss_function=nn.MSELoss()
             # loss=loss_function(log_prob_pred,log_prob)
             # loss=loss_function(edge_probs_true, edge_probs_pred)
@@ -175,15 +176,16 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
             log_prob_pred=torch.zeros(1)
             for e in path: 
                 log_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]]) 
-            loss = log_prob_pred / len(path)
+            loss = log_prob_pred # / len(path)
             # loss_function=nn.MSELoss()
             # loss=loss_function(log_prob_pred,log_prob)
             # loss=loss_function(edge_probs_true, edge_probs_pred)
 
         elif learning_model=='random_walk':
-            loss=torch.zeros(1)
+            loss_prob_pred=torch.zeros(1)
             for e in path: 
-                loss-=torch.log(edge_probs_pred[e[0]][e[1]])
+                loss_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]])
+            loss = log_prob_pred
             #print (loss)    
         
         # COMPUTE DEFENDER UTILITY 
@@ -200,7 +202,6 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
             #print ("Loss: ", loss)
             batch_loss.backward(retain_graph=True)
             optimizer.step()
-            #print ("GCN1:", list(net2.parameters())[0].grad)
             batch_loss=torch.zeros(1)
         
     return net2 ,training_loss_list, testing_loss_list, entire_defender_utility_list
@@ -295,7 +296,9 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
         target=G.graph['target']
         
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        phi_pred=net2(Fv_torch, A_torch).view(-1)
+        edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
+        phi_pred=net2(Fv_torch, edge_index).view(-1)
+        # phi_pred=net2(Fv_torch, A_torch).view(-1)
         
         edge_probs_pred=generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
         edge_probs_pred.detach()
@@ -303,7 +306,7 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
         loss=torch.zeros(1)
         for e in path: 
             loss -= torch.log(edge_probs_pred[e[0]][e[1]])
-        loss /= len(path)
+        # loss /= len(path)
         
         total_loss+=loss
         #print ("Loss: ", loss)
@@ -345,7 +348,8 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
             A=nx.to_numpy_matrix(G)
             A_torch = torch.as_tensor(A, dtype=torch.float)
             #print ("This point: ", len(list(G.nodes())), len(Fv), len(Fv_torch), len(A_torch), len(A))
-            phi_pred=net2(Fv_torch, A_torch).view(-1).detach()
+            edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
+            phi_pred=net2(Fv_torch, edge_index).view(-1).detach()
             phi_true=phi_true.detach()
             transition_probs_pred = phi2prob(G, phi_pred)
             transition_probs_true = phi2prob(G, phi_true)
@@ -436,7 +440,7 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' 
     training_mode = 0
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
-    feature_size=50
+    feature_size=10
     OMEGA=4
 
     GRAPH_N_LOW=16
@@ -445,10 +449,10 @@ if __name__=='__main__':
     GRAPH_E_PROB_HIGH=0.3
     
     NUMBER_OF_GRAPHS=10
-    SAMPLES_PER_GRAPH=100
+    SAMPLES_PER_GRAPH=10
     
     N_EPOCHS=20
-    LR=0.01
+    LR=0.005
     BATCH_SIZE= 1
     OPTIMIZER='adam'    
     DEFENDER_BUDGET=0.01 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
