@@ -12,7 +12,7 @@ import random
 from gcn import * 
 
 # Random Seed Initialization
-SEED = 1234 # random.randint(0,10000)
+SEED = random.randint(0,10000)
 print("Random seed: {}".format(SEED))
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -304,8 +304,8 @@ def generateSyntheticData(node_feature_size, omega=4,
         
             
         # Randomly assign coverage probability
-        private_coverage_prob=np.random.rand(nx.number_of_edges(G))
-        private_coverage_prob/=sum(private_coverage_prob)
+        private_coverage_prob = np.random.rand(nx.number_of_edges(G))
+        private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * (budget / G.number_of_edges())
         coverage_prob=torch.zeros(N,N)
         for i, e in enumerate(list(G.edges())):
             #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
@@ -324,36 +324,15 @@ def generateSyntheticData(node_feature_size, omega=4,
         for node in list(G.nodes()):
             Fv[node]=G.node[node]['node_features']
         '''
-        #
-        #
-        #
         
-        # Fv= generateFeatures(G, node_feature_size)
-        # Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-        # # Generate attractiveness values for nodes
-        # phi=net1.forward(Fv_torch,A_torch).view(-1)
-        
-        #
-        #
-        '''
-        REPLACE THE ABOVE CODE SNIPPET WITH FOLLOWING LINES TO GENERATE FEATURES FROM PHI INSTEAD OF OTHER WAY ROUND
-        '''
-        #
-        #
-        
-        # '''
         phi=generatePhi(G)
         phi=torch.as_tensor(phi, dtype=torch.float)
         #Generate features from phi values
         Fv_torch=net3.forward(phi.view(-1,1), A_torch)
         Fv=Fv_torch.detach().numpy()
-        # '''
         
         
-        #phi=y.data.numpy()
-        '''
-        phi is the attractiveness function, phi(v,f) for each of the N nodes, v
-        '''
+        # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
         source=G.graph['source']
         target=G.graph['target']
                         
