@@ -301,23 +301,9 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
         edge_probs_pred.detach()
         
         loss=torch.zeros(1)
-        if learning_model=='random_walk_distribution':
-            loss_list = []
-            for e in path: 
-                loss_list.append(-torch.log(edge_probs_pred[e[0]][e[1]]))
-            loss = np.mean(loss_list)
-        
-        elif learning_model=='empirical_distribution':
-            loss_list = []
-            for e in path: 
-                loss_list.append(-torch.log(edge_probs_pred[e[0]][e[1]]))
-            loss = np.mean(loss_list)
-        
-        elif learning_model=='random_walk':
-            loss_list = []
-            for e in path: 
-                loss_list.append(-torch.log(edge_probs_pred[e[0]][e[1]]))
-            loss = np.mean(loss_list)
+        for e in path: 
+            loss -= torch.log(edge_probs_pred[e[0]][e[1]])
+        loss /= len(path)
         
         total_loss+=loss
         #print ("Loss: ", loss)
@@ -462,7 +448,7 @@ if __name__=='__main__':
     SAMPLES_PER_GRAPH=100
     
     N_EPOCHS=20
-    LR=0.001
+    LR=0.01
     BATCH_SIZE= 1
     OPTIMIZER='adam'    
     DEFENDER_BUDGET=0.01 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 

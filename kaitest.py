@@ -133,7 +133,7 @@ def obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, ome
 if __name__ == "__main__":
 
     # CODE BLOCK FOR GENERATING G, U, INITIAL_DISTRIBUTION, BUDGET
-    G=returnGraph(fixed_graph=True)
+    G=returnGraph(fixed_graph=False)
     E=nx.number_of_edges(G)
     N=nx.number_of_nodes(G)
     nodes=list(G.nodes())
