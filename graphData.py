@@ -184,7 +184,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         for target in G.graph['targets']:
             G.node[target]['utility']=np.random.randint(20, high=50)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(-40, high=-20))
+        G.graph['U'].append(np.random.randint(-40, high=-30))
         #G.graph['U'].append(0) # indifferent of getting caught
         # G.graph['U'].append(np.random.randint(-80, high=-60)) # negative payoff
         G.graph['U']=np.array(G.graph['U'])
