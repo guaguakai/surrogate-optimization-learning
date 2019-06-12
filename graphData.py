@@ -307,67 +307,32 @@ def generateSyntheticData(node_feature_size, omega=4,
             # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
             source=G.graph['source']
             target=G.graph['target']
-                            
-            # if path_type=='simple_paths':
-            #     # NOTE: THIS NEEDS TO BE MODIFIED WITH THE NEW DATA GENETATION SCHEME. CURRENTLY UNUSABLE
-    
-            #     if graph_number<n_training_graphs:
-            #         n_samples_for_current_graph=training_samples_per_graph
-            #         list_name=training_data
-            #     else:
-            #         n_samples_for_current_graph=testing_samples_per_graph
-            #         list_name=testing_data
-            #     for _ in range(n_samples_for_current_graph):    
-            #         
-            #         Fv= generateFeatures(G, node_feature_size)
-            #     
-            #         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-            #         # Generate attractiveness values for nodes
-            #         phi=net1.forward(Fv_torch,A_torch).view(-1)
-            #         #phi=y.data.numpy()
-            #         '''
-            #         phi is the attractiveness function, phi(v,f) for each of the N nodes, v
-            #         '''           
-            #         # COMPUTE ALL POSSIBLE PATHS
-            #         all_paths=list(nx.all_simple_paths(G, source, target))
-            #         n_paths=len(all_paths)
-            #                
-            #         # GENERATE SYNTHETIC DATA:         
-            #         path_probs=generate_PathProbs_from_Attractiveness(G,coverage_prob,phi, all_paths, n_paths)
-            #         #print ("SUM2:", torch.sum(path_probs), path_probs)
-            #         #data_point=np.random.choice(n_paths,size=1, p=path_probs)
-            #         #data_point=(Fv, coverage_prob, path_probs)
-            #         data_point=(G,Fv, coverage_prob, phi, path_probs)
-            #         list_name.append(data_point)
             
             # EXACT EDGE PROBS
             edge_probs=generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi)
 
             # EMPIRICAL EDGE PROBS
             edge_list = []
-            empirical_transition_prob=torch.zeros((N,N))
+            empirical_transition_probs=torch.zeros((N,N))
             for _ in range(empirical_samples_per_instance):
                 path=getMarkovianWalk(G, edge_probs)
                 for e in path:
-                    empirical_transition_prob[e[0]][e[1]]+=1
+                    empirical_transition_probs[e[0]][e[1]]+=1
                 edge_list += path
-            empirical_transition_prob = empirical_transition_prob / torch.sum(empirical_transition_prob, dim=1, keepdim=True)
+            empirical_transition_probs = empirical_transition_probs / torch.sum(empirical_transition_probs, dim=1, keepdim=True)
 
             # DATA POINT
-            if path_type=='random_walk':
-                data_point=(G,Fv,coverage_prob, phi, edge_list)
-            
-            elif path_type=='random_walk_distribution':
+            if path_type=='random_walk_distribution':
                 log_prob=torch.zeros(1)
                 for e in edge_list:
                     log_prob-=torch.log(edge_probs[e[0]][e[1]])
-                data_point=(G,Fv,coverage_prob,phi,edge_list,log_prob)
+                data_point=(G,Fv,coverage_prob,edge_probs,edge_list,log_prob)
                         
             elif path_type=='empirical_distribution':
                 log_prob=torch.zeros(1)
                 for e in edge_list:
                     log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
-                data_point=(G,Fv,coverage_prob,phi,edge_list,log_prob)
+                data_point=(G,Fv,coverage_prob,empirical_transition_probs,edge_list,log_prob)
 
             else:
                 raise(TypeError)
