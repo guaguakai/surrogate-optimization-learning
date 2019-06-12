@@ -12,7 +12,7 @@ from termcolor import cprint
 from scipy.stats.stats import pearsonr
 import matplotlib.pyplot as plt
 
-from gcn import GCNPredictionNet, GCNPredictionNet2
+from gcn import GCNPredictionNet2
 from graphData import *
 from coverageProbability import *
 from obsoleteCode import *
@@ -423,7 +423,7 @@ if __name__=='__main__':
     ############################# Parameters and settings:
     time1 =time.time()
     
-    time_analysis=False
+    time_analysis=True
 
     plot_everything=True
     learning_model_type = 'random_walk_distribution' 
@@ -437,11 +437,12 @@ if __name__=='__main__':
     GRAPH_E_PROB_LOW=0.2
     GRAPH_E_PROB_HIGH=0.3
     
-    NUMBER_OF_GRAPHS=10
-    SAMPLES_PER_GRAPH=100
+    NUMBER_OF_GRAPHS=1
+    SAMPLES_PER_GRAPH=1000
+    EMPIRICAL_SAMPLES_PER_INSTANCE=10
     
     N_EPOCHS=20
-    LR=0.005
+    LR=0.02
     BATCH_SIZE= 10
     OPTIMIZER='adam'    
     DEFENDER_BUDGET=0.01 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
@@ -450,7 +451,7 @@ if __name__=='__main__':
       
     ############################### Data genaration:
     train_data, test_data=generateSyntheticData(feature_size, path_type=learning_model_type, 
-                        n_graphs=NUMBER_OF_GRAPHS, samples_per_graph=SAMPLES_PER_GRAPH,
+                        n_graphs=NUMBER_OF_GRAPHS, samples_per_graph=SAMPLES_PER_GRAPH, empirical_samples_per_instance=EMPIRICAL_SAMPLES_PER_INSTANCE,
                         fixed_graph=True, omega=OMEGA,
                         N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH,
                         budget=DEFENDER_BUDGET)

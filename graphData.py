@@ -247,7 +247,7 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_prob_matrix, phi, omega=4
     return transition_probs
 
 def generateSyntheticData(node_feature_size, omega=4, 
-                          n_graphs=20, samples_per_graph=100,
+                          n_graphs=20, samples_per_graph=100, empirical_samples_per_instance=10,
                           fixed_graph=False, path_type='random_walk',
                           N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05, train_test_split_ratio=0.8):
     
@@ -346,7 +346,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             # EMPIRICAL EDGE PROBS
             edge_list = []
             empirical_transition_prob=torch.zeros((N,N))
-            for _ in range(100):
+            for _ in range(empirical_samples_per_instance):
                 path=getMarkovianWalk(G, edge_probs)
                 for e in path:
                     empirical_transition_prob[e[0]][e[1]]+=1
