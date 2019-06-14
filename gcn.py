@@ -240,7 +240,7 @@ class GCNPredictionNet2(nn.Module):
         x=self.fc1(x)
         # x=F.relu(x)
         # x=self.fc2(x)
-        # x=torch.sigmoid(x) * 10 # scale up
+        x=torch.sigmoid(x) * 10 # scale up
         # Now, x is a nX1 tensor consisting of the predicted phi(v,f) for each of the n nodes v.
         
         return x

@@ -15,18 +15,22 @@ import autograd
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
-    transition_probs=torch.zeros((N,N))
-    for i, u in enumerate(list(G.nodes())):
-        neighbors = list(G[u])                  # for both directed and undirected graph
-        for j, neighbor in enumerate(neighbors):
-            transition_probs[u,neighbor]=torch.exp(phi[neighbor])
+    adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
+    transition_probs = adj * torch.exp(phi)
+
+    # transition_probs=torch.zeros((N,N))
+    # for i, u in enumerate(list(G.nodes())):
+    #     neighbors = list(G[u])                  # for both directed and undirected graph
+    #     for j, neighbor in enumerate(neighbors):
+    #         transition_probs[u,neighbor]=torch.exp(phi[neighbor])
+    # print("phi2prob2", transition_probs)
 
     return transition_probs
 
 def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be normalized. It will be normalized later
-    coverage_prob_matrix=torch.zeros((n,n))
+    N=nx.number_of_nodes(G)
+    coverage_prob_matrix=torch.zeros((N,N))
     for i, e in enumerate(list(G.edges())):
-        #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
@@ -66,7 +70,6 @@ def objective_function_matrix_form(coverage_probs, G, transition_probs, U, initi
     # COVERAGE PROBABILITY MATRIX
     coverage_prob_matrix=torch.zeros((n,n))
     for i, e in enumerate(list(G.edges())):
-        #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
@@ -165,7 +168,6 @@ def dobj_dx_matrix_form_np(coverage_probs, G, transition_probs, U, initial_distr
     # COVERAGE PROBABILITY MATRIX
     coverage_prob_matrix=np.zeros((n,n))
     for i, e in enumerate(list(G.edges())):
-        print(e, coverage_probs[i])
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 

@@ -98,30 +98,26 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
     ######################################################
     #                   TRAINING LOOP
     ######################################################
-    training_loss=torch.zeros(1)
-    batch_loss=torch.zeros(1)
-    time3=time.time()
+    training_loss, total_def_obj = torch.zeros(1), torch.zeros(1)
+    batch_loss = torch.zeros(1)
+    time3 = time.time()
 
 
     for iter_n in range(n_iterations):
-        
-        optimizer.zero_grad()
-        
         ################################### Print stuff after every epoch 
         if iter_n%len(train_data)==0:
             np.random.shuffle(train_data)
-            print("Epoch number/Training loss/ Training loss per sample/Phi Loss/corr_coeff: ", 
-                  iter_n/len(train_data),training_loss.item(), training_loss.item()/len(train_data))
+            print("Epoch number: {}/Training loss: {}/ Average training loss: {}/ Average defender Objective: {}".format(
+                  iter_n/len(train_data),training_loss.item(), training_loss.item()/len(train_data), total_def_obj/len(train_data)))
             
             ################################### Compute performance on test data
             defender_utility, testing_loss=testModel(test_data,net2,learning_model, omega=omega, defender_utility_computation=True)
-            
             
             entire_defender_utility_list.append(defender_utility['entire'])
             testing_loss_list.append(testing_loss.item())
             training_loss_list.append((training_loss.item())/len(train_data))
             ################################## Reinitialize to 0 
-            training_loss=torch.zeros(1)
+            training_loss, total_def_obj = torch.zeros(1), torch.zeros(1)
             np.random.shuffle(train_data)
         
             time4=time.time()
@@ -133,9 +129,9 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
         
         ################################### Gather data based on learning model
         if learning_model=='random_walk_distribution':
-            G,Fv, coverage_prob, edge_probs_true, path, log_prob = train_data[iter_n%len(train_data)]
+            G, Fv, coverage_prob, phi_true, unbiased_probs_true, path, log_prob = train_data[iter_n%len(train_data)]
         elif learning_model=='empirical_distribution':
-            G,Fv, coverage_prob, edge_probs_true, path, log_prob = train_data[iter_n%len(train_data)]
+            G, Fv, coverage_prob, phi_true, unbiased_probs_true, path, log_prob = train_data[iter_n%len(train_data)]
         else:
             raise(TypeError)
         
@@ -148,35 +144,29 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         phi_pred=net2(Fv_torch, edge_index).view(-1)
-        transition_probs_pred = phi2prob(G, phi_pred)
-        
-        edge_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+
+        unbiased_probs_pred = phi2prob(G, phi_pred)
+        biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
         
         ################################### Compute loss
-        if learning_model=='random_walk_distribution':
-            log_prob_pred=torch.zeros(1)
-            for e in path: 
-                log_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]])
-            loss = log_prob_pred - log_prob # / len(path)
+        log_prob_pred=torch.zeros(1)
+        for e in path: 
+            log_prob_pred-=torch.log(biased_probs_pred[e[0]][e[1]])
+        loss = log_prob_pred - log_prob # / len(path)
 
-        elif learning_model=='empirical_distribution':
-
-            log_prob_pred=torch.zeros(1)
-            for e in path: 
-                log_prob_pred-=torch.log(edge_probs_pred[e[0]][e[1]]) 
-            loss = log_prob_pred - log_prob # / len(path)
         
         # COMPUTE DEFENDER UTILITY 
-        if not(training_method == "two-stage"):
-            single_data = train_data[iter_n % len(train_data)]
-            def_obj = getDefUtility(single_data, transition_probs_pred, learning_model, omega=omega, verbose=False)
+        # if not(training_method == "two-stage"):
+        single_data = train_data[iter_n % len(train_data)]
+        def_obj, def_coverage = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False)
+        total_def_obj += def_obj
 
         # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
         batch_loss += loss if training_method == "two-stage" else -def_obj
         training_loss+=loss
         if iter_n%batch_size==(batch_size-1):
-            #print ("Loss: ", loss)
-            batch_loss.backward(retain_graph=True)
+            optimizer.zero_grad()
+            batch_loss.backward()
             optimizer.step()
             batch_loss=torch.zeros(1)
         
@@ -184,11 +174,11 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
     
 
 
-def getDefUtility(single_data, transition_probs_pred, path_model, omega=4, verbose=False):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose=False):
     if path_model=='random_walk_distribution':
-        G, Fv, coverage_prob, edge_probs_true, path, log_prob = single_data
+        G, Fv, coverage_prob, phi_true, unbiased_probs_true, path, log_prob = single_data
     elif path_model=='empirical_distribution':
-        G, Fv, coverage_prob, edge_probs_true, path, log_prob = single_data
+        G, Fv, coverage_prob, phi_true, unbiased_probs_true, path, log_prob = single_data
     
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
@@ -198,23 +188,19 @@ def getDefUtility(single_data, transition_probs_pred, path_model, omega=4, verbo
     m = G.number_of_edges()
     G_matrix = torch.cat((-torch.eye(m), torch.eye(m), torch.ones(1,m)))
     h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
-    # print(G_matrix.shape)
-    # print(h_matrix.shape)
 
     # ========================== QP part ===========================
-    pred_optimal_res = get_optimal_coverage_prob(G, transition_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options)
+    pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options)
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
     qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
                                    zhats=None, slacks=None, nus=None, lams=None)
 
-    Q = obj_hessian_matrix_form(pred_optimal_coverage, G, transition_probs_pred, U, initial_distribution, omega=omega)
+    Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, omega=omega)
     Q_sym = (Q + Q.t()) / 2
     eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
-    negative_eigenvalues = np.array(eigenvalues) - 0.1
-    Q_regularized = Q_sym - torch.eye(m) * min(0, min(eigenvalues)-0.1)
-    # Q_regularized = 5 * torch.eye(m)
+    Q_regularized = Q_sym - torch.eye(m) * min(0, min(eigenvalues)-1)
     is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
-    jac = dobj_dx_matrix_form(pred_optimal_coverage, G, transition_probs_pred, U, initial_distribution, omega=omega, lib=torch)
+    jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
     p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
 
     coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, torch.Tensor(), torch.Tensor())[0]
@@ -227,17 +213,19 @@ def getDefUtility(single_data, transition_probs_pred, path_model, omega=4, verbo
         print("Gradient: {}".format(jac))
         print("Eigen decomposition: {}".format(np.linalg.eig(Q_sym.detach().numpy())[0]))
         print("Eigen decomposition: {}".format(np.linalg.eig(Q_regularized.detach().numpy())[0]))
-        print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, transition_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-        print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, transition_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+        print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+        print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
         print(pred_optimal_coverage, torch.sum(pred_optimal_coverage))
         print(coverage_qp_solution, torch.sum(coverage_qp_solution))
         print("Solution difference:", torch.norm(pred_optimal_coverage - coverage_qp_solution))
+        print(unbiased_probs_true)
+        print(unbiased_probs_pred)
 
 
     # ======================= Defender Utility ========================
-    pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution,  G, edge_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
-
-    return pred_defender_utility
+    # transition_probs_true = phi2prob(G, phi_true)
+    pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution,  G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+    return pred_defender_utility, coverage_qp_solution
 
     
 
@@ -249,34 +237,49 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
     
     # COMPUTE TEST LOSS
     total_loss=0.0    
+
+    total_pred_defender_utility   = 0
+    total_ideal_defender_utility  = 0
+    total_random_defender_utility = 0
+
     for iter_n, single_data in enumerate(dataset):
         if learning_model=='random_walk_distribution':
-            G,Fv, coverage_prob, edge_probs_true, path, log_prob = single_data
+            G, Fv, coverage_prob, phi_true, unbiased_probs_true, path, log_prob = single_data
             
         elif learning_model=='empirical_distribution':
-            G,Fv, coverage_prob, edge_probs_true, path, log_prob = single_data
+            G, Fv, coverage_prob, phi_true, unbiased_probs_true, path, log_prob = single_data
         
-        A=nx.to_numpy_matrix(G)
-        A_torch = torch.as_tensor(A, dtype=torch.float) 
-        source=G.graph['source']
-        target=G.graph['target']
+        source, target, budget = G.graph['source'], G.graph['target'], G.graph['budget'] 
+        U, initial_distribution = G.graph['U'], G.graph['initial_distribution']
         
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         phi_pred=net2(Fv_torch, edge_index).view(-1)
         
-        edge_probs_pred=generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
-        edge_probs_pred.detach()
+        biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+        unbiased_probs_pred = prob2unbiased(G, coverage_prob, biased_probs_pred, omega)
         
         loss=torch.zeros(1)
         for e in path: 
-            loss -= torch.log(edge_probs_pred[e[0]][e[1]])
+            loss -= torch.log(biased_probs_pred[e[0]][e[1]])
         loss = loss - log_prob
-        # loss /= len(path)
+
+        # ---------------- computing defender utility ------------------------
+        unbiased_probs_pred   = phi2prob(G, phi_pred)
+        unbiased_probs_true   = phi2prob(G, phi_true)
+        random_coverage_prob=np.random.rand(nx.number_of_edges(G))
+        random_coverage_prob=budget*(random_coverage_prob/np.sum(random_coverage_prob))
+
+        total_pred_defender_utility   += getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False)[0]
+        total_ideal_defender_utility  += getDefUtility(single_data, unbiased_probs_true, learning_model, omega=omega, verbose=False)[0]
+        total_random_defender_utility += -(objective_function_matrix_form(random_coverage_prob, G, unbiased_probs_true, U, initial_distribution, omega=omega))
         
         total_loss+=loss
         #print ("Loss: ", loss)
     testing_loss=total_loss/len(dataset)
+    total_pred_defender_utility   = total_pred_defender_utility   / len(dataset)
+    total_ideal_defender_utility  = total_ideal_defender_utility  / len(dataset)
+    total_random_defender_utility = total_random_defender_utility / len(dataset)
     print("Testing loss per sample:", testing_loss)
   
     time2=time.time()
@@ -287,71 +290,64 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
     ######################################################################################################################
     ############################################################## EXPECTED DEFENDER UTILITY COMPUTATION #################    
     ######################################################################################################################
-    if defender_utility_computation:
+    #     for iter_n, single_data in enumerate(dataset):
+    #         if learning_model=='random_walk_distribution':
+    #             G,Fv, coverage_prob, edge_probs_true, path, log_prob = single_data
+    #         elif learning_model=='empirical_distribution':
+    #             G,Fv, coverage_prob, edge_probs_true, path, log_prob = single_data
+    #         
+    #         source=G.graph['source']
+    #         target=G.graph['target']        
+    #         budget=G.graph['budget'] 
+    #         U=G.graph['U']
+    #         initial_distribution=G.graph['initial_distribution']
+    #         
+    #         ###################################################### DEFENDER UTILITY COMPUTATION
+    #         # This code block computes: 
+    #         # Expected ideal def utility, model def utility, random model defender utility, path specific def utility
+    #         ######################################################
+    #         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
+    #         A=nx.to_numpy_matrix(G)
+    #         A_torch = torch.as_tensor(A, dtype=torch.float)
+    #         #print ("This point: ", len(list(G.nodes())), len(Fv), len(Fv_torch), len(A_torch), len(A))
+    #         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
+    #         phi_pred=net2(Fv_torch, edge_index).view(-1).detach()
+    #         transition_probs_pred = phi2prob(G, phi_pred)
+    #         
+    #         #######################################################
+    #         pred_optimal_coverage_res=get_optimal_coverage_prob(G, transition_probs_pred, U, initial_distribution, budget, omega=omega)
+    #         pred_optimal_coverage = pred_optimal_coverage_res['x']
+    #         # print (pred_optimal_coverage_res)
 
-        total_ideal_defender_utility=0.0
-        total_pred_defender_utility=0.0
-        total_random_defender_utility=0.0
-        for iter_n, single_data in enumerate(dataset):
-            if learning_model=='random_walk_distribution':
-                G,Fv, coverage_prob, edge_probs_true, path, log_prob = single_data
-            elif learning_model=='empirical_distribution':
-                G,Fv, coverage_prob, edge_probs_true, path, log_prob = single_data
-            
-            source=G.graph['source']
-            target=G.graph['target']        
-            budget=G.graph['budget'] 
-            U=G.graph['U']
-            initial_distribution=G.graph['initial_distribution']
-            
-            ###################################################### DEFENDER UTILITY COMPUTATION
-            # This code block computes: 
-            # Expected ideal def utility, model def utility, random model defender utility, path specific def utility
-            ######################################################
-            Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
-            A=nx.to_numpy_matrix(G)
-            A_torch = torch.as_tensor(A, dtype=torch.float)
-            #print ("This point: ", len(list(G.nodes())), len(Fv), len(Fv_torch), len(A_torch), len(A))
-            edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
-            phi_pred=net2(Fv_torch, edge_index).view(-1).detach()
-            transition_probs_pred = phi2prob(G, phi_pred)
-            
-            #######################################################
-            pred_optimal_coverage_res=get_optimal_coverage_prob(G, transition_probs_pred, U, initial_distribution, budget, omega=omega)
-            pred_optimal_coverage = pred_optimal_coverage_res['x']
-            # print (pred_optimal_coverage_res)
-
-            ideal_optimal_coverage=get_optimal_coverage_prob(G, edge_probs_true, U, initial_distribution, budget, omega=omega)['x']
-            random_coverage_prob=np.random.rand(nx.number_of_edges(G))
-            random_coverage_prob=budget*(random_coverage_prob/np.sum(random_coverage_prob))
-            
-            #######################################################
-            total_pred_defender_utility   += -(objective_function_matrix_form(pred_optimal_coverage,  G, edge_probs_true, U,initial_distribution, omega=omega))
-            total_ideal_defender_utility  += -(objective_function_matrix_form(ideal_optimal_coverage, G, edge_probs_true, U,initial_distribution, omega=omega))
-            total_random_defender_utility += -(objective_function_matrix_form(random_coverage_prob,   G, edge_probs_true, U,initial_distribution, omega=omega))
-            
-            if total_ideal_defender_utility<total_pred_defender_utility:
-                print("DEFENDER UTILITY ERROR")
-            else:
-                pass
-                #print ("DEFEFNDER UTILITY OK")
-        
-        # Normalize defender utility to per sample:
-        total_ideal_defender_utility  /= len(dataset)
-        total_pred_defender_utility   /= len(dataset)
-        total_random_defender_utility /= len(dataset)
-        
-        time3=time.time()
-        if time_analysis:
-            cprint (("DEFENDER UTILITY CALCULATION TIME: ", time3-time2), 'red')
-            
-            
-        cprint(("Defender utility: ideal/model/random: ", total_ideal_defender_utility, total_pred_defender_utility, total_random_defender_utility), color='blue') 
-        # cprint (("Path specific utility: ideal/model/random: ",ideal_path_specific_defender_utility, pred_path_specific_defender_utility, random_path_specific_defender_utility),color='blue')
+    #         ideal_optimal_coverage=get_optimal_coverage_prob(G, edge_probs_true, U, initial_distribution, budget, omega=omega)['x']
+    #         random_coverage_prob=np.random.rand(nx.number_of_edges(G))
+    #         random_coverage_prob=budget*(random_coverage_prob/np.sum(random_coverage_prob))
+    #         
+    #         #######################################################
+    #         total_pred_defender_utility   += -(objective_function_matrix_form(pred_optimal_coverage,  G, edge_probs_true, U,initial_distribution, omega=omega))
+    #         total_ideal_defender_utility  += -(objective_function_matrix_form(ideal_optimal_coverage, G, edge_probs_true, U,initial_distribution, omega=omega))
+    #         total_random_defender_utility += -(objective_function_matrix_form(random_coverage_prob,   G, edge_probs_true, U,initial_distribution, omega=omega))
+    #         
+    #         if total_ideal_defender_utility<total_pred_defender_utility:
+    #             print("DEFENDER UTILITY ERROR")
+    #         else:
+    #             pass
+    #             #print ("DEFEFNDER UTILITY OK")
+    #     
+    #     # Normalize defender utility to per sample:
+    #     total_ideal_defender_utility  /= len(dataset)
+    #     total_pred_defender_utility   /= len(dataset)
+    #     total_random_defender_utility /= len(dataset)
+    #     
+    #     time3=time.time()
+    #     if time_analysis:
+    #         cprint (("DEFENDER UTILITY CALCULATION TIME: ", time3-time2), 'red')
+    #         
+    #         
+    cprint(("Defender utility: ideal/model/random: ", total_ideal_defender_utility, total_pred_defender_utility, total_random_defender_utility), color='blue') 
+    # cprint (("Path specific utility: ideal/model/random: ",ideal_path_specific_defender_utility, pred_path_specific_defender_utility, random_path_specific_defender_utility),color='blue')
     
-        defender_utility={'entire':(total_ideal_defender_utility,total_pred_defender_utility,total_random_defender_utility),
-                          # 'path':(ideal_path_specific_defender_utility,pred_path_specific_defender_utility,random_path_specific_defender_utility)
-                          }
+    defender_utility={'entire':(total_ideal_defender_utility,total_pred_defender_utility,total_random_defender_utility)}
     return defender_utility, testing_loss
 
 
@@ -368,7 +364,7 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
     training_mode = 0
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
-    feature_size=10
+    feature_size=50
     OMEGA=4
 
     GRAPH_N_LOW=16
@@ -377,12 +373,12 @@ if __name__=='__main__':
     GRAPH_E_PROB_HIGH=0.3
     
     NUMBER_OF_GRAPHS=1
-    SAMPLES_PER_GRAPH=1000
-    EMPIRICAL_SAMPLES_PER_INSTANCE=10
+    SAMPLES_PER_GRAPH=100
+    EMPIRICAL_SAMPLES_PER_INSTANCE=100
     
     N_EPOCHS=20
-    LR=0.02
-    BATCH_SIZE= 10
+    LR=0.01
+    BATCH_SIZE= 5
     OPTIMIZER='adam'    
     DEFENDER_BUDGET=0.01 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
 
