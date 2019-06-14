@@ -13,7 +13,7 @@ from gcn import featureGenerationNet2
 from coverageProbability import prob2unbiased, phi2prob
 
 # Random Seed Initialization
-SEED = 12345 # random.randint(0,10000)
+SEED = random.randint(0,10000)
 print("Random seed: {}".format(SEED))
 torch.manual_seed(SEED)
 np.random.seed(SEED)
