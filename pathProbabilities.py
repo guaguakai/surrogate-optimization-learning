@@ -206,7 +206,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, torch.Tensor(), torch.Tensor())[0]
 
     # print(Q, p)
-    if verbose:
+    if torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.1:
         print(pred_optimal_res)
         print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
         print("Hessian: {}".format(Q_sym))
@@ -272,10 +272,9 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
 
         total_pred_defender_utility   += getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False)[0]
         total_ideal_defender_utility  += getDefUtility(single_data, unbiased_probs_true, learning_model, omega=omega, verbose=False)[0]
-        total_random_defender_utility += -(objective_function_matrix_form(random_coverage_prob, G, unbiased_probs_true, U, initial_distribution, omega=omega))
-        
+        total_random_defender_utility += -(objective_function_matrix_form(random_coverage_prob, G, unbiased_probs_true, U, initial_distribution, omega=omega))        
         total_loss+=loss
-        #print ("Loss: ", loss)
+
     testing_loss=total_loss/len(dataset)
     total_pred_defender_utility   = total_pred_defender_utility   / len(dataset)
     total_ideal_defender_utility  = total_ideal_defender_utility  / len(dataset)
@@ -362,7 +361,7 @@ if __name__=='__main__':
     plot_everything=True
     learning_mode = 1
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
-    training_mode = 0
+    training_mode = 1
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
     feature_size=50
     OMEGA=4
@@ -377,7 +376,7 @@ if __name__=='__main__':
     EMPIRICAL_SAMPLES_PER_INSTANCE=100
     
     N_EPOCHS=20
-    LR=0.01
+    LR=0.1
     BATCH_SIZE= 5
     OPTIMIZER='adam'    
     DEFENDER_BUDGET=0.01 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 

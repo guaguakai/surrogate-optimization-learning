@@ -16,8 +16,10 @@ import autograd
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    transition_probs = adj * torch.exp(phi)
+    unbiased_probs = adj * torch.exp(phi)
 
+    unbiased_probs = unbiased_probs / torch.sum(unbiased_probs, keepdim=True, dim=1)
+    unbiased_probs[torch.isnan(unbiased_probs)] = 0
     # transition_probs=torch.zeros((N,N))
     # for i, u in enumerate(list(G.nodes())):
     #     neighbors = list(G[u])                  # for both directed and undirected graph
@@ -25,7 +27,7 @@ def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normal
     #         transition_probs[u,neighbor]=torch.exp(phi[neighbor])
     # print("phi2prob2", transition_probs)
 
-    return transition_probs
+    return unbiased_probs
 
 def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
@@ -35,6 +37,8 @@ def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be norma
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
     unbiased_probs = biased_probs * torch.exp(coverage_prob_matrix * omega) # removing the effect of coverage
+    unbiased_probs = unbiased_probs / torch.sum(unbiased_probs, keepdim=True, dim=1)
+    unbiased_probs[torch.isnan(unbiased_probs)] = 0
 
     return unbiased_probs
 
