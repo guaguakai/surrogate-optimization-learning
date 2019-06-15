@@ -387,10 +387,10 @@ class QPFunction(Function):
 
         grads = (dQs, dps, dGs, dhs, dAs, dbs)
 
-        del self.zhats
-        del self.lams
-        del self.nus
-        del self.slacks
+        # del self.zhats
+        # del self.lams
+        # del self.nus
+        # del self.slacks
 
         return grads
 

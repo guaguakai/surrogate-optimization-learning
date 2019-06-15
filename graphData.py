@@ -10,9 +10,10 @@ import torch
 import random
 
 from gcn import featureGenerationNet2
+from coverageProbability import prob2unbiased, phi2prob
 
 # Random Seed Initialization
-SEED = 12345 # random.randint(0,10000)
+SEED = random.randint(0,10000)
 print("Random seed: {}".format(SEED))
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -237,8 +238,14 @@ def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_
     
     return path_probs
 
-def generate_EdgeProbs_from_Attractiveness(G, coverage_prob_matrix, phi, omega=4):
+def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
     N=nx.number_of_nodes(G) 
+    coverage_prob_matrix=torch.zeros((N,N))
+    for i, e in enumerate(list(G.edges())):
+        #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
+        coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
+        coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
+
     # GENERATE EDGE PROBABILITIES 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
     exponential_term = torch.exp(- omega * coverage_prob_matrix) * torch.exp(phi) * adj
@@ -279,11 +286,11 @@ def generateSyntheticData(node_feature_size, omega=4,
         # Randomly assign coverage probability
         private_coverage_prob = np.random.rand(nx.number_of_edges(G))
         private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * (budget / G.number_of_edges())
-        coverage_prob=torch.zeros(N,N)
+        coverage_prob_matrix=torch.zeros(N,N)
         for i, e in enumerate(list(G.edges())):
             #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
-            coverage_prob[e[0]][e[1]]=private_coverage_prob[i]
-            coverage_prob[e[1]][e[0]]=private_coverage_prob[i]
+            coverage_prob_matrix[e[0]][e[1]]=private_coverage_prob[i]
+            coverage_prob_matrix[e[1]][e[0]]=private_coverage_prob[i]
         '''
         # Define node features for each of the n nodes
         for node in list(G.nodes()):
@@ -309,30 +316,36 @@ def generateSyntheticData(node_feature_size, omega=4,
             target=G.graph['target']
             
             # EXACT EDGE PROBS
-            edge_probs=generate_EdgeProbs_from_Attractiveness(G, coverage_prob, phi)
+            biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi)
+            unbiased_probs = prob2unbiased(G, private_coverage_prob, biased_probs, omega)
 
             # EMPIRICAL EDGE PROBS
             edge_list = []
             empirical_transition_probs=torch.zeros((N,N))
             for _ in range(empirical_samples_per_instance):
-                path=getMarkovianWalk(G, edge_probs)
+                path=getMarkovianWalk(G, biased_probs)
                 for e in path:
                     empirical_transition_probs[e[0]][e[1]]+=1
                 edge_list += path
+
+            row_sum = torch.sum(empirical_transition_probs, dim=1)
+            adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
+            empirical_transition_probs[row_sum == 0] = adj[row_sum == 0]
             empirical_transition_probs = empirical_transition_probs / torch.sum(empirical_transition_probs, dim=1, keepdim=True)
+            empirical_unbiased_probs = prob2unbiased(G, private_coverage_prob, empirical_transition_probs, omega)
 
             # DATA POINT
             if path_type=='random_walk_distribution':
                 log_prob=torch.zeros(1)
                 for e in edge_list:
-                    log_prob-=torch.log(edge_probs[e[0]][e[1]])
-                data_point=(G,Fv,coverage_prob,edge_probs,edge_list,log_prob)
+                    log_prob-=torch.log(biased_probs[e[0]][e[1]])
+                data_point=(G,Fv,private_coverage_prob,phi,unbiased_probs,edge_list,log_prob)
                         
             elif path_type=='empirical_distribution':
                 log_prob=torch.zeros(1)
                 for e in edge_list:
                     log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
-                data_point=(G,Fv,coverage_prob,empirical_transition_probs,edge_list,log_prob)
+                data_point=(G,Fv,private_coverage_prob,phi,empirical_unbiased_probs,edge_list,log_prob)
 
             else:
                 raise(TypeError)
