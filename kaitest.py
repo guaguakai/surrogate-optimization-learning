@@ -144,10 +144,10 @@ if __name__ == "__main__":
     U=[G.node[t]['utility'] for t in targets]
     U.append(-20)
     print ('U:', U)
-    U=torch.Tensor([1,-1])
+    U=torch.Tensor(U)
     
     budget=0.1*E
-    omega = 10
+    omega = 4
 
 
     # CODE BLOCK FOR GENERATING PHI (GROUND TRUTH PHI GENERATED FOR NOW)
@@ -168,9 +168,12 @@ if __name__ == "__main__":
 
     # initial_coverage_prob = torch.rand(nx.number_of_edges(G), requires_grad=True) / 10
     initial_coverage_prob_res = get_optimal_coverage_prob(G, transition_probs, U, initial_distribution, budget, omega=omega)
-    initial_coverage_prob = torch.rand(E, requires_grad=True)
-    initial_coverage_prob = initial_coverage_prob / torch.sum(initial_coverage_prob) * budget
-    # initial_coverage_prob = torch.autograd.Variable(torch.Tensor(initial_coverage_prob_res['x']), requires_grad=True)
+    # initial_coverage_prob = torch.rand(E, requires_grad=True)
+    # initial_coverage_prob = initial_coverage_prob / torch.sum(initial_coverage_prob) * budget
+    # initial_coverage_prob = torch.autograd.Variable(torch.Tensor([9.55394184e-12, 1.05733076e-12, 8.09883103e-02, 2.90116910e-02,
+    #    1.20345780e-12, 1.15105842e-12, 1.35015588e-12, 1.15172351e-11,
+    #    1.12268636e-12, 1.18212753e-12, 1.22446281e-12]), requires_grad=True)
+    initial_coverage_prob = torch.autograd.Variable(torch.Tensor(initial_coverage_prob_res['x']), requires_grad=True)
 
     # initial_coverage_prob = torch.zeros(nx.number_of_edges(G), requires_grad=True) / 10
     # initial_coverage_prob.retain_grad()
@@ -195,19 +198,19 @@ if __name__ == "__main__":
 
     eigenvalues, eigenvectors = np.linalg.eig(torch_obj_hessian)
     indices = sorted(enumerate(eigenvalues), reverse=False, key = lambda x: x[1])
-    i1, i2 = 0, 1
-    # i1, i2 = indices[0][0], indices[1][0]
+    # i1, i2 = 0, 1
+    i1, i2 = indices[0][0], indices[1][0]
     v1, v2 = torch.Tensor(eigenvectors[i1]), torch.Tensor(eigenvectors[i2])
     print("Eigen decomposition:", eigenvalues)
 
     # graph plotting
-    x_axis = np.linspace(-0.0001, 0.0001, 30)
+    x_axis = np.linspace(-0.01, 0.01, 30)
     input_points_np = np.array([[x1, x2] for x1 in x_axis for x2 in x_axis])
     input_points_torch = [initial_coverage_prob + v1 * x1 + v2 * x2 for (x1,x2) in input_points_np]
     # input_points_torch = [torch.Tensor([x1,x2,x3,x4] + [0] * 7) + initial_coverage_prob for x1 in x_axis for x2 in x_axis for x3 in x_axis for x4 in x_axis]
     # input_points_np = np.array([[x1,x2,x3,x4] for x1 in x_axis for x2 in x_axis for x3 in x_axis for x4 in x_axis])
 
-    labels = np.array([objective_function_matrix_form(x, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega).item() for x in input_points_torch])
+    labels = np.array([objective_function_matrix_form(x, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega).item() - (dobj_dx @ (x - initial_coverage_prob)).item() for x in input_points_torch])
 
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D

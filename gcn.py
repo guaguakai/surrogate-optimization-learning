@@ -165,8 +165,8 @@ class featureGenerationNet2(nn.Module): # message passing version
         x=self.gcn2(x, edge_index)
         # x=F.relu(self.gcn3(x, edge_index))
         # x=self.gcn4(x, edge_index)
+        x = x * 10
         
-        #x=torch.mul(x, 1)
         # Now, x is a nXr tensor consisting of features for each of the n nodes v.
         
         return x
@@ -221,6 +221,7 @@ class GCNPredictionNet2(nn.Module):
         
         #Define the layers of NN to predict the attractiveness function for every node
         self.fc1 = nn.Linear(r2, 1)
+        self.dropout = nn.Dropout()
         # self.fc1 = nn.Linear(r2, r3)
         # self.fc2 = nn.Linear(r3, 1)
         
@@ -235,12 +236,16 @@ class GCNPredictionNet2(nn.Module):
         '''
         
         x=F.relu(self.gcn1(x, edge_index))
+        x=self.dropout(x)
         x=F.relu(self.gcn2(x, edge_index))
         
+        x=self.dropout(x)
         x=self.fc1(x)
+        x = x - torch.min(x)
         # x=F.relu(x)
         # x=self.fc2(x)
-        # x=torch.sigmoid(x) * 10 # scale up
+        # x=torch.sigmoid(x) * 20 # scale up
+        # x = x / torch.max(x) * 10
         # Now, x is a nX1 tensor consisting of the predicted phi(v,f) for each of the n nodes v.
         
         return x

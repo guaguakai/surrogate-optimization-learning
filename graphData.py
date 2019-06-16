@@ -317,7 +317,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             
             # EXACT EDGE PROBS
             biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi)
-            unbiased_probs = prob2unbiased(G, private_coverage_prob, biased_probs, omega)
+            unbiased_probs = phi2prob(G, phi)
 
             # EMPIRICAL EDGE PROBS
             edge_list = []

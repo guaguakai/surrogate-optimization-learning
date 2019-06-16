@@ -105,7 +105,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
 
 
     for iter_n in range(n_iterations):
-        if (iter_n // n_iterations) == 0:
+        if (iter_n / n_iterations) == 0:
             net2.eval()
         else:
             net2.train()
@@ -127,18 +127,16 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         phi_pred=net2(Fv_torch, edge_index).view(-1)
+        print(phi_pred)
 
         unbiased_probs_pred = phi2prob(G, phi_pred)
         biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
         
         ################################### Compute loss
-        # loss_fn = torch.nn.MSELoss()
-        # loss = loss_fn(phi_true, phi_pred)
         log_prob_pred=torch.zeros(1)
         for e in path: 
             log_prob_pred-=torch.log(biased_probs_pred[e[0]][e[1]])
         loss = log_prob_pred - log_prob # / len(path)
-        print(phi_pred, phi_true)
 
         
         # COMPUTE DEFENDER UTILITY 
@@ -157,7 +155,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
         # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
         batch_loss += loss if training_method == "two-stage" else -def_obj
         training_loss+=loss
-        if (iter_n%batch_size == (batch_size-1)) and (iter_n // len(train_data) > 0):
+        if (iter_n%batch_size == (batch_size-1)) and (iter_n / len(train_data) > 0):
             optimizer.zero_grad()
             batch_loss.backward()
             optimizer.step()
@@ -167,7 +165,7 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
         if iter_n%len(train_data)==len(train_data)-1:
             np.random.shuffle(train_data)
             print("Epoch number: {}/Training loss: {}/ Average training loss: {}/ Average defender Objective: {}".format(
-                  iter_n//len(train_data),training_loss.item(), training_loss.item()/len(train_data), total_def_obj/len(train_data)))
+                  iter_n/len(train_data),training_loss.item(), training_loss.item()/len(train_data), total_def_obj/len(train_data)))
             
             ################################### Compute performance on test data
             defender_utility, testing_loss=testModel(test_data,net2,learning_model, omega=omega, defender_utility_computation=True)
@@ -399,7 +397,7 @@ if __name__=='__main__':
     SAMPLES_PER_GRAPH=100
     EMPIRICAL_SAMPLES_PER_INSTANCE=100
     
-    N_EPOCHS=20
+    N_EPOCHS=5
     LR=0.01 # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
     BATCH_SIZE= 5
     OPTIMIZER='adam'    
