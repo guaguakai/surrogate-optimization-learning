@@ -20,14 +20,10 @@ def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normal
 
     unbiased_probs = unbiased_probs / torch.sum(unbiased_probs, keepdim=True, dim=1)
     unbiased_probs[torch.isnan(unbiased_probs)] = 0
-    # transition_probs=torch.zeros((N,N))
-    # for i, u in enumerate(list(G.nodes())):
-    #     neighbors = list(G[u])                  # for both directed and undirected graph
-    #     for j, neighbor in enumerate(neighbors):
-    #         transition_probs[u,neighbor]=torch.exp(phi[neighbor])
-    # print("phi2prob2", transition_probs)
 
     return unbiased_probs
+
+
 
 def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
@@ -42,19 +38,19 @@ def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be norma
 
     return unbiased_probs
 
-def get_optimal_coverage_prob(G, transition_probs, U, initial_distribution, budget, omega=4, options={}):
+def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None):
     """
     Inputs: 
         G is the graph object with dictionaries G[node], G[graph] etc. 
         phi is the attractiveness function, for each of the N nodes, phi(v, Fv)
-        transition_probs is the unbiased probs without coverage, it can be derived from phi or achieved by empirical distribution
-        
     """    
     N=nx.number_of_nodes(G)
     E=nx.number_of_edges(G)
     # Randomly initialize coverage probability distribution
-    initial_coverage_prob=np.random.rand(nx.number_of_edges(G))
-    initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+    if initial_coverage_prob is None:
+        initial_coverage_prob=np.random.rand(nx.number_of_edges(G))
+        initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+        # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for item in initial_coverage_prob]
@@ -62,11 +58,11 @@ def get_optimal_coverage_prob(G, transition_probs, U, initial_distribution, budg
     constraints=[{'type':'ineq','fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)}]
     
     # Optimization step
-    coverage_prob_optimal= minimize(objective_function_matrix_form,initial_coverage_prob,args=(G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method='SLSQP', jac=dobj_dx_matrix_form, bounds=bounds, constraints=constraints, options=options)
+    coverage_prob_optimal= minimize(objective_function_matrix_form,initial_coverage_prob,args=(G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=dobj_dx_matrix_form, bounds=bounds, constraints=constraints, options=options)
     
     return coverage_prob_optimal
 
-def objective_function_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, omega=4, lib=torch):
+def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     n = len(G.nodes)
     targets = G.graph["targets"] + [n] # adding the caught node
     transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.uint8)
@@ -78,7 +74,7 @@ def objective_function_matrix_form(coverage_probs, G, transition_probs, U, initi
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    exponential_term = torch.exp(- omega * coverage_prob_matrix) * transition_probs * adj
+    exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs * adj
     marginal_prob = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
     marginal_prob[torch.isnan(marginal_prob)] = 0
 
@@ -96,7 +92,7 @@ def objective_function_matrix_form(coverage_probs, G, transition_probs, U, initi
 
     return obj
 
-def dobj_dx_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, omega=4, lib=torch):
+def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     n = len(G.nodes)
     targets = G.graph["targets"] + [n] # adding the caught node
     transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.uint8)
@@ -109,7 +105,7 @@ def dobj_dx_matrix_form(coverage_probs, G, transition_probs, U, initial_distribu
 
 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    exponential_term = torch.exp(- omega * coverage_prob_matrix) * transition_probs * adj
+    exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs * adj
     marginal_prob = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
     marginal_prob[torch.isnan(marginal_prob)] = 0
 
@@ -164,7 +160,7 @@ def dobj_dx_matrix_form(coverage_probs, G, transition_probs, U, initial_distribu
 
     return dobj_dx
 
-def dobj_dx_matrix_form_np(coverage_probs, G, transition_probs, U, initial_distribution, omega=4):
+def dobj_dx_matrix_form_np(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4):
     n = len(G.nodes)
     targets = G.graph["targets"] + [n] # adding the caught node
     transient_vector = np.array([0 if v in targets else 1 for v in range(n+1)])
@@ -177,7 +173,7 @@ def dobj_dx_matrix_form_np(coverage_probs, G, transition_probs, U, initial_distr
 
 
     adj = nx.adjacency_matrix(G).toarray()
-    exponential_term = np.exp(- omega * coverage_prob_matrix) * transition_probs * adj
+    exponential_term = np.exp(- omega * coverage_prob_matrix) * unbiased_probs * adj
     marginal_prob = exponential_term / np.sum(exponential_term, keepdims=True, axis=1)
     marginal_prob[np.isnan(marginal_prob)] = 0
 
@@ -224,9 +220,9 @@ def dobj_dx_matrix_form_np(coverage_probs, G, transition_probs, U, initial_distr
 
     return dobj_dx
 
-def obj_hessian_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, omega=4, lib=torch):
+def obj_hessian_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     x = torch.autograd.Variable(coverage_probs.detach(), requires_grad=True)
-    dobj_dx = dobj_dx_matrix_form(torch.Tensor(x), G, transition_probs, U, initial_distribution, omega=omega, lib=torch)
+    dobj_dx = dobj_dx_matrix_form(torch.Tensor(x), G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch)
     m = len(x)
     obj_hessian = torch.zeros((m,m))
     for i in range(len(x)):
@@ -235,9 +231,9 @@ def obj_hessian_matrix_form(coverage_probs, G, transition_probs, U, initial_dist
     return obj_hessian
 
 
-def obj_hessian_matrix_form_np(coverage_probs, G, transition_probs, U, initial_distribution, omega=4):
+def obj_hessian_matrix_form_np(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4):
     def first_derivative(x):
-        return dobj_dx_matrix_form_np(x, G, transition_probs, U, initial_distribution, omega=omega)
+        return dobj_dx_matrix_form_np(x, G, unbiased_probs, U, initial_distribution, omega=omega)
 
     obj_hessian = autograd.jacobian(first_derivative)(coverage_probs) # NOT WORKING...
 
@@ -278,10 +274,10 @@ if __name__=='__main__':
     A=nx.to_numpy_matrix(G)
     A_torch=torch.as_tensor(A, dtype=torch.float) 
     phi=(net1.forward(Fv_torch,A_torch).view(-1)).detach()
-    transition_probs = phi2prob(G, phi)
+    unbiased_probs = phi2prob(G, phi)
     
 
-    optimal_coverage_probs=get_optimal_coverage_prob(G, transition_probs, U, initial_distribution, budget)
+    optimal_coverage_probs=get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget)
     print ("Optimal coverage:\n", optimal_coverage_probs)
     print("Budget: ", budget)
     print ("Sum of coverage probabilities: ", sum(optimal_coverage_probs['x']))
