@@ -385,7 +385,7 @@ if __name__=='__main__':
     plot_everything=True
     learning_mode = 0
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
-    training_mode = 0
+    training_mode = 1
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
     feature_size=50
     OMEGA=4
@@ -399,8 +399,8 @@ if __name__=='__main__':
     SAMPLES_PER_GRAPH=100
     EMPIRICAL_SAMPLES_PER_INSTANCE=100
     
-    N_EPOCHS=20
-    LR=0.01 # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
+    N_EPOCHS=10
+    LR=0.005 # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
     BATCH_SIZE= 5
     OPTIMIZER='adam'    
     DEFENDER_BUDGET=0.01 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
