@@ -13,7 +13,7 @@ from gcn import featureGenerationNet2
 from coverageProbability import prob2unbiased, phi2prob
 
 # Random Seed Initialization
-SEED = random.randint(0,10000)
+SEED = 1289 # random.randint(0,10000)
 print("Random seed: {}".format(SEED))
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -76,7 +76,7 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,1), (1,8), (8,10)]):
+def generatePhi(G, possible_ranges=[(0,1), (2,5), (8,10)]):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
@@ -320,14 +320,14 @@ def generateSyntheticData(node_feature_size, omega=4,
             unbiased_probs = phi2prob(G, phi)
 
             # EMPIRICAL EDGE PROBS
-            edge_list = []
+            path_list = []
             empirical_transition_probs=torch.zeros((N,N))
             for _ in range(empirical_samples_per_instance):
                 path=getMarkovianWalk(G, biased_probs)
                 # path = getSimplePath(G, path)
                 for e in path:
                     empirical_transition_probs[e[0]][e[1]]+=1
-                edge_list += path
+                path_list.append(path)
 
             row_sum = torch.sum(empirical_transition_probs, dim=1)
             adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
@@ -338,15 +338,19 @@ def generateSyntheticData(node_feature_size, omega=4,
             # DATA POINT
             if path_type=='random_walk_distribution':
                 log_prob=torch.zeros(1)
-                for e in edge_list:
-                    log_prob-=torch.log(biased_probs[e[0]][e[1]])
-                data_point=(G,Fv,private_coverage_prob,phi,unbiased_probs,edge_list,log_prob)
+                for path in path_list:
+                    for e in path:
+                        log_prob-=torch.log(biased_probs[e[0]][e[1]])
+                log_prob /= len(path_list)
+                data_point=(G,Fv,private_coverage_prob,phi,unbiased_probs,path_list,log_prob)
                         
             elif path_type=='empirical_distribution':
                 log_prob=torch.zeros(1)
-                for e in edge_list:
-                    log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
-                data_point=(G,Fv,private_coverage_prob,phi,empirical_unbiased_probs,edge_list,log_prob)
+                for path in path_list:
+                    for e in path:
+                        log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
+                log_prob /= len(path_list)
+                data_point=(G,Fv,private_coverage_prob,phi,empirical_unbiased_probs,path_list,log_prob)
 
             else:
                 raise(TypeError)

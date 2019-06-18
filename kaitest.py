@@ -133,6 +133,7 @@ if __name__ == "__main__":
 
     # CODE BLOCK FOR GENERATING G, U, INITIAL_DISTRIBUTION, BUDGET
     G=returnGraph(fixed_graph=True)
+    # G = nx.DiGraph(G)
     E=nx.number_of_edges(G)
     N=nx.number_of_nodes(G)
     nodes=list(G.nodes())
@@ -146,7 +147,7 @@ if __name__ == "__main__":
     print ('U:', U)
     U=torch.Tensor(U)
     
-    budget=0.1*E
+    budget=0.05*E
     omega = 4
 
 

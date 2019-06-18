@@ -169,7 +169,7 @@ def dobj_dx_matrix_form_np(coverage_probs, G, unbiased_probs, U, initial_distrib
     coverage_prob_matrix=np.zeros((n,n))
     for i, e in enumerate(list(G.edges())):
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
-        coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
+        # coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
 
     adj = nx.adjacency_matrix(G).toarray()
