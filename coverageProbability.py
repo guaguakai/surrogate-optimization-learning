@@ -79,7 +79,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
     marginal_prob[torch.isnan(marginal_prob)] = 0
 
     state_prob = marginal_prob * (1 - coverage_prob_matrix)
-    caught_prob = torch.sum(marginal_prob * coverage_prob_matrix, keepdim=True, dim=1)
+    caught_prob = 1 - torch.sum(state_prob, keepdim=True, dim=1)
     full_prob = torch.cat((state_prob, caught_prob), dim=1)
     Q = full_prob[transient_vector[:-1]][:,transient_vector]
     R = full_prob[transient_vector[:-1]][:,1 - transient_vector]
@@ -229,16 +229,6 @@ def obj_hessian_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distri
         obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
 
     return obj_hessian
-
-
-def obj_hessian_matrix_form_np(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4):
-    def first_derivative(x):
-        return dobj_dx_matrix_form_np(x, G, unbiased_probs, U, initial_distribution, omega=omega)
-
-    obj_hessian = autograd.jacobian(first_derivative)(coverage_probs) # NOT WORKING...
-
-    return obj_hessian
-
 
 if __name__=='__main__':
     

@@ -6,7 +6,7 @@ import time
 import autograd
 
 from graphData import generateSyntheticData, returnGraph, generatePhi
-from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, dobj_dx_matrix_form_np, obj_hessian_matrix_form, obj_hessian_matrix_form_np, phi2prob
+from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, dobj_dx_matrix_form_np, obj_hessian_matrix_form, phi2prob
 
 """
 def objective_function_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4, lib=torch):
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     U=torch.Tensor(U)
     
     budget=0.05*E
-    omega = 4
+    omega = 0
 
 
     # CODE BLOCK FOR GENERATING PHI (GROUND TRUTH PHI GENERATED FOR NOW)
@@ -178,7 +178,7 @@ if __name__ == "__main__":
 
     # initial_coverage_prob = torch.zeros(nx.number_of_edges(G), requires_grad=True) / 10
     # initial_coverage_prob.retain_grad()
-    coverage_probs = initial_coverage_prob
+    coverage_probs = initial_coverage_prob.detach()
 
     print("Time testing...")
     count = 1
@@ -187,6 +187,7 @@ if __name__ == "__main__":
     start_time = time.time()
     for i in range(count):
         obj_matrix_form = objective_function_matrix_form(initial_coverage_prob, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega)
+        print(obj_matrix_form)
     print(time.time() - start_time)
 
     # derivatives...
@@ -194,24 +195,28 @@ if __name__ == "__main__":
     np_dobj_dx = dobj_dx_matrix_form_np(initial_coverage_prob.detach().numpy(), G, transition_probs.numpy(), U.numpy(), initial_distribution.numpy(), omega)
 
     torch_dobj_dx = torch.autograd.grad(obj_matrix_form, initial_coverage_prob, create_graph=True, retain_graph=True)[0]
+    empirical_dobj_dx = torch.zeros(11)
+    for i in range(11):
+        delta = 0.01
+        new_coverage_prob = torch.Tensor(initial_coverage_prob)
+        new_coverage_prob[i] += delta
+
 
     torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, omega=omega)
 
     eigenvalues, eigenvectors = np.linalg.eig(torch_obj_hessian)
     indices = sorted(enumerate(eigenvalues), reverse=False, key = lambda x: x[1])
-    # i1, i2 = 0, 1
     i1, i2 = indices[0][0], indices[1][0]
-    v1, v2 = torch.Tensor(eigenvectors[i1]), torch.Tensor(eigenvectors[i2])
+    v1, v2 = torch.Tensor(eigenvectors[i1].real), torch.Tensor(eigenvectors[i2].real)
     print("Eigen decomposition:", eigenvalues)
 
     # graph plotting
     x_axis = np.linspace(-0.01, 0.01, 30)
     input_points_np = np.array([[x1, x2] for x1 in x_axis for x2 in x_axis])
-    input_points_torch = [initial_coverage_prob + v1 * x1 + v2 * x2 for (x1,x2) in input_points_np]
-    # input_points_torch = [torch.Tensor([x1,x2,x3,x4] + [0] * 7) + initial_coverage_prob for x1 in x_axis for x2 in x_axis for x3 in x_axis for x4 in x_axis]
-    # input_points_np = np.array([[x1,x2,x3,x4] for x1 in x_axis for x2 in x_axis for x3 in x_axis for x4 in x_axis])
+    input_points_torch = [coverage_probs + v1 * x1 + v2 * x2 for (x1,x2) in input_points_np]
 
-    labels = np.array([objective_function_matrix_form(x, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega).item() - (dobj_dx @ (x - initial_coverage_prob)).item() for x in input_points_torch])
+    optimal_obj = objective_function_matrix_form(coverage_probs, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega).item()
+    labels = np.array([objective_function_matrix_form(x, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega).item() - (torch_dobj_dx @ (x - coverage_probs)).item() - optimal_obj for x in input_points_torch])
 
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
