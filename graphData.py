@@ -288,7 +288,6 @@ def generateSyntheticData(node_feature_size, omega=4,
         private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * (budget / G.number_of_edges())
         coverage_prob_matrix=torch.zeros(N,N)
         for i, e in enumerate(list(G.edges())):
-            #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
             coverage_prob_matrix[e[0]][e[1]]=private_coverage_prob[i]
             coverage_prob_matrix[e[1]][e[0]]=private_coverage_prob[i]
         '''
@@ -305,15 +304,25 @@ def generateSyntheticData(node_feature_size, omega=4,
             Fv[node]=G.node[node]['node_features']
         '''
         for _ in range(samples_per_graph):
+            # Randomly assign coverage probability
+            private_coverage_prob = np.random.rand(nx.number_of_edges(G))
+            private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * (budget / G.number_of_edges())
+            coverage_prob_matrix=torch.zeros(N,N)
+            for i, e in enumerate(list(G.edges())):
+                coverage_prob_matrix[e[0]][e[1]]=private_coverage_prob[i]
+                coverage_prob_matrix[e[1]][e[0]]=private_coverage_prob[i]
+
+            # Randomly generate attractiveness
+            # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
             phi=generatePhi(G)
             phi=torch.as_tensor(phi, dtype=torch.float)
-            #Generate features from phi values
+
+            # Generate features from phi values
             Fv_torch=net3.forward(phi.view(-1,1), edge_index)
             Fv=Fv_torch.detach().numpy()
             
-            # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
-            source=G.graph['source']
-            target=G.graph['target']
+            # Source and target
+            source, target = G.graph['source'], G.graph['target']
             
             # EXACT EDGE PROBS
             biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi)

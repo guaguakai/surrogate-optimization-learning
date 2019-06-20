@@ -214,7 +214,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         Q_sym = Q #(Q + Q.t()) / 2
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym - torch.eye(m) * min(0, min(eigenvalues)-100)
+        Q_regularized = Q_sym - torch.eye(m) * min(0, min(eigenvalues)-1)
         is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
@@ -322,9 +322,9 @@ if __name__=='__main__':
     plot_everything=True
     learning_mode = 1
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
-    training_mode = 0
+    training_mode = 1
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
-    feature_size=50
+    feature_size=5
     OMEGA=0
 
     GRAPH_N_LOW=16
@@ -336,7 +336,7 @@ if __name__=='__main__':
     SAMPLES_PER_GRAPH=100
     EMPIRICAL_SAMPLES_PER_INSTANCE=100
     
-    N_EPOCHS=10
+    N_EPOCHS=20
     LR=0.005 # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
     BATCH_SIZE= 1
     OPTIMIZER='adam'
