@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import random
 
-from gcn import featureGenerationNet2
+from gcn import *
 from coverageProbability import prob2unbiased, phi2prob
 
 # Random Seed Initialization
@@ -165,17 +165,23 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         # G=G.to_directed()                                       # Change the undirected graph to directed graph
         
         # Pick source and target randomly and ensure that path exists
-        # TODO:
-        # Make size=src+trgt
-        source, target= np.random.choice(list(G.nodes()), size=2, replace=False)
-        path_exists_between_source_target=nx.has_path(G, source, target)
-        while(not path_exists_between_source_target):
-            source, target= np.random.choice(list(G.nodes()), size=2, replace=False)
-            path_exists_between_source_target=nx.has_path(G, source, target)
-        G.graph['source']=source
-        G.graph['target']=target
-        G.graph['sources']=[source]
-        G.graph['targets']=[target]
+        path_exists_between_source_target=False
+        while (not (path_exists_between_source_target)):
+            sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
+            sources=sources_targets[:n_sources]
+            targets=sources_targets[n_sources:]
+            
+            #Check if path exists:
+            for s in sources:
+                for t in targets:
+                    if (nx.has_path(G, s, t)):
+                        path_exists_between_source_target=True
+                        break
+                    
+        #G.graph['source']=source
+        #G.graph['target']=target
+        G.graph['sources']=sources
+        G.graph['targets']=targets
         G.graph['budget']=budget*nx.number_of_edges(G)
         G.graph['U']=[]
         
@@ -259,7 +265,8 @@ def generateSyntheticData(node_feature_size, omega=4,
                           N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05, train_test_split_ratio=0.8):
     
     data=[] # aggregate all the data first then split into training and testing
-    net3= featureGenerationNet2(node_feature_size)        
+    #net3= featureGenerationNet2(node_feature_size)
+    net3= featureGenerationNet(node_feature_size)        
     n_samples = n_graphs * samples_per_graph
     
     print("N_samples: ", n_samples)
