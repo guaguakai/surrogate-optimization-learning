@@ -13,6 +13,8 @@ from graphData import *
 import torch
 import autograd
 
+REG = 0.00
+
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
@@ -64,7 +66,7 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
 
 def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     n = len(G.nodes)
-    targets = G.graph["targets"] + [n] # adding the caught node
+    targets = list(G.graph["targets"]) + [n] # adding the caught node
     transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.uint8)
 
     # COVERAGE PROBABILITY MATRIX
@@ -83,7 +85,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
     full_prob = torch.cat((state_prob, caught_prob), dim=1)
     Q = full_prob[transient_vector[:-1]][:,transient_vector]
     R = full_prob[transient_vector[:-1]][:,1 - transient_vector]
-    N = (torch.eye(Q.shape[0]) - Q).inverse()
+    N = ((1 + REG) * torch.eye(Q.shape[0]) - Q).inverse()
     B = N @ R
     obj = torch.Tensor(initial_distribution) @ B @ torch.Tensor(U)
 
@@ -94,7 +96,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
 
 def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     n = len(G.nodes)
-    targets = G.graph["targets"] + [n] # adding the caught node
+    targets = list(G.graph["targets"]) + [n] # adding the caught node
     transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.uint8)
 
     # COVERAGE PROBABILITY MATRIX
@@ -114,7 +116,7 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     full_prob = torch.cat((state_prob, caught_prob), dim=1)
     Q = full_prob[transient_vector[:-1]][:,transient_vector]
     R = full_prob[transient_vector[:-1]][:,1 - transient_vector]
-    N = (torch.eye(Q.shape[0]) - Q).inverse()
+    N = ((1 + REG) * torch.eye(Q.shape[0]) - Q).inverse()
     B = N @ R
 
     dP_dx = torch.zeros((n,n,len(coverage_probs)))
@@ -162,7 +164,7 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
 
 def dobj_dx_matrix_form_np(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4):
     n = len(G.nodes)
-    targets = G.graph["targets"] + [n] # adding the caught node
+    targets = list(G.graph["targets"]) + [n] # adding the caught node
     transient_vector = np.array([0 if v in targets else 1 for v in range(n+1)])
 
     # COVERAGE PROBABILITY MATRIX

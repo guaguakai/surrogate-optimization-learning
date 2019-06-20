@@ -190,8 +190,6 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             G.node[target]['utility']=np.random.randint(20, high=50)
             G.graph['U'].append(G.node[target]['utility'])
         G.graph['U'].append(np.random.randint(-40, high=-30))
-        #G.graph['U'].append(0) # indifferent of getting caught
-        # G.graph['U'].append(np.random.randint(-80, high=-60)) # negative payoff
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
@@ -262,11 +260,11 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
 def generateSyntheticData(node_feature_size, omega=4, 
                           n_graphs=20, samples_per_graph=100, empirical_samples_per_instance=10,
                           fixed_graph=False, path_type='random_walk',
-                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05, train_test_split_ratio=0.8):
+                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05, train_test_split_ratio=0.8,
+                          n_sources=1, n_targets=1):
     
     data=[] # aggregate all the data first then split into training and testing
-    #net3= featureGenerationNet2(node_feature_size)
-    net3= featureGenerationNet(node_feature_size)        
+    net3= featureGenerationNet2(node_feature_size)
     n_samples = n_graphs * samples_per_graph
     
     print("N_samples: ", n_samples)
@@ -282,7 +280,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             G=testing_graphs[sample_number%n_testing_graphs]
             graph_index=sample_number%n_testing_graphs
         '''
-        G=returnGraph(fixed_graph=fixed_graph,N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high, budget=budget)
+        G=returnGraph(fixed_graph=fixed_graph, n_sources=n_sources, n_targets=n_targets, N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high, budget=budget)
         # COMPUTE ADJACENCY MATRIX
         A=nx.to_numpy_matrix(G)
         A_torch=torch.as_tensor(A, dtype=torch.float) 
@@ -327,9 +325,6 @@ def generateSyntheticData(node_feature_size, omega=4,
             # Generate features from phi values
             Fv_torch=net3.forward(phi.view(-1,1), edge_index)
             Fv=Fv_torch.detach().numpy()
-            
-            # Source and target
-            source, target = G.graph['source'], G.graph['target']
             
             # EXACT EDGE PROBS
             biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi)

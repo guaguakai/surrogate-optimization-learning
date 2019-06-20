@@ -128,7 +128,6 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
             ################################### Compute edge probabilities
             A=nx.to_numpy_matrix(G)
             A_torch = torch.as_tensor(A, dtype=torch.float) 
-            source, target = G.graph['source'], G.graph['target']
     
             Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
             edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
@@ -200,10 +199,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
 
     # ========================== QP part ===========================
-    while True:
-        # initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
-        # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
-        initial_coverage_prob = np.zeros(nx.number_of_edges(G))
+    for tmp_iter in range(10): # maximum 10 retries
+        initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
+        initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
+        # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
 
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, initial_coverage_prob=initial_coverage_prob)
         pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
@@ -269,8 +268,7 @@ def testModel(dataset, net2, learning_model, omega=4, defender_utility_computati
     for iter_n, single_data in enumerate(dataset):
         G, Fv, coverage_prob, phi_true, unbiased_probs_true, path_list, log_prob = single_data
         
-        source, target, budget = G.graph['source'], G.graph['target'], G.graph['budget'] 
-        U, initial_distribution = G.graph['U'], G.graph['initial_distribution']
+        U, initial_distribution, budget = G.graph['U'], G.graph['initial_distribution'], G.graph['budget']
         
         Fv_torch=torch.as_tensor(Fv, dtype=torch.float)
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
@@ -322,7 +320,7 @@ if __name__=='__main__':
     plot_everything=True
     learning_mode = 1
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
-    training_mode = 1
+    training_mode = 0
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
     feature_size=5
     OMEGA=0
@@ -332,8 +330,8 @@ if __name__=='__main__':
     GRAPH_E_PROB_LOW=0.2
     GRAPH_E_PROB_HIGH=0.3
     
-    NUMBER_OF_GRAPHS=1
-    SAMPLES_PER_GRAPH=100
+    NUMBER_OF_GRAPHS=10
+    SAMPLES_PER_GRAPH=10
     EMPIRICAL_SAMPLES_PER_INSTANCE=100
     
     N_EPOCHS=20
@@ -343,12 +341,12 @@ if __name__=='__main__':
     DEFENDER_BUDGET=0.05 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
 
     ###############################
-    filepath = "figures/0619_{}".format(training_method)
+    filepath = "figures/0620_{}".format(training_method)
       
     ############################### Data genaration:
     train_data, test_data=generateSyntheticData(feature_size, path_type=learning_model_type, 
                         n_graphs=NUMBER_OF_GRAPHS, samples_per_graph=SAMPLES_PER_GRAPH, empirical_samples_per_instance=EMPIRICAL_SAMPLES_PER_INSTANCE,
-                        fixed_graph=True, omega=OMEGA,
+                        fixed_graph=False, omega=OMEGA,
                         N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH,
                         budget=DEFENDER_BUDGET)
     
