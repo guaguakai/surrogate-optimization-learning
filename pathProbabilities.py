@@ -327,7 +327,7 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
     training_mode = 0
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
-    feature_size=5
+    feature_size=1
     OMEGA=0
 
     GRAPH_N_LOW=16
@@ -335,8 +335,8 @@ if __name__=='__main__':
     GRAPH_E_PROB_LOW=0.2
     GRAPH_E_PROB_HIGH=0.3
     
-    NUMBER_OF_GRAPHS=10
-    SAMPLES_PER_GRAPH=10
+    NUMBER_OF_GRAPHS=1
+    SAMPLES_PER_GRAPH=50
     EMPIRICAL_SAMPLES_PER_INSTANCE=100
     NUMBER_OF_SOURCES=2
     NUMBER_OF_TARGETS=2
@@ -345,7 +345,7 @@ if __name__=='__main__':
     LR=0.005 # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
     BATCH_SIZE= 1
     OPTIMIZER='adam'
-    DEFENDER_BUDGET=0.05 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
+    DEFENDER_BUDGET=2 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
 
     ###############################
     filepath = "figures/0623_fixedgraph_{}".format(training_method)

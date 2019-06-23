@@ -131,7 +131,7 @@ def getSimplePath(G, path):
     
     
     
-def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05):
+def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=2):
     
     if fixed_graph == 1:
         # define an arbitrary graph with a source and target node
@@ -146,7 +146,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['sources']=[source]
         G.graph['targets']=[target]
         G.graph['U']=np.array([10, -20])
-        G.graph['budget']=budget*nx.number_of_edges(G)
+        G.graph['budget']=budget
         
         G.node[target]['utility']=10
         sources=G.graph['sources']
@@ -168,7 +168,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['targets']=targets
 
         G.graph['U']=np.array([10, 10, -10])
-        G.graph['budget']=budget*nx.number_of_edges(G)
+        G.graph['budget']=budget
         
         G.node[10]['utility'], G.node[11]['utility'] = 10, 10
         sources=G.graph['sources']
@@ -198,7 +198,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         #G.graph['target']=target
         G.graph['sources']=sources
         G.graph['targets']=targets
-        G.graph['budget']=budget*nx.number_of_edges(G)
+        G.graph['budget']=budget
         G.graph['U']=[]
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
@@ -276,7 +276,7 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
 def generateSyntheticData(node_feature_size, omega=4, 
                           n_graphs=20, samples_per_graph=100, empirical_samples_per_instance=10,
                           fixed_graph=False, path_type='random_walk',
-                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05, train_test_split_ratio=0.8,
+                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=2, train_test_split_ratio=0.8,
                           n_sources=1, n_targets=1):
     
     data=[] # aggregate all the data first then split into training and testing
@@ -319,7 +319,7 @@ def generateSyntheticData(node_feature_size, omega=4,
         for _ in range(samples_per_graph):
             # Randomly assign coverage probability
             private_coverage_prob = np.random.rand(nx.number_of_edges(G))
-            private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * (budget / G.number_of_edges())
+            private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * budget
             coverage_prob_matrix=torch.zeros(N,N)
             for i, e in enumerate(list(G.edges())):
                 coverage_prob_matrix[e[0]][e[1]]=private_coverage_prob[i]
