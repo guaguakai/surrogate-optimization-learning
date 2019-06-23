@@ -132,13 +132,15 @@ class featureGenerationNet2(nn.Module): # message passing version
         r5,r6=nn_hidden_layer_sizes
 
         #Define the layers of NN to predict the compressed feature vector for every node
-        self.fc1 = nn.Linear(r3, r6)
-        self.fc2 = nn.Linear (r6,r5)
-        self.fc3 = nn.Linear(r5, raw_feature_size)
+        self.fc1 = nn.Linear(r4, r5)
+        self.fc2 = nn.Linear (r5,r6)
+        self.fc3 = nn.Linear(r6, raw_feature_size)
         
         # Define the layers of gcn 
-        self.gcn1 = GraphConv(1,  r4, aggr='mean')
-        self.gcn2 = GraphConv(r4, r3, aggr='mean')
+        self.gcn1 = GraphConv(1,  r1, aggr='mean')
+        self.gcn2 = GraphConv(r1, r2, aggr='mean')
+        self.gcn3 = GraphConv(r2, r3, aggr='mean')
+        self.gcn4 = GraphConv(r3, r4, aggr='mean')
         
         #self.node_adj=A
 
@@ -158,6 +160,8 @@ class featureGenerationNet2(nn.Module): # message passing version
         #x=torch.rand(10,25)
         x=F.relu(self.gcn1(x, edge_index))
         x=F.relu(self.gcn2(x, edge_index))
+        x=F.relu(self.gcn3(x, edge_index))
+        x=F.relu(self.gcn4(x, edge_index))
 
         x=F.relu(self.fc1(x))
         x=F.relu(self.fc2(x))
