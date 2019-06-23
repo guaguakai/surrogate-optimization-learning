@@ -348,7 +348,7 @@ if __name__=='__main__':
     DEFENDER_BUDGET=0.05 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
 
     ###############################
-    filepath = "figures/0620_{}".format(training_method)
+    filepath = "figures/0623_fixedgraph_{}".format(training_method)
       
     ############################### Data genaration:
     train_data, test_data=generateSyntheticData(feature_size, path_type=learning_model_type, 

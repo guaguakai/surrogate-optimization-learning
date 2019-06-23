@@ -137,7 +137,9 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         # define an arbitrary graph with a source and target node
         source=0
         target=6
-        G = nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]) # undirected graph
+        G = nx.Graph()
+        G.add_nodes_from(0,1,2,3,4,5,6)
+        G.add_edges_from([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]) # undirected graph
         # G = nx.to_directed(G) # for directed graph
         G.graph['source']=source
         G.graph['target']=target
@@ -158,10 +160,12 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         sources = list(range(8))
         transients = list(range(10))
         targets = [10,11]
+
+        G = nx.Graph()
+        G.add_nodes_from(list(range(12)))
+        G.add_edges_from([(s, m) for s in sources for m in [8,9]] + [(m, t) for m in [8,9] for t in targets]) # undirected graph
         G.graph['sources']=sources
         G.graph['targets']=targets
-
-        G = nx.Graph([(s, m) for s in sources for m in [8,9]] + [(m, t) for m in [8,9] for t in targets]) # undirected graph
 
         G.graph['U']=np.array([10, 10, -10])
         G.graph['budget']=budget*nx.number_of_edges(G)
@@ -212,47 +216,47 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         
         return G
         
-def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_paths,omega=4):
-    
-    #coverage_prob=torch.from_numpy(coverage_prob)
-    #all_paths=torch.from_numpy(all_paths)
-    #n_paths=torch.from_numpy(n_paths)
-
-    N=nx.number_of_nodes(G) 
-
-    # GENERATE EDGE PROBABILITIES 
-    edge_probs=torch.zeros((N,N))
-    for i, node in enumerate(list(G.nodes())):
-        nieghbors = list(G[node])
-        
-        smuggler_probs=torch.zeros(len(neighbors))
-        for j,neighbor in enumerate(neighbors):
-            e=(node, neighbor)
-            #pe= G.edge[node][neighbor]['coverage_prob']
-            pe=coverage_prob[node][neighbor]
-            smuggler_probs[j]=torch.exp(-omega*pe+phi[neighbor])
-        
-        smuggler_probs=smuggler_probs*1.0/torch.sum(smuggler_probs)
-        
-        for j,neighbor in enumerate(neighbors):
-            edge_probs[node,neighbor]=smuggler_probs[j]
-          
-            
-    
-    # GENERATE PATH PROBABILITIES
-    path_probs=torch.zeros(n_paths)
-    for path_number, path in enumerate(all_paths):
-        path_prob=torch.ones(1)
-        for i in range(len(path)-1):
-            path_prob=path_prob*(edge_probs[path[i], path[i+1]])
-        path_probs[path_number]=path_prob
-    path_probs=path_probs/torch.sum(path_probs)
-    path_probs[-1]=torch.max(torch.zeros(1), path_probs[-1]-(sum(path_probs)-1.000))
-    #print ("SUM1: ",sum(path_probs))
-    #path_probs=torch.from_numpy(path_probs)
-    #print ("Path probs:", path_probs, sum(path_probs))
-    
-    return path_probs
+# def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_paths,omega=4):
+#     
+#     #coverage_prob=torch.from_numpy(coverage_prob)
+#     #all_paths=torch.from_numpy(all_paths)
+#     #n_paths=torch.from_numpy(n_paths)
+# 
+#     N=nx.number_of_nodes(G) 
+# 
+#     # GENERATE EDGE PROBABILITIES 
+#     edge_probs=torch.zeros((N,N))
+#     for i, node in enumerate(list(G.nodes())):
+#         nieghbors = list(G[node])
+#         
+#         smuggler_probs=torch.zeros(len(neighbors))
+#         for j,neighbor in enumerate(neighbors):
+#             e=(node, neighbor)
+#             #pe= G.edge[node][neighbor]['coverage_prob']
+#             pe=coverage_prob[node][neighbor]
+#             smuggler_probs[j]=torch.exp(-omega*pe+phi[neighbor])
+#         
+#         smuggler_probs=smuggler_probs*1.0/torch.sum(smuggler_probs)
+#         
+#         for j,neighbor in enumerate(neighbors):
+#             edge_probs[node,neighbor]=smuggler_probs[j]
+#           
+#             
+#     
+#     # GENERATE PATH PROBABILITIES
+#     path_probs=torch.zeros(n_paths)
+#     for path_number, path in enumerate(all_paths):
+#         path_prob=torch.ones(1)
+#         for i in range(len(path)-1):
+#             path_prob=path_prob*(edge_probs[path[i], path[i+1]])
+#         path_probs[path_number]=path_prob
+#     path_probs=path_probs/torch.sum(path_probs)
+#     path_probs[-1]=torch.max(torch.zeros(1), path_probs[-1]-(sum(path_probs)-1.000))
+#     #print ("SUM1: ",sum(path_probs))
+#     #path_probs=torch.from_numpy(path_probs)
+#     #print ("Path probs:", path_probs, sum(path_probs))
+#     
+#     return path_probs
 
 def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
     N=nx.number_of_nodes(G) 
