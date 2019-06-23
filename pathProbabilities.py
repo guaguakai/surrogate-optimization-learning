@@ -327,8 +327,8 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
     training_mode = 0
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
-    feature_size=1
-    OMEGA=0
+    feature_size=5
+    OMEGA=4
 
     GRAPH_N_LOW=16
     GRAPH_N_HIGH=18
@@ -337,7 +337,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS=1
     SAMPLES_PER_GRAPH=50
-    EMPIRICAL_SAMPLES_PER_INSTANCE=100
+    EMPIRICAL_SAMPLES_PER_INSTANCE=10
     NUMBER_OF_SOURCES=2
     NUMBER_OF_TARGETS=2
     

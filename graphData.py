@@ -343,7 +343,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             empirical_transition_probs=torch.zeros((N,N))
             for _ in range(empirical_samples_per_instance):
                 path=getMarkovianWalk(G, biased_probs)
-                # path = getSimplePath(G, path)
+                path = getSimplePath(G, path)
                 for e in path:
                     empirical_transition_probs[e[0]][e[1]]+=1
                 path_list.append(path)
