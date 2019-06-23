@@ -76,7 +76,7 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,1), (2,5), (8,10)]):
+def generatePhi(G, possible_ranges=[(0,1), (2,5), (5,10)]):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
@@ -133,11 +133,11 @@ def getSimplePath(G, path):
     
 def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05):
     
-    if fixed_graph:
+    if fixed_graph == 1:
         # define an arbitrary graph with a source and target node
         source=0
         target=6
-        G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]) # undirected graph
+        G = nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]) # undirected graph
         # G = nx.to_directed(G) # for directed graph
         G.graph['source']=source
         G.graph['target']=target
@@ -153,31 +153,43 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
         G.graph['initial_distribution']=initial_distribution
         return G
-    
+
+    elif fixed_graph == 2:
+        sources = list(range(8))
+        transients = list(range(10))
+        targets = [10,11]
+        G.graph['sources']=sources
+        G.graph['targets']=targets
+
+        G = nx.Graph([(s, m) for s in sources for m in [8,9]] + [(m, t) for m in [8,9] for t in targets]) # undirected graph
+
+        G.graph['U']=np.array([10, 10, -10])
+        G.graph['budget']=budget*nx.number_of_edges(G)
+        
+        G.node[10]['utility'], G.node[11]['utility'] = 10, 10
+        sources=G.graph['sources']
+        nodes=list(G.nodes())
+        transients=[node for node in nodes if not (node in G.graph['targets'])]
+        initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
+        G.graph['initial_distribution']=initial_distribution
+        return G
+
     else:
-        # HARD CODE THE BELOW TWO VALUES
-        N=np.random.randint(low=N_low, high=N_high)                     # Randomly pick number of Nodes
-        edge_prob=np.random.uniform(low=e_low, high=e_high)          # Randomly pick Edges probability                                          
-        
-        # Generate random graph
-        M=int(edge_prob*(N*(N-1)/2.0))                          # Calculate expected number of edges
-        G=nx.gnm_random_graph(N, M)
-        # G=G.to_directed()                                       # Change the undirected graph to directed graph
-        
-        # Pick source and target randomly and ensure that path exists
-        path_exists_between_source_target=False
-        while (not (path_exists_between_source_target)):
+        is_connected=False
+        while (not is_connected):
+            N=np.random.randint(low=N_low, high=N_high)                     # Randomly pick number of Nodes
+            p=np.random.uniform(low=e_low, high=e_high)             # Randomly pick Edges probability
+            # Generate random graph
+            G=nx.gnp_random_graph(N,p)
+            # G=nx.random_geometric_graph(N,p)
+
             sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
             sources=sources_targets[:n_sources]
             targets=sources_targets[n_sources:]
             
             #Check if path exists:
-            for s in sources:
-                for t in targets:
-                    if (nx.has_path(G, s, t)):
-                        path_exists_between_source_target=True
-                        break
-                    
+            is_connected = nx.is_connected(G)
+
         #G.graph['source']=source
         #G.graph['target']=target
         G.graph['sources']=sources
@@ -287,14 +299,6 @@ def generateSyntheticData(node_feature_size, omega=4,
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         N=nx.number_of_nodes(G) 
         
-            
-        # Randomly assign coverage probability
-        private_coverage_prob = np.random.rand(nx.number_of_edges(G))
-        private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * (budget / G.number_of_edges())
-        coverage_prob_matrix=torch.zeros(N,N)
-        for i, e in enumerate(list(G.edges())):
-            coverage_prob_matrix[e[0]][e[1]]=private_coverage_prob[i]
-            coverage_prob_matrix[e[1]][e[0]]=private_coverage_prob[i]
         '''
         # Define node features for each of the n nodes
         for node in list(G.nodes()):

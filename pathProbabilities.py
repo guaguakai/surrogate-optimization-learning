@@ -201,16 +201,21 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # ========================== QP part ===========================
     for tmp_iter in range(10): # maximum 10 retries
         initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
-        initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
+        initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.5
         # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
 
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, initial_coverage_prob=initial_coverage_prob)
+        if pred_optimal_res["status"] != 0 and tmp_iter != 9:
+            print("optimization failed... restart...")
+            continue
+
         pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
         qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
                                        zhats=None, slacks=None, nus=None, lams=None)
 
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, omega=omega)
         Q_sym = Q #(Q + Q.t()) / 2
+
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
         Q_regularized = Q_sym - torch.eye(m) * min(0, min(eigenvalues)-1)
@@ -333,8 +338,10 @@ if __name__=='__main__':
     NUMBER_OF_GRAPHS=10
     SAMPLES_PER_GRAPH=10
     EMPIRICAL_SAMPLES_PER_INSTANCE=100
+    NUMBER_OF_SOURCES=2
+    NUMBER_OF_TARGETS=2
     
-    N_EPOCHS=20
+    N_EPOCHS=10
     LR=0.005 # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
     BATCH_SIZE= 1
     OPTIMIZER='adam'
@@ -346,9 +353,9 @@ if __name__=='__main__':
     ############################### Data genaration:
     train_data, test_data=generateSyntheticData(feature_size, path_type=learning_model_type, 
                         n_graphs=NUMBER_OF_GRAPHS, samples_per_graph=SAMPLES_PER_GRAPH, empirical_samples_per_instance=EMPIRICAL_SAMPLES_PER_INSTANCE,
-                        fixed_graph=False, omega=OMEGA,
+                        fixed_graph=2, omega=OMEGA,
                         N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH,
-                        budget=DEFENDER_BUDGET)
+                        budget=DEFENDER_BUDGET, n_sources=NUMBER_OF_SOURCES, n_targets=NUMBER_OF_TARGETS)
     
     time2 =time.time()
     if time_analysis:

@@ -50,9 +50,9 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
     E=nx.number_of_edges(G)
     # Randomly initialize coverage probability distribution
     if initial_coverage_prob is None:
-        initial_coverage_prob=np.random.rand(nx.number_of_edges(G))
-        initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
-        # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
+        # initial_coverage_prob=np.random.rand(nx.number_of_edges(G))
+        # initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+        initial_coverage_prob = np.zeros(nx.number_of_edges(G))
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for item in initial_coverage_prob]
@@ -85,7 +85,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
     full_prob = torch.cat((state_prob, caught_prob), dim=1)
     Q = full_prob[transient_vector[:-1]][:,transient_vector]
     R = full_prob[transient_vector[:-1]][:,1 - transient_vector]
-    N = ((1 + REG) * torch.eye(Q.shape[0]) - Q).inverse()
+    N = (torch.eye(Q.shape[0]) - Q).inverse()
     B = N @ R
     obj = torch.Tensor(initial_distribution) @ B @ torch.Tensor(U)
 
@@ -116,7 +116,7 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     full_prob = torch.cat((state_prob, caught_prob), dim=1)
     Q = full_prob[transient_vector[:-1]][:,transient_vector]
     R = full_prob[transient_vector[:-1]][:,1 - transient_vector]
-    N = ((1 + REG) * torch.eye(Q.shape[0]) - Q).inverse()
+    N = (torch.eye(Q.shape[0]) - Q).inverse()
     B = N @ R
 
     dP_dx = torch.zeros((n,n,len(coverage_probs)))
