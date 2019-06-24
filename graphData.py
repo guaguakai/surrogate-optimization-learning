@@ -157,17 +157,18 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         return G
 
     elif fixed_graph == 2:
-        sources = list(range(8))
-        transients = list(range(10))
-        targets = [10,11]
+        layers = [16, 2, 2, 16]
+        nodes = list(range(sum(layers)))
+        sources, layer1, layer2, targets = nodes[:layers[0]], nodes[layers[0]:layers[0]+layers[1]], nodes[layers[0]+layers[1]:layers[0]+layers[1]+layers[2]], nodes[-layers[3]:]
+        transients = nodes[:-layers[3]]
 
         G = nx.Graph()
-        G.add_nodes_from(list(range(12)))
-        G.add_edges_from([(s, m) for s in sources for m in [8,9]] + [(m, t) for m in [8,9] for t in targets]) # undirected graph
+        G.add_nodes_from(nodes)
+        G.add_edges_from([(s, m1) for s in sources for m1 in layer1] + [(m1, m2) for m1 in layer1 for m2 in layer2] + [(m2, t) for m2 in layer2 for t in targets]) # undirected graph
         G.graph['sources']=sources
         G.graph['targets']=targets
 
-        G.graph['U']=np.array([10, 10, -10])
+        G.graph['U']=np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
         G.graph['budget']=budget
         
         G.node[10]['utility'], G.node[11]['utility'] = 10, 10
