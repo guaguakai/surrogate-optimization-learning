@@ -325,7 +325,7 @@ if __name__=='__main__':
     plot_everything=True
     learning_mode = 1
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
-    training_mode = 1
+    training_mode = 0
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
     feature_size=5
     OMEGA=4
