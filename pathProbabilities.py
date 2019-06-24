@@ -336,14 +336,14 @@ if __name__=='__main__':
     GRAPH_E_PROB_HIGH=0.3
     
     NUMBER_OF_GRAPHS=1
-    SAMPLES_PER_GRAPH=100
+    SAMPLES_PER_GRAPH=50
     EMPIRICAL_SAMPLES_PER_INSTANCE=10
     NUMBER_OF_SOURCES=2
     NUMBER_OF_TARGETS=2
     
     N_EPOCHS=20
     LR=0.005 # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
-    BATCH_SIZE= 5
+    BATCH_SIZE= 1
     OPTIMIZER='adam'
     DEFENDER_BUDGET=2 # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
 

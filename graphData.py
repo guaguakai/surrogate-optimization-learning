@@ -76,30 +76,40 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,1), (2,5), (5,10)]):
+def generatePhi(G, possible_ranges=[(0,1), (2,5), (5,10)], fixed_phi=False):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
     targets=G.graph['targets']
     
-    for node in list(G.nodes()):
-        
-        if node in sources:
-            range_of_phi=possible_ranges[0]
-        elif node in targets:
-            range_of_phi=possible_ranges[-1]
-        else:
-            range_of_phi=possible_ranges[1]
-        #node_features=np.random.randn(feature_length)
-        # TODO: Use a better feature computation for a given node
-        #r=np.random.choice(len(possible_ranges))
-        #range_of_phi=possible_ranges[r]
-        lower_bounds=range_of_phi[0]
-        upper_bounds=range_of_phi[1]
-        node_phi=np.random.uniform(lower_bounds, upper_bounds)
-        G.node[node]['node_phi']=node_phi
+    if not fixed_phi:
+        for node in list(G.nodes()):
+            
+            if node in sources:
+                range_of_phi=possible_ranges[0]
+            elif node in targets:
+                range_of_phi=possible_ranges[-1]
+            else:
+                range_of_phi=possible_ranges[1]
+            #node_features=np.random.randn(feature_length)
+            # TODO: Use a better feature computation for a given node
+            #r=np.random.choice(len(possible_ranges))
+            #range_of_phi=possible_ranges[r]
+            lower_bounds=range_of_phi[0]
+            upper_bounds=range_of_phi[1]
+            node_phi=np.random.uniform(lower_bounds, upper_bounds)
+            G.node[node]['node_phi']=node_phi
     
-    # Generate features
+    else:
+        for node in list(G.nodes()):
+            if node in sources:
+                node_phi=0
+            elif node in targets:
+                node_phi=5 if node == 15 else 0
+            else:
+                node_phi=0
+            G.node[node]['node_phi']=node_phi
+
     phi=np.zeros(N)
     for node in list(G.nodes()):
             phi[node]=G.node[node]['node_phi']
@@ -157,7 +167,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         return G
 
     elif fixed_graph == 2:
-        layers = [16, 2, 2, 16]
+        layers = [8,4,2,2]
         nodes = list(range(sum(layers)))
         sources, layer1, layer2, targets = nodes[:layers[0]], nodes[layers[0]:layers[0]+layers[1]], nodes[layers[0]+layers[1]:layers[0]+layers[1]+layers[2]], nodes[-layers[3]:]
         transients = nodes[:-layers[3]]
@@ -171,7 +181,6 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['U']=np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
         G.graph['budget']=budget
         
-        G.node[10]['utility'], G.node[11]['utility'] = 10, 10
         sources=G.graph['sources']
         nodes=list(G.nodes())
         transients=[node for node in nodes if not (node in G.graph['targets'])]
@@ -328,7 +337,7 @@ def generateSyntheticData(node_feature_size, omega=4,
 
             # Randomly generate attractiveness
             # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
-            phi=generatePhi(G)
+            phi=generatePhi(G, fixed_phi=fixed_graph)
             phi=torch.as_tensor(phi, dtype=torch.float)
 
             # Generate features from phi values
