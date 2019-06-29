@@ -327,8 +327,8 @@ if __name__=='__main__':
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')
     parser.add_argument('--fixed-graph', type=int, default=0, help='0 -> randomly generated, 1 -> first fixed graph, 2 -> second fixed graph')
-    parser.add_argument('--node-size', type=int, default=10, help='input node size for randomly generated graph')
     parser.add_argument('--prob', type=float, default=0.2, help='input the probability used as input of random graph generator')
+
     parser.add_argument('--learning-rate', type=float, default=0.005, help='learning rate')
     parser.add_argument('--epochs', type=int, default=20, help='number of training epochs')
 
@@ -337,6 +337,8 @@ if __name__=='__main__':
     parser.add_argument('--feature-size', type=int, default=5, help='feature size of each node')
     parser.add_argument('--omega', type=float, default=4, help='risk aversion of the attacker')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
+
+    parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
     parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')
     parser.add_argument('--number-samples', type=int, default=100, help='number of samples per graph')
     parser.add_argument('--number-sources', type=int, default=2, help='number of randomly generated sources')
