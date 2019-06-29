@@ -132,7 +132,7 @@ def obj_hessian_matrix_form(coverage_probs, G, phi, U, initial_distribution, ome
 if __name__ == "__main__":
 
     # CODE BLOCK FOR GENERATING G, U, INITIAL_DISTRIBUTION, BUDGET
-    G=returnGraph(fixed_graph=True)
+    G=returnGraph(fixed_graph=1)
     # G = nx.DiGraph(G)
     E=nx.number_of_edges(G)
     N=nx.number_of_nodes(G)
@@ -147,8 +147,8 @@ if __name__ == "__main__":
     print ('U:', U)
     U=torch.Tensor(U)
     
-    budget=0.05*E
-    omega = 0
+    budget = 1
+    omega = 4
 
 
     # CODE BLOCK FOR GENERATING PHI (GROUND TRUTH PHI GENERATED FOR NOW)
@@ -180,15 +180,7 @@ if __name__ == "__main__":
     # initial_coverage_prob.retain_grad()
     coverage_probs = initial_coverage_prob.detach()
 
-    print("Time testing...")
-    count = 1
-    start_time = time.time()
-
-    start_time = time.time()
-    for i in range(count):
-        obj_matrix_form = objective_function_matrix_form(initial_coverage_prob, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega)
-        print(obj_matrix_form)
-    print(time.time() - start_time)
+    obj_matrix_form = objective_function_matrix_form(initial_coverage_prob, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega)
 
     # derivatives...
     dobj_dx = dobj_dx_matrix_form(initial_coverage_prob, G, transition_probs, U, initial_distribution, omega)
@@ -196,11 +188,6 @@ if __name__ == "__main__":
 
     torch_dobj_dx = torch.autograd.grad(obj_matrix_form, initial_coverage_prob, create_graph=True, retain_graph=True)[0]
     empirical_dobj_dx = torch.zeros(11)
-    for i in range(11):
-        delta = 0.01
-        new_coverage_prob = torch.Tensor(initial_coverage_prob)
-        new_coverage_prob[i] += delta
-
 
     torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, omega=omega)
 

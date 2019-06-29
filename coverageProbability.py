@@ -6,8 +6,8 @@ Created on Tue Apr 30 01:25:29 2019
 """
 from scipy.optimize import minimize 
 import networkx as nx
-# import numpy as np
-import autograd.numpy as np
+import numpy as np
+# import autograd.numpy as np
 from numpy.linalg import *
 from graphData import *
 import torch

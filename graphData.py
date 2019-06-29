@@ -13,11 +13,11 @@ from gcn import *
 from coverageProbability import prob2unbiased, phi2prob
 
 # Random Seed Initialization
-SEED = 1289 # random.randint(0,10000)
-print("Random seed: {}".format(SEED))
-torch.manual_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
+# SEED = 1289 #  random.randint(0,10000)
+# print("Random seed: {}".format(SEED))
+# torch.manual_seed(SEED)
+# np.random.seed(SEED)
+# random.seed(SEED)
 
 
 """
@@ -76,13 +76,13 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,1), (2,5), (5,10)], fixed_phi=False):
+def generatePhi(G, possible_ranges=[(0,1), (1,3), (3,5)], fixed_phi=0):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
     targets=G.graph['targets']
     
-    if not fixed_phi:
+    if fixed_phi != 2:
         for node in list(G.nodes()):
             
             if node in sources:
@@ -148,8 +148,10 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         source=0
         target=6
         G = nx.Graph()
-        G.add_nodes_from(0,1,2,3,4,5,6)
-        G.add_edges_from([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]) # undirected graph
+        nodes = [0,1,2,3,4,5,6]
+        edges = [(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]
+        G.add_nodes_from(nodes)
+        G.add_edges_from(edges) # undirected graph
         # G = nx.to_directed(G) # for directed graph
         G.graph['source']=source
         G.graph['target']=target
@@ -189,13 +191,14 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         return G
 
     else:
-        is_connected=False
+        is_connected = False
         while (not is_connected):
             N=np.random.randint(low=N_low, high=N_high)                     # Randomly pick number of Nodes
             p=np.random.uniform(low=e_low, high=e_high)             # Randomly pick Edges probability
             # Generate random graph
-            G=nx.gnp_random_graph(N,p)
-            # G=nx.random_geometric_graph(N,p)
+            G = nx.gnp_random_graph(N,p)
+            # G = nx.random_geometric_graph(N,p)
+            # G = nx.connected_watts_strogatz_graph(N,4,p) 
 
             sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
             sources=sources_targets[:n_sources]
@@ -223,6 +226,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         transients=[node for node in nodes if not (node in G.graph['targets'])]
         initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
         G.graph['initial_distribution']=initial_distribution
+        print("number of nodes:", G.number_of_nodes())
+        print("number of edges:", G.number_of_edges())
         
         return G
         
@@ -287,8 +292,16 @@ def generateSyntheticData(node_feature_size, omega=4,
                           n_graphs=20, samples_per_graph=100, empirical_samples_per_instance=10,
                           fixed_graph=False, path_type='random_walk',
                           N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=2, train_test_split_ratio=0.8,
-                          n_sources=1, n_targets=1):
+                          n_sources=1, n_targets=1, random_seed=0):
     
+    # Random seed setting
+    print("Random seed: {}".format(random_seed))
+    if random_seed != 0:
+        torch.manual_seed(random_seed)
+        np.random.seed(random_seed)
+        random.seed(random_seed)
+
+    # initialization
     data=[] # aggregate all the data first then split into training and testing
     net3= featureGenerationNet2(node_feature_size)
     n_samples = n_graphs * samples_per_graph
