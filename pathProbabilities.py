@@ -22,65 +22,46 @@ from obsoleteCode import *
 from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 import qpthlocal
 
-def plotEverything(all_params,tr_loss, test_loss, training_graph_def_u, testing_graph_def_u, prefix="figure/"):
-    
+def plotEverything(all_params,tr_loss, test_loss, training_graph_def_u, testing_graph_def_u, filepath="figure/"):
     learning_model=all_params['learning model']
-    
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(221)
+    ax2 = fig.add_subplot(222)
+    ax3 = fig.add_subplot(223)
+    ax4 = fig.add_subplot(224)
+
+    fig.text(0.5, 0.04, '# epochs', ha='center', va='center')
+    fig.text(0.06, 0.75, 'KL-divergence loss', ha='center', va='center', rotation='vertical')
+    fig.text(0.06, 0.25, 'Defender utility', ha='center', va='center', rotation='vertical')
+
+    epochs = len(tr_loss) - 1
+    x=range(-1, epochs)
+
     # Training loss
-    fig1= plt.figure()
-    x=range(1,len(tr_loss))
-    plt.plot(x, tr_loss[1:], label='Training loss')
-    
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    
-    plt.title("Training loss plot for "+learning_model)
-    plt.legend()
-    plt.savefig('{}_training_loss.png'.format(prefix))
+    ax1.plot(x, tr_loss, label='Training loss')
+    ax1.set_title("Training")
+    ax1.legend()
         
     # Testing loss
-    fig2= plt.figure()
-    x=range(len(test_loss))
-    plt.plot(x, test_loss, label='Testing loss')
-        
-    plt.xlabel('Epochs')
-    plt.ylabel('Testing Loss')
+    ax2.plot(x, test_loss, label='Testing loss')
+    ax2.set_title("Testing")
+    ax2.legend()
 
-
-    plt.title("Testing loss plot for "+learning_model)
-    plt.legend()
-    plt.savefig('{}_testing_loss.png'.format(prefix))
-    
     # Entire training graph Defender utility
-    fig3= plt.figure()
-    x=range(len(training_graph_def_u))
-    y_model=[training_graph_def_u[i] for i in x]
-    plt.plot(x, y_model, label='ML Model')
-    
-    plt.xlabel('Epochs')
-    plt.ylabel('Defender utility')
-    
-    plt.title("Overall training defender utiilty for "+learning_model)
-    plt.legend()
-    plt.savefig('{}_training_obj.png'.format(prefix))
+    ax3.plot(x, training_graph_def_u, label='ML Model')
+    ax3.legend()
 
     # Entire testing graph Defender utility
-    fig4= plt.figure()
-    x=range(len(testing_graph_def_u))
-    y_model=[testing_graph_def_u[i] for i in x]
-    plt.plot(x, y_model, label='ML Model')
-    
-    plt.xlabel('Epochs')
-    plt.ylabel('Defender utility')
-    
-    plt.title("Overall testing defender utiilty for "+learning_model)
-    plt.legend()
-    plt.savefig('{}_testing_obj.png'.format(prefix))
+    ax4.plot(x, testing_graph_def_u, label='ML Model')
+    ax4.legend()
+
+    plt.savefig('{}'.format(filepath))
     
     return
     
 
-def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_walk_distribution'
+def learnEdgeProbs_simple(train_data, test_data, f_save, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage'):
 
     
@@ -106,6 +87,8 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
     #                   TRAINING LOOP
     ######################################################
     time3 = time.time()
+
+    f_save.write("mode, epoch, average loss, defender utility\n")
 
     for epoch in range(-1, n_epochs):
         for mode in ["training", "testing"]:
@@ -169,6 +152,8 @@ def learnEdgeProbs_simple(train_data, test_data, lr=0.1, learning_model='random_
             np.random.shuffle(dataset)
             print("Mode: {}/ Epoch number: {}/ Average training loss: {}/ Average defender Objective: {}".format(
                   mode, epoch, np.mean(loss_list), np.mean(def_obj_list)))
+
+            f_save.write("{}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list)))
 
             # defender_utility, testing_loss=testModel(test_data,net2, learning_model, omega=omega, defender_utility_computation=True)
 
@@ -363,14 +348,14 @@ if __name__=='__main__':
     feature_size = args.feature_size
     OMEGA = args.omega
 
-    GRAPH_N_LOW  = args.node_size
+    GRAPH_N_LOW  = args.number_nodes
     GRAPH_N_HIGH = GRAPH_N_LOW + 1
     GRAPH_E_PROB_LOW  = args.prob
     GRAPH_E_PROB_HIGH = GRAPH_E_PROB_LOW
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 10
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
@@ -384,7 +369,15 @@ if __name__=='__main__':
     SEED = args.seed
 
     ###############################
-    filepath = "figures/0629_{}_{}".format(GRAPH_TYPE, training_method)
+    date = "0629"
+    if FIXED_GRAPH == 0:
+        filepath_data = "results/random/{}_{}_n{}_p{}_b{}.csv".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
+        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
+    else:
+        filepath_data = "results/fixed/{}_{}_test.csv".format(date, training_method)
+        filepath_figure = "figures/fixed/{}_{}_test".format(date, training_method)
+
+    f_save = open(filepath_data, 'a')
       
     ############################### Data genaration:
     train_data, test_data=generateSyntheticData(feature_size, path_type=learning_model_type, 
@@ -406,24 +399,17 @@ if __name__=='__main__':
     ############################## Training the ML models:    
     time3=time.time()
     # Learn the neural networks:
-    if learning_model_type=='random_walk_distribution':
-        net2,tr_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
-                                    train_data,test_data,
-                                    learning_model=learning_model_type,
-                                    lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
-                                    optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
-    elif learning_model_type=='empirical_distribution':
-        net2, tr_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
-                                    train_data,test_data,
-                                    learning_model=learning_model_type,
-                                    lr=LR,n_epochs=N_EPOCHS, batch_size=BATCH_SIZE, 
-                                    optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
-    else:
-        raise(TypeError)
+    net2, tr_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
+                                train_data, test_data, f_save,
+                                learning_model=learning_model_type,
+                                lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
+                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
 
     time4=time.time()
     if time_analysis:
         cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')
+
+    f_save.close()
 
     ############################# Print the summary:
     #print ("Now running: ", "Large graphs sizes")    
@@ -444,5 +430,5 @@ if __name__=='__main__':
     cprint (all_params, 'green')
     #############################            
     if plot_everything:
-        plotEverything(all_params,tr_loss, test_loss, training_graph_def_u, testing_graph_def_u, prefix=filepath)
+        plotEverything(all_params,tr_loss, test_loss, training_graph_def_u, testing_graph_def_u, filepath=filepath_figure)
         
