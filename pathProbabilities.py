@@ -371,7 +371,7 @@ if __name__=='__main__':
         SEED = np.random.randint(1, 100000)
 
     ###############################
-    date = "0629-1900"
+    date = "0630-0000"
     if FIXED_GRAPH == 0:
         filepath_data = "results/random/{}_{}_n{}_p{}_b{}.csv".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
         filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
