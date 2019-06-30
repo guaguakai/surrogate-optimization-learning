@@ -329,7 +329,7 @@ if __name__=='__main__':
     parser.add_argument('--number-sources', type=int, default=2, help='number of randomly generated sources')
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
 
-    parser.add_argument('--distribution', type=int, default=1, help='0 -> random walk distribution, 1 -> empirical distribution')
+    parser.add_argument('--distribution', type=int, default=0, help='0 -> random walk distribution, 1 -> empirical distribution')
     parser.add_argument('--method', type=int, default=0, help='0 -> two-stage, 1 -> decision-focused')
     
     args = parser.parse_args()
@@ -367,9 +367,11 @@ if __name__=='__main__':
     FIXED_GRAPH = args.fixed_graph
     GRAPH_TYPE = "random_graph" if FIXED_GRAPH == 0 else "fixed_graph"
     SEED = args.seed
+    if SEED == 0:
+        SEED = np.random.randint(1, 100000)
 
     ###############################
-    date = "0629"
+    date = "0629-1900"
     if FIXED_GRAPH == 0:
         filepath_data = "results/random/{}_{}_n{}_p{}_b{}.csv".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
         filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
