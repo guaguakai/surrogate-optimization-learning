@@ -223,24 +223,26 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
         # ========================= Error message =========================
         if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.001): # or pred_defender_utility > 0:
-            print(pred_optimal_res)
-            print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
-            print("Hessian: {}".format(Q_sym))
-            print("Gradient: {}".format(jac))
-            print("Eigen decomposition: {}".format(np.linalg.eig(Q_sym.detach().numpy())[0]))
-            print("Eigen decomposition: {}".format(np.linalg.eig(Q_regularized.detach().numpy())[0]))
-            print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-            print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-            print(pred_optimal_coverage, torch.sum(pred_optimal_coverage))
-            print(coverage_qp_solution, torch.sum(coverage_qp_solution))
-            print("Solution difference:", torch.norm(pred_optimal_coverage - coverage_qp_solution))
-            print(unbiased_probs_true)
-            print(unbiased_probs_pred)
+            print('QP solution and scipy solution differ too much...')
+            if verbose:
+                print(pred_optimal_res)
+                print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
+                print("Hessian: {}".format(Q_sym))
+                print("Gradient: {}".format(jac))
+                print("Eigen decomposition: {}".format(np.linalg.eig(Q_sym.detach().numpy())[0]))
+                print("Eigen decomposition: {}".format(np.linalg.eig(Q_regularized.detach().numpy())[0]))
+                print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+                print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+                print(pred_optimal_coverage, torch.sum(pred_optimal_coverage))
+                print(coverage_qp_solution, torch.sum(coverage_qp_solution))
+                print("Solution difference:", torch.norm(pred_optimal_coverage - coverage_qp_solution))
+                print(unbiased_probs_true)
+                print(unbiased_probs_pred)
 
-            QP_value   = p @ coverage_qp_solution  + 0.5 * coverage_qp_solution  @ Q_regularized @ coverage_qp_solution  # - jac @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_sym @ pred_optimal_coverage
-            true_value = p @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_regularized @ pred_optimal_coverage # - jac @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_sym @ pred_optimal_coverage
-            print("QP value: {}".format(QP_value))
-            print("true value: {}".format(true_value))
+                QP_value   = p @ coverage_qp_solution  + 0.5 * coverage_qp_solution  @ Q_regularized @ coverage_qp_solution  # - jac @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_sym @ pred_optimal_coverage
+                true_value = p @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_regularized @ pred_optimal_coverage # - jac @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_sym @ pred_optimal_coverage
+                print("QP value: {}".format(QP_value))
+                print("true value: {}".format(true_value))
 
         else:
             break
@@ -361,7 +363,7 @@ if __name__=='__main__':
     
     N_EPOCHS = args.epochs
     LR = args.learning_rate # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
-    BATCH_SIZE = 1
+    BATCH_SIZE = 5
     OPTIMIZER = 'adam'
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     FIXED_GRAPH = args.fixed_graph
@@ -371,7 +373,7 @@ if __name__=='__main__':
         SEED = np.random.randint(1, 100000)
 
     ###############################
-    date = "0630-0000"
+    date = "0701-0100"
     if FIXED_GRAPH == 0:
         filepath_data = "results/random/{}_{}_n{}_p{}_b{}.csv".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
         filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
