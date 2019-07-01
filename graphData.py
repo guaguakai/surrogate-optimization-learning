@@ -7,6 +7,7 @@ Created on Wed Apr 17 02:33:57 2019
 import networkx as nx 
 import numpy as np
 import torch
+import torch.utils.data as utils
 import random
 
 from gcn import *
@@ -291,7 +292,7 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
 def generateSyntheticData(node_feature_size, omega=4, 
                           n_graphs=20, samples_per_graph=100, empirical_samples_per_instance=10,
                           fixed_graph=False, path_type='random_walk',
-                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=2, train_test_split_ratio=0.8,
+                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=2, train_test_split_ratio=(0.7, 0.1, 0.2),
                           n_sources=1, n_targets=1, random_seed=0):
     
     # Random seed setting
@@ -384,7 +385,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     for e in path:
                         log_prob-=torch.log(biased_probs[e[0]][e[1]])
                 log_prob /= len(path_list)
-                data_point=(G,Fv,private_coverage_prob,phi,unbiased_probs,path_list,log_prob)
+                data_point=(G,Fv,private_coverage_prob,phi,path_list,log_prob, unbiased_probs)
                         
             elif path_type=='empirical_distribution':
                 log_prob=torch.zeros(1)
@@ -392,7 +393,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     for e in path:
                         log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
                 log_prob /= len(path_list)
-                data_point=(G,Fv,private_coverage_prob,phi,empirical_unbiased_probs,path_list,log_prob)
+                data_point=(G,Fv,private_coverage_prob,phi,path_list,log_prob, empirical_unbiased_probs)
 
             else:
                 raise(TypeError)
@@ -402,10 +403,12 @@ def generateSyntheticData(node_feature_size, omega=4,
     data = np.array(data)
     np.random.shuffle(data)
 
-    training_size = int(train_test_split_ratio * len(data))
-    training_data, testing_data = data[:training_size], data[training_size:]
+    train_size = int(train_test_split_ratio[0] * len(data))
+    validate_size = int(train_test_split_ratio[1] * len(data))
 
-    return np.array(training_data), np.array(testing_data)
+    training_data, validate_data, testing_data = data[:train_size], data[train_size:train_size+validate_size], data[train_size+validate_size:]
+
+    return np.array(training_data), np.array(validate_data), np.array(testing_data)
 
 
 if __name__=="__main__":

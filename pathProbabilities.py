@@ -22,7 +22,7 @@ from obsoleteCode import *
 from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 import qpthlocal
 
-def plotEverything(all_params,tr_loss, test_loss, training_graph_def_u, testing_graph_def_u, filepath="figure/"):
+def plotEverything(all_params,train_loss, test_loss, training_graph_def_u, testing_graph_def_u, filepath="figure/"):
     learning_model=all_params['learning model']
 
     fig = plt.figure()
@@ -35,11 +35,11 @@ def plotEverything(all_params,tr_loss, test_loss, training_graph_def_u, testing_
     fig.text(0.06, 0.75, 'KL-divergence loss', ha='center', va='center', rotation='vertical')
     fig.text(0.06, 0.25, 'Defender utility', ha='center', va='center', rotation='vertical')
 
-    epochs = len(tr_loss) - 1
+    epochs = len(train_loss) - 1
     x=range(-1, epochs)
 
     # Training loss
-    ax1.plot(x, tr_loss, label='Training loss')
+    ax1.plot(x, train_loss, label='Training loss')
     ax1.set_title("Training")
     ax1.legend()
         
@@ -61,7 +61,7 @@ def plotEverything(all_params,tr_loss, test_loss, training_graph_def_u, testing_
     return
     
 
-def learnEdgeProbs_simple(train_data, test_data, f_save, lr=0.1, learning_model='random_walk_distribution'
+def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage'):
 
     
@@ -75,10 +75,10 @@ def learnEdgeProbs_simple(train_data, test_data, f_save, lr=0.1, learning_model=
     elif optimizer=='adamax':
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
-    # scheduler = ReduceLROnPlateau(optimizer, 'min')    
+    scheduler = ReduceLROnPlateau(optimizer, 'min')    
    
-    training_loss_list, testing_loss_list = [], []
-    training_defender_utility_list, testing_defender_utility_list = [], []
+    training_loss_list, validating_loss_list, testing_loss_list = [], [], []
+    training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
     
     print ("Training...") 
     time2=time.time()
@@ -91,7 +91,7 @@ def learnEdgeProbs_simple(train_data, test_data, f_save, lr=0.1, learning_model=
     f_save.write("mode, epoch, average loss, defender utility\n")
 
     for epoch in range(-1, n_epochs):
-        for mode in ["training", "testing"]:
+        for mode in ["training", "validating", "testing"]:
             if mode == "training":
                 dataset = train_data
                 epoch_loss_list = training_loss_list
@@ -100,17 +100,24 @@ def learnEdgeProbs_simple(train_data, test_data, f_save, lr=0.1, learning_model=
                     net2.train()
                 else:
                     net2.eval()
-            else:
+            elif mode == "validating":
+                dataset = validate_data
+                epoch_loss_list = validating_loss_list
+                epoch_def_list  = validating_defender_utility_list
+                net2.eval()
+            elif mode == "testing":
                 dataset = test_data
                 epoch_loss_list = testing_loss_list
                 epoch_def_list  = testing_defender_utility_list
                 net2.eval()
+            else:
+                raise TypeError("Not valid mode: {}".format(mode))
 
             loss_list, def_obj_list = [], []
             batch_loss = 0
             for iter_n in tqdm.trange(len(dataset)):
                 ################################### Gather data based on learning model
-                G, Fv, coverage_prob, phi_true, unbiased_probs_true, path_list, log_prob = dataset[iter_n]
+                G, Fv, coverage_prob, phi_true, path_list, log_prob, unbiased_probs_true = dataset[iter_n]
                 
                 ################################### Compute edge probabilities
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
@@ -144,6 +151,9 @@ def learnEdgeProbs_simple(train_data, test_data, f_save, lr=0.1, learning_model=
                     optimizer.step()
                     batch_loss = 0
 
+            if (epoch > 0) and (mode == "validating"):
+                scheduler.step(np.sum(loss_list))
+
             # Storing loss and defender utility
             epoch_loss_list.append(np.mean(loss_list))
             epoch_def_list.append(np.mean(def_obj_list))
@@ -169,10 +179,7 @@ def learnEdgeProbs_simple(train_data, test_data, f_save, lr=0.1, learning_model=
 
 
 def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose=False):
-    if path_model=='random_walk_distribution':
-        G, Fv, coverage_prob, phi_true, unbiased_probs_true, path_list, log_prob = single_data
-    elif path_model=='empirical_distribution':
-        G, Fv, coverage_prob, phi_true, unbiased_probs_true, path_list, log_prob = single_data
+    G, Fv, coverage_prob, phi_true, path_list, log_prob, unbiased_probs_true = single_data
     
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
@@ -376,20 +383,20 @@ if __name__=='__main__':
     date = "0701-0100"
     if FIXED_GRAPH == 0:
         filepath_data = "results/random/{}_{}_n{}_p{}_b{}.csv".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
-        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
+        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}.png".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
     else:
         filepath_data = "results/fixed/{}_{}_test.csv".format(date, training_method)
-        filepath_figure = "figures/fixed/{}_{}_test".format(date, training_method)
+        filepath_figure = "figures/fixed/{}_{}_test.png".format(date, training_method)
 
     f_save = open(filepath_data, 'a')
       
     ############################### Data genaration:
-    train_data, test_data=generateSyntheticData(feature_size, path_type=learning_model_type, 
-                        n_graphs=NUMBER_OF_GRAPHS, samples_per_graph=SAMPLES_PER_GRAPH, empirical_samples_per_instance=EMPIRICAL_SAMPLES_PER_INSTANCE,
-                        fixed_graph=FIXED_GRAPH, omega=OMEGA,
-                        N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH,
-                        budget=DEFENDER_BUDGET, n_sources=NUMBER_OF_SOURCES, n_targets=NUMBER_OF_TARGETS,
-                        random_seed=SEED)
+    train_data, validate_data, test_data = generateSyntheticData(feature_size, path_type=learning_model_type,
+            n_graphs=NUMBER_OF_GRAPHS, samples_per_graph=SAMPLES_PER_GRAPH, empirical_samples_per_instance=EMPIRICAL_SAMPLES_PER_INSTANCE,
+            fixed_graph=FIXED_GRAPH, omega=OMEGA,
+            N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH,
+            budget=DEFENDER_BUDGET, n_sources=NUMBER_OF_SOURCES, n_targets=NUMBER_OF_TARGETS,
+            random_seed=SEED)
     
     time2 =time.time()
     if time_analysis:
@@ -403,8 +410,8 @@ if __name__=='__main__':
     ############################## Training the ML models:    
     time3=time.time()
     # Learn the neural networks:
-    net2, tr_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
-                                train_data, test_data, f_save,
+    net2, train_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
+                                train_data, validate_data, test_data, f_save,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                 optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
@@ -434,5 +441,5 @@ if __name__=='__main__':
     cprint (all_params, 'green')
     #############################            
     if plot_everything:
-        plotEverything(all_params,tr_loss, test_loss, training_graph_def_u, testing_graph_def_u, filepath=filepath_figure)
+        plotEverything(all_params,train_loss, test_loss, training_graph_def_u, testing_graph_def_u, filepath=filepath_figure)
         
