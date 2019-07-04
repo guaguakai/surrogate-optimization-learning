@@ -394,11 +394,11 @@ if __name__=='__main__':
     ###############################
     filename = args.filename
     if FIXED_GRAPH == 0:
-        filepath_data = "results/random/{}_{}_n{}_p{}_b{}.csv".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
-        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}.png".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
+        filepath_data   = "results/random/{}_{}_n{}_p{}_b{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
+        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
     else:
-        filepath_data = "results/fixed/{}_{}_test.csv".format(date, training_method)
-        filepath_figure = "figures/fixed/{}_{}_test.png".format(date, training_method)
+        filepath_data   = "results/fixed/{}_{}_test.csv".format(filename, training_method)
+        filepath_figure = "figures/fixed/{}_{}_test.png".format(filename, training_method)
 
     f_save = open(filepath_data, 'a')
       
