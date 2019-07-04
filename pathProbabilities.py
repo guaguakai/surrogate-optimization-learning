@@ -330,6 +330,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 if __name__=='__main__':
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')
+    parser.add_argument('--filename', type=str, help='filename under folder results')
+
     parser.add_argument('--fixed-graph', type=int, default=0, help='0 -> randomly generated, 1 -> first fixed graph, 2 -> second fixed graph')
     parser.add_argument('--prob', type=float, default=0.2, help='input the probability used as input of random graph generator')
 
@@ -390,7 +392,7 @@ if __name__=='__main__':
         SEED = np.random.randint(1, 100000)
 
     ###############################
-    date = "0703-1900"
+    filename = args.filename
     if FIXED_GRAPH == 0:
         filepath_data = "results/random/{}_{}_n{}_p{}_b{}.csv".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
         filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}.png".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
