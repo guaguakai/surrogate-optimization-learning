@@ -40,7 +40,7 @@ def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be norma
 
     return unbiased_probs
 
-def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None):
+def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None, tol=0.1):
     """
     Inputs: 
         G is the graph object with dictionaries G[node], G[graph] etc. 
@@ -60,7 +60,7 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
     constraints=[{'type':'ineq','fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)}]
     
     # Optimization step
-    coverage_prob_optimal= minimize(objective_function_matrix_form,initial_coverage_prob,args=(G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=dobj_dx_matrix_form, bounds=bounds, constraints=constraints, options=options)
+    coverage_prob_optimal= minimize(objective_function_matrix_form,initial_coverage_prob,args=(G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=dobj_dx_matrix_form, bounds=bounds, constraints=constraints, tol=tol, options=options)
     
     return coverage_prob_optimal
 

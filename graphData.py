@@ -197,8 +197,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             N=np.random.randint(low=N_low, high=N_high)                     # Randomly pick number of Nodes
             p=np.random.uniform(low=e_low, high=e_high)             # Randomly pick Edges probability
             # Generate random graph
-            G = nx.gnp_random_graph(N,p)
-            # G = nx.random_geometric_graph(N,p)
+            # G = nx.gnp_random_graph(N,p)
+            G = nx.random_geometric_graph(N,p)
             # G = nx.connected_watts_strogatz_graph(N,4,p) 
 
             sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
@@ -217,9 +217,9 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
-            G.node[target]['utility']=np.random.randint(20, high=50)
+            G.node[target]['utility']=np.random.randint(low=20, high=30)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(-40, high=-30))
+        G.graph['U'].append(np.random.randint(low=-40, high=-30))
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
@@ -227,8 +227,6 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         transients=[node for node in nodes if not (node in G.graph['targets'])]
         initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
         G.graph['initial_distribution']=initial_distribution
-        print("number of nodes:", G.number_of_nodes())
-        print("number of edges:", G.number_of_edges())
         
         return G
         
@@ -402,6 +400,9 @@ def generateSyntheticData(node_feature_size, omega=4,
 
     data = np.array(data)
     np.random.shuffle(data)
+
+    print("average node size:", np.mean([x[0].number_of_nodes() for x in data]))
+    print("average edge size:", np.mean([x[0].number_of_edges() for x in data]))
 
     train_size = int(train_test_split_ratio[0] * len(data))
     validate_size = int(train_test_split_ratio[1] * len(data))
