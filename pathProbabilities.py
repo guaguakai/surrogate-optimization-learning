@@ -191,7 +191,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
     options = {"maxiter": 100, "disp": verbose}
-    tol = 0.1
+    tol = None
+    method = "SLSQP"
 
     m = G.number_of_edges()
     G_matrix = torch.cat((-torch.eye(m), torch.eye(m), torch.ones(1,m)))
@@ -203,8 +204,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
         # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
 
-        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, initial_coverage_prob=initial_coverage_prob, tol=tol)
-        if (pred_optimal_res["status"] != 0 and pred_optimal_res["status"] != 9) and tmp_iter != 2:
+        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol)
+
+        if pred_optimal_res["success"] == False and tmp_iter != 2:
+            # print(pred_optimal_res)
             print("optimization failed with status {}... restart...".format(pred_optimal_res['status']))
             continue
 
@@ -236,30 +239,30 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution,  G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
         # ========================= Error message =========================
-        # if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.01): # or pred_defender_utility > 0:
-        #     print('QP solution and scipy solution differ too much...')
-        #     if verbose:
-        #         print(pred_optimal_res)
-        #         print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
-        #         print("Hessian: {}".format(Q_sym))
-        #         print("Gradient: {}".format(jac))
-        #         print("Eigen decomposition: {}".format(np.linalg.eig(Q_sym.detach().numpy())[0]))
-        #         print("Eigen decomposition: {}".format(np.linalg.eig(Q_regularized.detach().numpy())[0]))
-        #         print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-        #         print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-        #         print(pred_optimal_coverage, torch.sum(pred_optimal_coverage))
-        #         print(coverage_qp_solution, torch.sum(coverage_qp_solution))
-        #         print("Solution difference:", torch.norm(pred_optimal_coverage - coverage_qp_solution))
-        #         print(unbiased_probs_true)
-        #         print(unbiased_probs_pred)
+        if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.01): # or pred_defender_utility > 0:
+            print('QP solution and scipy solution differ too much...', torch.norm(pred_optimal_coverage - coverage_qp_solution))
+            if verbose:
+                print(pred_optimal_res)
+                print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
+                print("Hessian: {}".format(Q_sym))
+                print("Gradient: {}".format(jac))
+                print("Eigen decomposition: {}".format(np.linalg.eig(Q_sym.detach().numpy())[0]))
+                print("Eigen decomposition: {}".format(np.linalg.eig(Q_regularized.detach().numpy())[0]))
+                print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+                print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+                print(pred_optimal_coverage, torch.sum(pred_optimal_coverage))
+                print(coverage_qp_solution, torch.sum(coverage_qp_solution))
+                print("Solution difference:", torch.norm(pred_optimal_coverage - coverage_qp_solution))
+                print(unbiased_probs_true)
+                print(unbiased_probs_pred)
 
-        #         QP_value   = p @ coverage_qp_solution  + 0.5 * coverage_qp_solution  @ Q_regularized @ coverage_qp_solution  # - jac @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_sym @ pred_optimal_coverage
-        #         true_value = p @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_regularized @ pred_optimal_coverage # - jac @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_sym @ pred_optimal_coverage
-        #         print("QP value: {}".format(QP_value))
-        #         print("true value: {}".format(true_value))
+                QP_value   = p @ coverage_qp_solution  + 0.5 * coverage_qp_solution  @ Q_regularized @ coverage_qp_solution  # - jac @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_sym @ pred_optimal_coverage
+                true_value = p @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_regularized @ pred_optimal_coverage # - jac @ pred_optimal_coverage + 0.5 * pred_optimal_coverage @ Q_sym @ pred_optimal_coverage
+                print("QP value: {}".format(QP_value))
+                print("true value: {}".format(true_value))
 
-        # else:
-        #     break
+        else:
+            break
 
     return pred_defender_utility, coverage_qp_solution
 
@@ -387,7 +390,7 @@ if __name__=='__main__':
         SEED = np.random.randint(1, 100000)
 
     ###############################
-    date = "0703-1200"
+    date = "0703-1900"
     if FIXED_GRAPH == 0:
         filepath_data = "results/random/{}_{}_n{}_p{}_b{}.csv".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
         filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}.png".format(date, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)

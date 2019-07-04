@@ -223,7 +223,12 @@ def dobj_dx_matrix_form_np(coverage_probs, G, unbiased_probs, U, initial_distrib
     return dobj_dx
 
 def obj_hessian_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
-    x = torch.autograd.Variable(coverage_probs.detach(), requires_grad=True)
+    if type(coverage_probs) == torch.Tensor:
+        coverage_probs = coverage_probs.detach()
+    else:
+        coverage_probs = torch.Tensor(coverage_probs)
+
+    x = torch.autograd.Variable(coverage_probs, requires_grad=True)
     dobj_dx = dobj_dx_matrix_form(torch.Tensor(x), G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch)
     m = len(x)
     obj_hessian = torch.zeros((m,m))
