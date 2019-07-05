@@ -77,7 +77,7 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,1), (1,3), (3,5)], fixed_phi=0):
+def generatePhi(G, possible_ranges=[(0,0.5), (0.5,1), (2,4)], fixed_phi=0):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']

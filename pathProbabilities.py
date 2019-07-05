@@ -124,6 +124,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
                 edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
                 phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
+                # print(phi_pred)
+                # print(phi_true)
 
                 unbiased_probs_pred = phi2prob(G, phi_pred)
                 biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
@@ -149,6 +151,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
                 # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
                 batch_loss += loss if training_method == "two-stage" else -def_obj
 
+                # print(batch_loss)
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
                     batch_loss.backward()

@@ -143,8 +143,8 @@ class featureGenerationNet2(nn.Module): # message passing version
         self.gcn3 = GraphConv(r2, r3, aggr='mean')
         self.gcn4 = GraphConv(r3, r4, aggr='mean')
 
-        # self.softplus = nn.Softplus()
-        self.activation = F.relu
+        self.activation = nn.Softplus()
+        # self.activation = F.relu
         #self.node_adj=A
 
     def forward(self, x, edge_index):
@@ -233,9 +233,8 @@ class GCNPredictionNet2(nn.Module):
         # self.fc1 = nn.Linear(r2, r3)
         # self.fc2 = nn.Linear(r3, 1)
 
-        # self.softplus = nn.Softplus()
-
-        self.activation = F.relu
+        self.activation = nn.Softplus()
+        # self.activation = F.relu
         
         #self.node_adj=A
 
