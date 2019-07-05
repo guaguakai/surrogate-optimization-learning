@@ -191,6 +191,39 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['initial_distribution']=initial_distribution
         return G
 
+    elif fixed_graph == 3:
+        sizes = [5, 5, 5]
+        probs = [[0.5, 0.1, 0.05], [0.1, 0.4, 0.05], [0.05, 0.05, 0.4]]
+        is_connected = False
+        while (not is_connected):
+            G = nx.stochastic_block_model(sizes, probs)
+            sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
+            sources=sources_targets[:n_sources]
+            targets=sources_targets[n_sources:]
+            
+            #Check if path exists:
+            is_connected = nx.is_connected(G)
+
+        G.graph['sources']=sources
+        G.graph['targets']=targets
+        G.graph['budget']=budget
+        G.graph['U']=[]
+
+        # Randomly assign utilities to targets in the RANGE HARD-CODED below
+        for target in G.graph['targets']:
+            G.node[target]['utility']=np.random.randint(low=5, high=10)
+            G.graph['U'].append(G.node[target]['utility'])
+        G.graph['U'].append(0)
+        G.graph['U']=np.array(G.graph['U'])
+        
+        sources=G.graph['sources']
+        nodes=list(G.nodes())
+        transients=[node for node in nodes if not (node in G.graph['targets'])]
+        initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
+        G.graph['initial_distribution']=initial_distribution
+
+        return G
+
     else:
         is_connected = False
         while (not is_connected):
@@ -208,8 +241,6 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             #Check if path exists:
             is_connected = nx.is_connected(G)
 
-        #G.graph['source']=source
-        #G.graph['target']=target
         G.graph['sources']=sources
         G.graph['targets']=targets
         G.graph['budget']=budget
@@ -320,8 +351,6 @@ def generateSyntheticData(node_feature_size, omega=4,
         '''
         G=returnGraph(fixed_graph=fixed_graph, n_sources=n_sources, n_targets=n_targets, N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high, budget=budget)
         # COMPUTE ADJACENCY MATRIX
-        A=nx.to_numpy_matrix(G)
-        A_torch=torch.as_tensor(A, dtype=torch.float) 
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         N=nx.number_of_nodes(G) 
         
