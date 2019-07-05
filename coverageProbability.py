@@ -25,8 +25,6 @@ def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normal
 
     return unbiased_probs
 
-
-
 def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
     coverage_prob_matrix=torch.zeros((N,N))

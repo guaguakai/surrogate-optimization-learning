@@ -202,14 +202,15 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
 
     # ========================== QP part ===========================
-    for tmp_iter in range(3): # maximum 3 retries
+    for tmp_iter in range(10): # maximum 3 retries
         initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
         initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
         # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
 
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol)
 
-        if pred_optimal_res["success"] == False and tmp_iter != 2:
+        if pred_optimal_res["status"] != 0 and tmp_iter != 9:
+            # if pred_optimal_res["success"] == False and tmp_iter != 9:
             # print(pred_optimal_res)
             print("optimization failed with status {}... restart...".format(pred_optimal_res['status']))
             continue
@@ -239,7 +240,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         # initial_coverage_prob = coverage_qp_solution.detach()
 
         # ======================= Defender Utility ========================
-        pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution,  G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+        pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
         # ========================= Error message =========================
         if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.01): # or pred_defender_utility > 0:
@@ -353,7 +354,7 @@ if __name__=='__main__':
     parser.add_argument('--number-sources', type=int, default=2, help='number of randomly generated sources')
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
 
-    parser.add_argument('--distribution', type=int, default=0, help='0 -> random walk distribution, 1 -> empirical distribution')
+    parser.add_argument('--distribution', type=int, default=1, help='0 -> random walk distribution, 1 -> empirical distribution')
     parser.add_argument('--method', type=int, default=0, help='0 -> two-stage, 1 -> decision-focused')
     
     args = parser.parse_args()
@@ -379,7 +380,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 10
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     

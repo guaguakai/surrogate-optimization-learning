@@ -77,7 +77,7 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,0.5), (0.5,1), (2,4)], fixed_phi=0):
+def generatePhi(G, possible_ranges=[(0,1), (1,3), (3,5)], fixed_phi=0):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
@@ -158,7 +158,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['target']=target
         G.graph['sources']=[source]
         G.graph['targets']=[target]
-        G.graph['U']=np.array([10, -20])
+        G.graph['U']=np.array([10, 0])
         G.graph['budget']=budget
         
         G.node[target]['utility']=10
@@ -217,9 +217,9 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
-            G.node[target]['utility']=np.random.randint(low=20, high=30)
+            G.node[target]['utility']=np.random.randint(low=5, high=10)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(low=-40, high=-30))
+        G.graph['U'].append(0)
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
@@ -383,7 +383,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     for e in path:
                         log_prob-=torch.log(biased_probs[e[0]][e[1]])
                 log_prob /= len(path_list)
-                data_point=(G,Fv,private_coverage_prob,phi,path_list,log_prob, unbiased_probs)
+                data_point = (G,Fv,private_coverage_prob,phi,path_list,log_prob, unbiased_probs)
                         
             elif path_type=='empirical_distribution':
                 log_prob=torch.zeros(1)
@@ -391,7 +391,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     for e in path:
                         log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
                 log_prob /= len(path_list)
-                data_point=(G,Fv,private_coverage_prob,phi,path_list,log_prob, empirical_unbiased_probs)
+                data_point = (G,Fv,private_coverage_prob,phi,path_list,log_prob, empirical_unbiased_probs)
 
             else:
                 raise(TypeError)
