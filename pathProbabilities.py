@@ -196,7 +196,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
     
 
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose=False):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_min_cuts=True, verbose=False):
     G, Fv, coverage_prob, phi_true, path_list, log_prob, unbiased_probs_true = single_data
     
     budget = G.graph['budget']
@@ -207,6 +207,12 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     method = "SLSQP"
 
     m = G.number_of_edges()
+    edges = G.edges()
+    edge2index = {}
+    for idx, edge in enumerate(edges):
+        edge2index[edge] = idx
+        edge2index[(edge[1], edge[0])] = idx
+
     G_matrix = torch.cat((-torch.eye(m), torch.eye(m), torch.ones(1,m)))
     h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
 
@@ -216,7 +222,25 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
         # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
 
-        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol)
+        if restrict_min_cuts:
+            sources, targets = G.graph['sources'], G.graph['targets']
+            zero_edge_set = set(range(m))
+            for source in sources:
+                for target in targets:
+                    min_cut = nx.minimum_edge_cut(G, source, target)
+                    min_cut_idx = [edge2index[edge] for edge in min_cut]
+                    zero_edge_set -= set(min_cut_idx)
+
+            # print('# decision variables: {}'.format(m - len(zero_edge_set)))
+            A_matrix, b_matrix = torch.zeros((len(zero_edge_set), m)), torch.zeros((len(zero_edge_set)))
+            for idx, edge_idx in enumerate(zero_edge_set):
+                A_matrix[idx,edge_idx] = 1
+
+        else:
+            zero_edge_set = []
+            A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
+
+        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, zero_edge_set=zero_edge_set)
 
         if pred_optimal_res["status"] != 0 and tmp_iter != 9:
             # if pred_optimal_res["success"] == False and tmp_iter != 9:
@@ -246,7 +270,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
 
-        coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, torch.Tensor(), torch.Tensor())[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
         # initial_coverage_prob = coverage_qp_solution.detach()
 
         # ======================= Defender Utility ========================
@@ -396,7 +420,7 @@ if __name__=='__main__':
     
     N_EPOCHS = args.epochs
     LR = args.learning_rate # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
-    BATCH_SIZE = 5
+    BATCH_SIZE = 1
     OPTIMIZER = 'adam'
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     FIXED_GRAPH = args.fixed_graph

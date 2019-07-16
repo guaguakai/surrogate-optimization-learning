@@ -38,7 +38,7 @@ def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be norma
 
     return unbiased_probs
 
-def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None, tol=0.1):
+def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None, tol=0.1, zero_edge_set=[]):
     """
     Inputs: 
         G is the graph object with dictionaries G[node], G[graph] etc. 
@@ -53,7 +53,10 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
         initial_coverage_prob = np.zeros(nx.number_of_edges(G))
     
     # Bounds and constraints
-    bounds=[(0.0,1.0) for item in initial_coverage_prob]
+    bounds=[(0.0,1.0) for _ in range(E)]
+    for edge_idx in zero_edge_set:
+        bounds[edge_idx] = (0.0, 0.0)
+
     ineq_fn = lambda x: budget - sum(x)
     constraints=[{'type':'ineq','fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)}]
     
