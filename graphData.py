@@ -77,13 +77,31 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,1), (1,3), (3,5)], fixed_phi=0):
+def generatePhi(G, possible_ranges=[(0,0.5), (0.5,2), (1,3)], fixed_phi=0):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
     targets=G.graph['targets']
     
-    if fixed_phi != 2:
+    if fixed_phi == 2:
+        for node in list(G.nodes()):
+            if node in sources:
+                node_phi=0
+            elif node in targets:
+                node_phi=5 if node == 15 else 0
+            else:
+                node_phi=0
+            G.node[node]['node_phi']=node_phi
+
+    elif fixed_phi == 3:
+        for i in range(3):
+            for node in range(i*5, i*5+5):
+                lower_bound = possible_ranges[i][0]
+                upper_bound = possible_ranges[i][1]
+                node_phi = np.random.uniform(lower_bound, upper_bound)
+                G.node[node]['node_phi'] = node_phi
+
+    elif fixed_phi == 0 or fixed_phi == 1:
         for node in list(G.nodes()):
             
             if node in sources:
@@ -101,16 +119,6 @@ def generatePhi(G, possible_ranges=[(0,1), (1,3), (3,5)], fixed_phi=0):
             node_phi=np.random.uniform(lower_bounds, upper_bounds)
             G.node[node]['node_phi']=node_phi
     
-    else:
-        for node in list(G.nodes()):
-            if node in sources:
-                node_phi=0
-            elif node in targets:
-                node_phi=5 if node == 15 else 0
-            else:
-                node_phi=0
-            G.node[node]['node_phi']=node_phi
-
     phi=np.zeros(N)
     for node in list(G.nodes()):
             phi[node]=G.node[node]['node_phi']
@@ -193,13 +201,12 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
 
     elif fixed_graph == 3:
         sizes = [5, 5, 5]
-        probs = [[0.5, 0.1, 0.05], [0.1, 0.4, 0.05], [0.05, 0.05, 0.4]]
+        probs = [[0.8, 0.2, 0.2], [0.2, 0.8, 0.2], [0.2, 0.2, 0.7]]
         is_connected = False
         while (not is_connected):
             G = nx.stochastic_block_model(sizes, probs)
-            sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
-            sources=sources_targets[:n_sources]
-            targets=sources_targets[n_sources:]
+            sources=[0]
+            targets=[14]
             
             #Check if path exists:
             is_connected = nx.is_connected(G)

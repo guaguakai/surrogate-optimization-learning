@@ -14,6 +14,7 @@ from scipy.stats.stats import pearsonr
 import matplotlib.pyplot as plt
 import tqdm
 import argparse
+import qpth
 
 from gcn import GCNPredictionNet2
 from graphData import *
@@ -149,12 +150,20 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
                 def_obj_list.append(def_obj.item())
 
                 # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
-                batch_loss += loss if training_method == "two-stage" else -def_obj
+                if training_method == "two-stage":
+                    batch_loss += loss
+                elif training_method == "decision-focused":
+                    batch_loss += (-def_obj)
+                else:
+                    raise TypeError("Not Implemented Method")
 
                 # print(batch_loss)
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
                     batch_loss.backward()
+                    # print(torch.norm(net2.gcn1.weight.grad))
+                    # print(torch.norm(net2.gcn2.weight.grad))
+                    # print(torch.norm(net2.fc1.weight.grad))
                     optimizer.step()
                     batch_loss = 0
 
@@ -216,15 +225,16 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             continue
 
         pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
-        qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-                                       zhats=None, slacks=None, nus=None, lams=None)
+        qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+        # qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
+        #                                zhats=None, slacks=None, nus=None, lams=None)
 
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, omega=omega)
         Q_sym = Q #+ Q.t()) / 2
 
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym - torch.eye(m) * min(0, min(eigenvalues)-1)
+        Q_regularized = Q_sym - torch.eye(m) * min(0, min(eigenvalues)-10)
         
         # debug only
         # print(eigenvalues)
@@ -243,7 +253,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
         # ========================= Error message =========================
-        if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.01): # or pred_defender_utility > 0:
+        if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.5): # or 0.01 for GUROBI, 0.1 for qpth
             print('QP solution and scipy solution differ too much...', torch.norm(pred_optimal_coverage - coverage_qp_solution))
             if verbose:
                 print(pred_optimal_res)
@@ -380,13 +390,13 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 10
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
     N_EPOCHS = args.epochs
     LR = args.learning_rate # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
-    BATCH_SIZE = 1
+    BATCH_SIZE = 5
     OPTIMIZER = 'adam'
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     FIXED_GRAPH = args.fixed_graph
