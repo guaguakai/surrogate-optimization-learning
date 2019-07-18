@@ -63,7 +63,7 @@ def plotEverything(all_params,train_loss, test_loss, training_graph_def_u, testi
     
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage'):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', restrict_mincut=True):
 
     
     time1=time.time()
@@ -119,7 +119,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
             for iter_n in tqdm.trange(len(dataset)):
                 ################################### Gather data based on learning model
                 start_time = time.time()
-                G, Fv, coverage_prob, phi_true, path_list, log_prob, unbiased_probs_true = dataset[iter_n]
+                G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
                 
                 ################################### Compute edge probabilities
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
@@ -144,7 +144,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
-                def_obj, def_coverage = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False)
+                def_obj, def_coverage = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
 
                 loss_list.append(loss.item())
                 def_obj_list.append(def_obj.item())
@@ -196,13 +196,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
     
 
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_min_cuts=True, verbose=False):
-    G, Fv, coverage_prob, phi_true, path_list, log_prob, unbiased_probs_true = single_data
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False):
+    G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
     
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
-    options = {"maxiter": 100, "disp": verbose}
+    options = {"maxiter": 200, "disp": verbose}
     tol = None
     method = "SLSQP"
 
@@ -217,21 +217,15 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
 
     # ========================== QP part ===========================
-    for tmp_iter in range(10): # maximum 3 retries
+    for tmp_iter in range(1): # no retry now
         initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
         initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
         # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
 
-        if restrict_min_cuts:
-            sources, targets = G.graph['sources'], G.graph['targets']
+        if restrict_mincut:
             zero_edge_set = set(range(m))
-            for source in sources:
-                for target in targets:
-                    min_cut = nx.minimum_edge_cut(G, source, target)
-                    min_cut_idx = [edge2index[edge] for edge in min_cut]
-                    zero_edge_set -= set(min_cut_idx)
+            zero_edge_set -= set(min_cut)
 
-            # print('# decision variables: {}'.format(m - len(zero_edge_set)))
             A_matrix, b_matrix = torch.zeros((len(zero_edge_set), m)), torch.zeros((len(zero_edge_set)))
             for idx, edge_idx in enumerate(zero_edge_set):
                 A_matrix[idx,edge_idx] = 1
@@ -242,11 +236,11 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
 
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, zero_edge_set=zero_edge_set)
 
-        if pred_optimal_res["status"] != 0 and tmp_iter != 9:
-            # if pred_optimal_res["success"] == False and tmp_iter != 9:
-            # print(pred_optimal_res)
-            print("optimization failed with status {}... restart...".format(pred_optimal_res['status']))
-            continue
+        # if pred_optimal_res["status"] != 0 and tmp_iter != 9:
+        #     # if pred_optimal_res["success"] == False and tmp_iter != 9:
+        #     # print(pred_optimal_res)
+        #     print("optimization failed with status {}... restart...".format(pred_optimal_res['status']))
+        #     continue
 
         pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
         qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
@@ -389,6 +383,7 @@ if __name__=='__main__':
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
 
     parser.add_argument('--distribution', type=int, default=1, help='0 -> random walk distribution, 1 -> empirical distribution')
+    parser.add_argument('--mincut', type=int, default=1, help='0 -> choose from all edges, 1 -> choose from a min-cut')
     parser.add_argument('--method', type=int, default=0, help='0 -> two-stage, 1 -> decision-focused')
     
     args = parser.parse_args()
@@ -403,6 +398,8 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
     training_mode = args.method
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
+    restrict_mincut = True if args.mincut == 1 else False
+    print('restrict mincut:', restrict_mincut)
 
     feature_size = args.feature_size
     OMEGA = args.omega
@@ -431,12 +428,13 @@ if __name__=='__main__':
 
     ###############################
     filename = args.filename
+    mincut_name = 'mincut' if restrict_mincut else 'global'
     if FIXED_GRAPH == 0:
-        filepath_data   = "results/random/{}_{}_n{}_p{}_b{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
-        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
+        filepath_data   = "results/random/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
     else:
-        filepath_data   = "results/fixed/{}_{}_test.csv".format(filename, training_method)
-        filepath_figure = "figures/fixed/{}_{}_test.png".format(filename, training_method)
+        filepath_data   = "results/fixed/{}_{}_{}_test.csv".format(filename, training_method, mincut_name)
+        filepath_figure = "figures/fixed/{}_{}_{}_test.png".format(filename, training_method, mincut_name)
 
     f_save = open(filepath_data, 'a')
       
@@ -464,7 +462,7 @@ if __name__=='__main__':
                                 train_data, validate_data, test_data, f_save,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
-                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
+                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, restrict_mincut=restrict_mincut)
 
     time4=time.time()
     if time_analysis:
