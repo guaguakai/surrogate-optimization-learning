@@ -7,17 +7,18 @@ Created on Wed Apr 17 02:33:57 2019
 import networkx as nx 
 import numpy as np
 import torch
+import torch.utils.data as utils
 import random
 
-from gcn import featureGenerationNet2
+from gcn import *
 from coverageProbability import prob2unbiased, phi2prob
 
 # Random Seed Initialization
-SEED = random.randint(0,10000)
-print("Random seed: {}".format(SEED))
-torch.manual_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
+# SEED = 1289 #  random.randint(0,10000)
+# print("Random seed: {}".format(SEED))
+# torch.manual_seed(SEED)
+# np.random.seed(SEED)
+# random.seed(SEED)
 
 
 """
@@ -76,30 +77,48 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,1), (1,8), (8,10)]):
+def generatePhi(G, possible_ranges=[(0,0.5), (0.5,2), (1,3)], fixed_phi=0):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
     targets=G.graph['targets']
     
-    for node in list(G.nodes()):
-        
-        if node in sources:
-            range_of_phi=possible_ranges[0]
-        elif node in targets:
-            range_of_phi=possible_ranges[-1]
-        else:
-            range_of_phi=possible_ranges[1]
-        #node_features=np.random.randn(feature_length)
-        # TODO: Use a better feature computation for a given node
-        #r=np.random.choice(len(possible_ranges))
-        #range_of_phi=possible_ranges[r]
-        lower_bounds=range_of_phi[0]
-        upper_bounds=range_of_phi[1]
-        node_phi=np.random.uniform(lower_bounds, upper_bounds)
-        G.node[node]['node_phi']=node_phi
+    if fixed_phi == 2:
+        for node in list(G.nodes()):
+            if node in sources:
+                node_phi=0
+            elif node in targets:
+                node_phi=5 if node == 15 else 0
+            else:
+                node_phi=0
+            G.node[node]['node_phi']=node_phi
+
+    elif fixed_phi == 3:
+        for i in range(3):
+            for node in range(i*5, i*5+5):
+                lower_bound = possible_ranges[i][0]
+                upper_bound = possible_ranges[i][1]
+                node_phi = np.random.uniform(lower_bound, upper_bound)
+                G.node[node]['node_phi'] = node_phi
+
+    elif fixed_phi == 0 or fixed_phi == 1:
+        for node in list(G.nodes()):
+            
+            if node in sources:
+                range_of_phi=possible_ranges[0]
+            elif node in targets:
+                range_of_phi=possible_ranges[-1]
+            else:
+                range_of_phi=possible_ranges[1]
+            #node_features=np.random.randn(feature_length)
+            # TODO: Use a better feature computation for a given node
+            #r=np.random.choice(len(possible_ranges))
+            #range_of_phi=possible_ranges[r]
+            lower_bounds=range_of_phi[0]
+            upper_bounds=range_of_phi[1]
+            node_phi=np.random.uniform(lower_bounds, upper_bounds)
+            G.node[node]['node_phi']=node_phi
     
-    # Generate features
     phi=np.zeros(N)
     for node in list(G.nodes()):
             phi[node]=G.node[node]['node_phi']
@@ -131,20 +150,24 @@ def getSimplePath(G, path):
     
     
     
-def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05):
+def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=2):
     
-    if fixed_graph:
+    if fixed_graph == 1:
         # define an arbitrary graph with a source and target node
         source=0
         target=6
-        G= nx.Graph([(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]) # undirected graph
+        G = nx.Graph()
+        nodes = [0,1,2,3,4,5,6]
+        edges = [(source,1),(source,2),(1,2),(1,3),(1,4),(2,4),(2,5),(4,5),(3,target),(4,target),(5,target)]
+        G.add_nodes_from(nodes)
+        G.add_edges_from(edges) # undirected graph
         # G = nx.to_directed(G) # for directed graph
         G.graph['source']=source
         G.graph['target']=target
         G.graph['sources']=[source]
         G.graph['targets']=[target]
-        G.graph['U']=np.array([10, -20])
-        G.graph['budget']=budget*nx.number_of_edges(G)
+        G.graph['U']=np.array([10, 0])
+        G.graph['budget']=budget
         
         G.node[target]['utility']=10
         sources=G.graph['sources']
@@ -153,39 +176,88 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
         G.graph['initial_distribution']=initial_distribution
         return G
-    
+
+    elif fixed_graph == 2:
+        layers = [8,4,2,2]
+        nodes = list(range(sum(layers)))
+        sources, layer1, layer2, targets = nodes[:layers[0]], nodes[layers[0]:layers[0]+layers[1]], nodes[layers[0]+layers[1]:layers[0]+layers[1]+layers[2]], nodes[-layers[3]:]
+        transients = nodes[:-layers[3]]
+
+        G = nx.Graph()
+        G.add_nodes_from(nodes)
+        G.add_edges_from([(s, m1) for s in sources for m1 in layer1] + [(m1, m2) for m1 in layer1 for m2 in layer2] + [(m2, t) for m2 in layer2 for t in targets]) # undirected graph
+        G.graph['sources']=sources
+        G.graph['targets']=targets
+
+        G.graph['U']=np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
+        G.graph['budget']=budget
+        
+        sources=G.graph['sources']
+        nodes=list(G.nodes())
+        transients=[node for node in nodes if not (node in G.graph['targets'])]
+        initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
+        G.graph['initial_distribution']=initial_distribution
+        return G
+
+    elif fixed_graph == 3:
+        sizes = [5, 5, 5]
+        probs = [[0.8, 0.2, 0.2], [0.2, 0.8, 0.2], [0.2, 0.2, 0.7]]
+        is_connected = False
+        while (not is_connected):
+            G = nx.stochastic_block_model(sizes, probs)
+            sources=[0]
+            targets=[14]
+            
+            #Check if path exists:
+            is_connected = nx.is_connected(G)
+
+        G.graph['sources']=sources
+        G.graph['targets']=targets
+        G.graph['budget']=budget
+        G.graph['U']=[]
+
+        # Randomly assign utilities to targets in the RANGE HARD-CODED below
+        for target in G.graph['targets']:
+            G.node[target]['utility']=np.random.randint(low=5, high=10)
+            G.graph['U'].append(G.node[target]['utility'])
+        G.graph['U'].append(0)
+        G.graph['U']=np.array(G.graph['U'])
+        
+        sources=G.graph['sources']
+        nodes=list(G.nodes())
+        transients=[node for node in nodes if not (node in G.graph['targets'])]
+        initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
+        G.graph['initial_distribution']=initial_distribution
+
+        return G
+
     else:
-        # HARD CODE THE BELOW TWO VALUES
-        N=np.random.randint(low=N_low, high=N_high)                     # Randomly pick number of Nodes
-        edge_prob=np.random.uniform(low=e_low, high=e_high)          # Randomly pick Edges probability                                          
-        
-        # Generate random graph
-        M=int(edge_prob*(N*(N-1)/2.0))                          # Calculate expected number of edges
-        G=nx.gnm_random_graph(N, M)
-        # G=G.to_directed()                                       # Change the undirected graph to directed graph
-        
-        # Pick source and target randomly and ensure that path exists
-        # TODO:
-        # Make size=src+trgt
-        source, target= np.random.choice(list(G.nodes()), size=2, replace=False)
-        path_exists_between_source_target=nx.has_path(G, source, target)
-        while(not path_exists_between_source_target):
-            source, target= np.random.choice(list(G.nodes()), size=2, replace=False)
-            path_exists_between_source_target=nx.has_path(G, source, target)
-        G.graph['source']=source
-        G.graph['target']=target
-        G.graph['sources']=[source]
-        G.graph['targets']=[target]
-        G.graph['budget']=budget*nx.number_of_edges(G)
+        is_connected = False
+        while (not is_connected):
+            N=np.random.randint(low=N_low, high=N_high)                     # Randomly pick number of Nodes
+            p=np.random.uniform(low=e_low, high=e_high)             # Randomly pick Edges probability
+            # Generate random graph
+            # G = nx.gnp_random_graph(N,p)
+            G = nx.random_geometric_graph(N,p)
+            # G = nx.connected_watts_strogatz_graph(N,4,p) 
+
+            sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
+            sources=sources_targets[:n_sources]
+            targets=sources_targets[n_sources:]
+            
+            #Check if path exists:
+            is_connected = nx.is_connected(G)
+
+        G.graph['sources']=sources
+        G.graph['targets']=targets
+        G.graph['budget']=budget
         G.graph['U']=[]
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
-            G.node[target]['utility']=np.random.randint(20, high=50)
+            G.node[target]['utility']=np.random.randint(low=5, high=10)
             G.graph['U'].append(G.node[target]['utility'])
-        G.graph['U'].append(np.random.randint(-40, high=-30))
-        #G.graph['U'].append(0) # indifferent of getting caught
-        # G.graph['U'].append(np.random.randint(-80, high=-60)) # negative payoff
+        G.graph['U'].append(0)
         G.graph['U']=np.array(G.graph['U'])
         
         sources=G.graph['sources']
@@ -196,47 +268,47 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         
         return G
         
-def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_paths,omega=4):
-    
-    #coverage_prob=torch.from_numpy(coverage_prob)
-    #all_paths=torch.from_numpy(all_paths)
-    #n_paths=torch.from_numpy(n_paths)
-
-    N=nx.number_of_nodes(G) 
-
-    # GENERATE EDGE PROBABILITIES 
-    edge_probs=torch.zeros((N,N))
-    for i, node in enumerate(list(G.nodes())):
-        nieghbors = list(G[node])
-        
-        smuggler_probs=torch.zeros(len(neighbors))
-        for j,neighbor in enumerate(neighbors):
-            e=(node, neighbor)
-            #pe= G.edge[node][neighbor]['coverage_prob']
-            pe=coverage_prob[node][neighbor]
-            smuggler_probs[j]=torch.exp(-omega*pe+phi[neighbor])
-        
-        smuggler_probs=smuggler_probs*1.0/torch.sum(smuggler_probs)
-        
-        for j,neighbor in enumerate(neighbors):
-            edge_probs[node,neighbor]=smuggler_probs[j]
-          
-            
-    
-    # GENERATE PATH PROBABILITIES
-    path_probs=torch.zeros(n_paths)
-    for path_number, path in enumerate(all_paths):
-        path_prob=torch.ones(1)
-        for i in range(len(path)-1):
-            path_prob=path_prob*(edge_probs[path[i], path[i+1]])
-        path_probs[path_number]=path_prob
-    path_probs=path_probs/torch.sum(path_probs)
-    path_probs[-1]=torch.max(torch.zeros(1), path_probs[-1]-(sum(path_probs)-1.000))
-    #print ("SUM1: ",sum(path_probs))
-    #path_probs=torch.from_numpy(path_probs)
-    #print ("Path probs:", path_probs, sum(path_probs))
-    
-    return path_probs
+# def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_paths,omega=4):
+#     
+#     #coverage_prob=torch.from_numpy(coverage_prob)
+#     #all_paths=torch.from_numpy(all_paths)
+#     #n_paths=torch.from_numpy(n_paths)
+# 
+#     N=nx.number_of_nodes(G) 
+# 
+#     # GENERATE EDGE PROBABILITIES 
+#     edge_probs=torch.zeros((N,N))
+#     for i, node in enumerate(list(G.nodes())):
+#         nieghbors = list(G[node])
+#         
+#         smuggler_probs=torch.zeros(len(neighbors))
+#         for j,neighbor in enumerate(neighbors):
+#             e=(node, neighbor)
+#             #pe= G.edge[node][neighbor]['coverage_prob']
+#             pe=coverage_prob[node][neighbor]
+#             smuggler_probs[j]=torch.exp(-omega*pe+phi[neighbor])
+#         
+#         smuggler_probs=smuggler_probs*1.0/torch.sum(smuggler_probs)
+#         
+#         for j,neighbor in enumerate(neighbors):
+#             edge_probs[node,neighbor]=smuggler_probs[j]
+#           
+#             
+#     
+#     # GENERATE PATH PROBABILITIES
+#     path_probs=torch.zeros(n_paths)
+#     for path_number, path in enumerate(all_paths):
+#         path_prob=torch.ones(1)
+#         for i in range(len(path)-1):
+#             path_prob=path_prob*(edge_probs[path[i], path[i+1]])
+#         path_probs[path_number]=path_prob
+#     path_probs=path_probs/torch.sum(path_probs)
+#     path_probs[-1]=torch.max(torch.zeros(1), path_probs[-1]-(sum(path_probs)-1.000))
+#     #print ("SUM1: ",sum(path_probs))
+#     #path_probs=torch.from_numpy(path_probs)
+#     #print ("Path probs:", path_probs, sum(path_probs))
+#     
+#     return path_probs
 
 def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
     N=nx.number_of_nodes(G) 
@@ -256,10 +328,19 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
 def generateSyntheticData(node_feature_size, omega=4, 
                           n_graphs=20, samples_per_graph=100, empirical_samples_per_instance=10,
                           fixed_graph=False, path_type='random_walk',
-                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=0.05, train_test_split_ratio=0.8):
+                          N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=2, train_test_split_ratio=(0.7, 0.1, 0.2),
+                          n_sources=1, n_targets=1, random_seed=0):
     
+    # Random seed setting
+    print("Random seed: {}".format(random_seed))
+    if random_seed != 0:
+        torch.manual_seed(random_seed)
+        np.random.seed(random_seed)
+        random.seed(random_seed)
+
+    # initialization
     data=[] # aggregate all the data first then split into training and testing
-    net3= featureGenerationNet2(node_feature_size)        
+    net3= featureGenerationNet2(node_feature_size)
     n_samples = n_graphs * samples_per_graph
     
     print("N_samples: ", n_samples)
@@ -275,22 +356,11 @@ def generateSyntheticData(node_feature_size, omega=4,
             G=testing_graphs[sample_number%n_testing_graphs]
             graph_index=sample_number%n_testing_graphs
         '''
-        G=returnGraph(fixed_graph=fixed_graph,N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high, budget=budget)
+        G=returnGraph(fixed_graph=fixed_graph, n_sources=n_sources, n_targets=n_targets, N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high, budget=budget)
         # COMPUTE ADJACENCY MATRIX
-        A=nx.to_numpy_matrix(G)
-        A_torch=torch.as_tensor(A, dtype=torch.float) 
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         N=nx.number_of_nodes(G) 
         
-            
-        # Randomly assign coverage probability
-        private_coverage_prob = np.random.rand(nx.number_of_edges(G))
-        private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * (budget / G.number_of_edges())
-        coverage_prob_matrix=torch.zeros(N,N)
-        for i, e in enumerate(list(G.edges())):
-            #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
-            coverage_prob_matrix[e[0]][e[1]]=private_coverage_prob[i]
-            coverage_prob_matrix[e[1]][e[0]]=private_coverage_prob[i]
         '''
         # Define node features for each of the n nodes
         for node in list(G.nodes()):
@@ -305,28 +375,36 @@ def generateSyntheticData(node_feature_size, omega=4,
             Fv[node]=G.node[node]['node_features']
         '''
         for _ in range(samples_per_graph):
-            phi=generatePhi(G)
+            # Randomly assign coverage probability
+            private_coverage_prob = np.random.rand(nx.number_of_edges(G))
+            private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * budget
+            coverage_prob_matrix=torch.zeros(N,N)
+            for i, e in enumerate(list(G.edges())):
+                coverage_prob_matrix[e[0]][e[1]]=private_coverage_prob[i]
+                coverage_prob_matrix[e[1]][e[0]]=private_coverage_prob[i]
+
+            # Randomly generate attractiveness
+            # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
+            phi=generatePhi(G, fixed_phi=fixed_graph)
             phi=torch.as_tensor(phi, dtype=torch.float)
-            #Generate features from phi values
+
+            # Generate features from phi values
             Fv_torch=net3.forward(phi.view(-1,1), edge_index)
             Fv=Fv_torch.detach().numpy()
             
-            # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
-            source=G.graph['source']
-            target=G.graph['target']
-            
             # EXACT EDGE PROBS
             biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi)
-            unbiased_probs = prob2unbiased(G, private_coverage_prob, biased_probs, omega)
+            unbiased_probs = phi2prob(G, phi)
 
             # EMPIRICAL EDGE PROBS
-            edge_list = []
+            path_list = []
             empirical_transition_probs=torch.zeros((N,N))
             for _ in range(empirical_samples_per_instance):
-                path=getMarkovianWalk(G, biased_probs)
+                path = getMarkovianWalk(G, biased_probs)
+                # path = getSimplePath(G, path)
                 for e in path:
                     empirical_transition_probs[e[0]][e[1]]+=1
-                edge_list += path
+                path_list.append(path)
 
             row_sum = torch.sum(empirical_transition_probs, dim=1)
             adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
@@ -337,15 +415,19 @@ def generateSyntheticData(node_feature_size, omega=4,
             # DATA POINT
             if path_type=='random_walk_distribution':
                 log_prob=torch.zeros(1)
-                for e in edge_list:
-                    log_prob-=torch.log(biased_probs[e[0]][e[1]])
-                data_point=(G,Fv,private_coverage_prob,phi,unbiased_probs,edge_list,log_prob)
+                for path in path_list:
+                    for e in path:
+                        log_prob-=torch.log(biased_probs[e[0]][e[1]])
+                log_prob /= len(path_list)
+                data_point = (G,Fv,private_coverage_prob,phi,path_list,log_prob, unbiased_probs)
                         
             elif path_type=='empirical_distribution':
                 log_prob=torch.zeros(1)
-                for e in edge_list:
-                    log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
-                data_point=(G,Fv,private_coverage_prob,phi,empirical_unbiased_probs,edge_list,log_prob)
+                for path in path_list:
+                    for e in path:
+                        log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
+                log_prob /= len(path_list)
+                data_point = (G,Fv,private_coverage_prob,phi,path_list,log_prob, empirical_unbiased_probs)
 
             else:
                 raise(TypeError)
@@ -355,10 +437,15 @@ def generateSyntheticData(node_feature_size, omega=4,
     data = np.array(data)
     np.random.shuffle(data)
 
-    training_size = int(train_test_split_ratio * len(data))
-    training_data, testing_data = data[:training_size], data[training_size:]
+    print("average node size:", np.mean([x[0].number_of_nodes() for x in data]))
+    print("average edge size:", np.mean([x[0].number_of_edges() for x in data]))
 
-    return np.array(training_data), np.array(testing_data)
+    train_size = int(train_test_split_ratio[0] * len(data))
+    validate_size = int(train_test_split_ratio[1] * len(data))
+
+    training_data, validate_data, testing_data = data[:train_size], data[train_size:train_size+validate_size], data[train_size+validate_size:]
+
+    return np.array(training_data), np.array(validate_data), np.array(testing_data)
 
 
 if __name__=="__main__":
