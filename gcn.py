@@ -97,7 +97,7 @@ class GCNPredictionNet2(nn.Module):
         # x = self.dropout(x)
         x = self.activation(self.gcn2(x, edge_index))
         
-        # x=self.dropout(x)
+        # x = self.dropout(x)
         x = self.fc1(x)
         x = x - torch.min(x)
 
