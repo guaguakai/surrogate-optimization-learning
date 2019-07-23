@@ -62,8 +62,8 @@ def plotEverything(all_params,train_loss, test_loss, training_graph_def_u, testi
     return
     
 
-def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage'):
+def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, lr=0.1, learning_model='random_walk_distribution'
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', restrict_mincut=True):
 
     
     time1=time.time()
@@ -119,7 +119,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
             for iter_n in tqdm.trange(len(dataset)):
                 ################################### Gather data based on learning model
                 start_time = time.time()
-                G, Fv, coverage_prob, phi_true, path_list, log_prob, unbiased_probs_true = dataset[iter_n]
+                G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
                 
                 ################################### Compute edge probabilities
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
@@ -144,10 +144,11 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
-                def_obj, def_coverage = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False)
+                if (training_method == 'decision-focused') or (epoch == n_epochs - 1) or (not time_analysis):
+                    def_obj, def_coverage = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
+                    def_obj_list.append(def_obj.item())
 
                 loss_list.append(loss.item())
-                def_obj_list.append(def_obj.item())
 
                 # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
                 if training_method == "two-stage":
@@ -170,7 +171,12 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
                 # print('running time for optimization:', time.time() - start_time)
 
             if (epoch > 0) and (mode == "validating"):
-                scheduler.step(np.sum(loss_list))
+                if training_method == "two-stage":
+                    scheduler.step(np.sum(loss_list))
+                elif training_method == "decision-focused":
+                    scheduler.step(np.sum(def_obj_list))
+                else:
+                    raise TypeError("Not Implemented Method")
 
             # Storing loss and defender utility
             epoch_loss_list.append(np.mean(loss_list))
@@ -182,83 +188,72 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, lr=0.1, 
                   mode, epoch, np.mean(loss_list), np.mean(def_obj_list)))
 
             f_save.write("{}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list)))
-
-            # defender_utility, testing_loss=testModel(test_data,net2, learning_model, omega=omega, defender_utility_computation=True)
-
-        
         
         time4=time.time()
         if time_analysis:
             cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
+        average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
+        average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
+
+        f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, time4-time3))
         time3=time4
             
     return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
     
 
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_min_cuts=True, verbose=False):
-    G, Fv, coverage_prob, phi_true, path_list, log_prob, unbiased_probs_true = single_data
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False):
+    G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
     
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
-    options = {"maxiter": 100, "disp": verbose}
+    options = {"maxiter": 200, "disp": verbose}
     tol = None
     method = "SLSQP"
 
-    m = G.number_of_edges()
     edges = G.edges()
     edge2index = {}
     for idx, edge in enumerate(edges):
         edge2index[edge] = idx
         edge2index[(edge[1], edge[0])] = idx
 
-    G_matrix = torch.cat((-torch.eye(m), torch.eye(m), torch.ones(1,m)))
-    h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
-
     # ========================== QP part ===========================
-    for tmp_iter in range(10): # maximum 3 retries
-        initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
-        initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
-        # initial_coverage_prob = np.zeros(nx.number_of_edges(G))
-
-        if restrict_min_cuts:
-            sources, targets = G.graph['sources'], G.graph['targets']
-            zero_edge_set = set(range(m))
-            for source in sources:
-                for target in targets:
-                    min_cut = nx.minimum_edge_cut(G, source, target)
-                    min_cut_idx = [edge2index[edge] for edge in min_cut]
-                    zero_edge_set -= set(min_cut_idx)
-
-            # print('# decision variables: {}'.format(m - len(zero_edge_set)))
-            A_matrix, b_matrix = torch.zeros((len(zero_edge_set), m)), torch.zeros((len(zero_edge_set)))
-            for idx, edge_idx in enumerate(zero_edge_set):
-                A_matrix[idx,edge_idx] = 1
-
+    for tmp_iter in range(1): # no retry now
+        if restrict_mincut:
+            m = len(min_cut)
+            edge_set = set(min_cut)
         else:
-            zero_edge_set = []
-            A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
+            m = G.number_of_edges()
+            edge_set = set(range(m))
 
-        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, zero_edge_set=zero_edge_set)
+        A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
+        G_matrix = torch.cat((-torch.eye(m), torch.eye(m), torch.ones(1,m)))
+        h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
 
-        if pred_optimal_res["status"] != 0 and tmp_iter != 9:
-            # if pred_optimal_res["success"] == False and tmp_iter != 9:
-            # print(pred_optimal_res)
-            print("optimization failed with status {}... restart...".format(pred_optimal_res['status']))
-            continue
+        # initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
+        # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
+        initial_coverage_prob = np.zeros(len(edge_set))
+
+        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)
+
+        # if pred_optimal_res["status"] != 0 and tmp_iter != 9:
+        #     # if pred_optimal_res["success"] == False and tmp_iter != 9:
+        #     # print(pred_optimal_res)
+        #     print("optimization failed with status {}... restart...".format(pred_optimal_res['status']))
+        #     continue
 
         pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
         qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
         # qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
         #                                zhats=None, slacks=None, nus=None, lams=None)
 
-        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, omega=omega)
+        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
         Q_sym = Q #+ Q.t()) / 2
 
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym - torch.eye(m) * min(0, min(eigenvalues)-10)
+        Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-10)
         
         # debug only
         # print(eigenvalues)
@@ -267,14 +262,14 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         # print(new_eigenvalues)
 
         is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
-        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
+        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
 
         coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
         # initial_coverage_prob = coverage_qp_solution.detach()
 
         # ======================= Defender Utility ========================
-        pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+        pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
         # ========================= Error message =========================
         if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.5): # or 0.01 for GUROBI, 0.1 for qpth
@@ -389,6 +384,7 @@ if __name__=='__main__':
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
 
     parser.add_argument('--distribution', type=int, default=1, help='0 -> random walk distribution, 1 -> empirical distribution')
+    parser.add_argument('--mincut', type=int, default=1, help='0 -> choose from all edges, 1 -> choose from a min-cut')
     parser.add_argument('--method', type=int, default=0, help='0 -> two-stage, 1 -> decision-focused')
     
     args = parser.parse_args()
@@ -403,6 +399,8 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
     training_mode = args.method
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
+    restrict_mincut = True if args.mincut == 1 else False
+    print('restrict mincut:', restrict_mincut)
 
     feature_size = args.feature_size
     OMEGA = args.omega
@@ -414,7 +412,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 10
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 50
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
@@ -431,14 +429,18 @@ if __name__=='__main__':
 
     ###############################
     filename = args.filename
+    mincut_name = 'mincut' if restrict_mincut else 'global'
     if FIXED_GRAPH == 0:
-        filepath_data   = "results/random/{}_{}_n{}_p{}_b{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
-        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
+        filepath_data   = "results/random/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_time   = "results/time/random/{}_{}_b{}_{}.csv".format(filename, training_method, DEFENDER_BUDGET, mincut_name)
     else:
-        filepath_data   = "results/fixed/{}_{}_test.csv".format(filename, training_method)
-        filepath_figure = "figures/fixed/{}_{}_test.png".format(filename, training_method)
+        filepath_data   = "results/fixed/{}_{}_{}_test.csv".format(filename, training_method, mincut_name)
+        filepath_figure = "figures/fixed/{}_{}_{}_test.png".format(filename, training_method, mincut_name)
+        filepath_time   = "results/time/fixed/{}_{}_b{}_{}.csv".format(filename, training_method, DEFENDER_BUDGET, mincut_name)
 
     f_save = open(filepath_data, 'a')
+    f_time = open(filepath_time, 'a')
       
     ############################### Data genaration:
     train_data, validate_data, test_data = generateSyntheticData(feature_size, path_type=learning_model_type,
@@ -461,10 +463,10 @@ if __name__=='__main__':
     time3=time.time()
     # Learn the neural networks:
     net2, train_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
-                                train_data, validate_data, test_data, f_save,
+                                train_data, validate_data, test_data, f_save, f_time,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
-                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
+                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, restrict_mincut=restrict_mincut)
 
     time4=time.time()
     if time_analysis:

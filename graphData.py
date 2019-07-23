@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.utils.data as utils
 import random
+import copy
 
 from gcn import *
 from coverageProbability import prob2unbiased, phi2prob
@@ -77,7 +78,7 @@ def generateFeatures(G, feature_length):
             Fv[node]=G.node[node]['node_features']
     return Fv        
 
-def generatePhi(G, possible_ranges=[(0,0.5), (0.5,2), (1,3)], fixed_phi=0):
+def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
     
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
@@ -175,7 +176,6 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         transients=[node for node in nodes if not (node in G.graph['targets'])]
         initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
         G.graph['initial_distribution']=initial_distribution
-        return G
 
     elif fixed_graph == 2:
         layers = [8,4,2,2]
@@ -197,7 +197,6 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         transients=[node for node in nodes if not (node in G.graph['targets'])]
         initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
         G.graph['initial_distribution']=initial_distribution
-        return G
 
     elif fixed_graph == 3:
         sizes = [5, 5, 5]
@@ -228,8 +227,6 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         transients=[node for node in nodes if not (node in G.graph['targets'])]
         initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
         G.graph['initial_distribution']=initial_distribution
-
-        return G
 
     else:
         is_connected = False
@@ -265,8 +262,13 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         transients=[node for node in nodes if not (node in G.graph['targets'])]
         initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
         G.graph['initial_distribution']=initial_distribution
-        
-        return G
+
+    # adding unit capacity to each edge
+    for edge in G.edges():
+        G[edge[0]][edge[1]]['capacity'] = 1
+        G[edge[1]][edge[0]]['capacity'] = 1
+
+    return G
         
 # def generate_PathProbs_from_Attractiveness(G, coverage_prob,  phi, all_paths, n_paths,omega=4):
 #     
@@ -356,7 +358,38 @@ def generateSyntheticData(node_feature_size, omega=4,
             G=testing_graphs[sample_number%n_testing_graphs]
             graph_index=sample_number%n_testing_graphs
         '''
-        G=returnGraph(fixed_graph=fixed_graph, n_sources=n_sources, n_targets=n_targets, N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high, budget=budget)
+        while True:
+            G = returnGraph(fixed_graph=fixed_graph, n_sources=n_sources, n_targets=n_targets, N_low=N_low, N_high=N_high, e_low=e_low, e_high=e_high, budget=budget)
+
+            # PRECOMPUTE A MIN-CUT
+            m = G.number_of_edges()
+            edges = G.edges()
+            edge2index = {}
+            for idx, edge in enumerate(edges):
+                edge2index[edge] = idx
+                edge2index[(edge[1], edge[0])] = idx
+
+            dummyG = copy.deepcopy(G)
+            dummyG.add_nodes_from(['ds', 'dt']) # 1000 dummy source, 2000 dummy target
+            for x in dummyG.graph['sources']:
+                dummyG.add_edge('ds', x, capacity=100)
+            for x in dummyG.graph['targets']:
+                dummyG.add_edge(x, 'dt', capacity=100)
+
+            value, partition = nx.minimum_cut(dummyG, 'ds', 'dt')
+            print(value)
+            partition0, partition1 = set(partition[0]), set(partition[1])
+            cut = []
+            for idx, edge in enumerate(G.edges()):
+                if edge[0] in partition0 and edge[1] in partition1:
+                    cut.append(idx)
+                elif edge[0] in partition1 and edge[1] in partition0:
+                    cut.append(idx)
+
+            print(cut)
+            if value >= budget * 2:
+                break
+
         # COMPUTE ADJACENCY MATRIX
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         N=nx.number_of_nodes(G) 
@@ -401,7 +434,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             empirical_transition_probs=torch.zeros((N,N))
             for _ in range(empirical_samples_per_instance):
                 path = getMarkovianWalk(G, biased_probs)
-                # path = getSimplePath(G, path)
+                path = getSimplePath(G, path)
                 for e in path:
                     empirical_transition_probs[e[0]][e[1]]+=1
                 path_list.append(path)
@@ -419,7 +452,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     for e in path:
                         log_prob-=torch.log(biased_probs[e[0]][e[1]])
                 log_prob /= len(path_list)
-                data_point = (G,Fv,private_coverage_prob,phi,path_list,log_prob, unbiased_probs)
+                data_point = (G, Fv, private_coverage_prob, phi, path_list, cut, log_prob, unbiased_probs)
                         
             elif path_type=='empirical_distribution':
                 log_prob=torch.zeros(1)
@@ -427,7 +460,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     for e in path:
                         log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
                 log_prob /= len(path_list)
-                data_point = (G,Fv,private_coverage_prob,phi,path_list,log_prob, empirical_unbiased_probs)
+                data_point = (G, Fv, private_coverage_prob, phi, path_list, cut, log_prob, empirical_unbiased_probs)
 
             else:
                 raise(TypeError)
