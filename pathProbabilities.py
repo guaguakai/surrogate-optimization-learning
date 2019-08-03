@@ -188,7 +188,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
             print("Mode: {}/ Epoch number: {}/ Average training loss: {}/ Average defender objective: {}/ Simulated defender objective: {}".format(
                   mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
 
-            f_save.write("{}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list)))
+            f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
         
         time4=time.time()
         if time_analysis:
