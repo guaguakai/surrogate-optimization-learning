@@ -263,7 +263,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         # Running simulations to check the actual defender utility
         full_optimal_coverage = torch.zeros(G.number_of_edges())
         for idx, edge in enumerate(edge_set):
-            full_optimal_coverage[edge] = pred_optimal_coverage[idx]
+            full_optimal_coverage[edge] = coverage_qp_solution[idx].item()
 
         _, simulated_defender_utility = attackerOracle(G, full_optimal_coverage, phi_true, omega=omega, num_paths=100)
 
