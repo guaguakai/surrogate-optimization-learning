@@ -2,7 +2,7 @@ FILENAME="0804"
 BUDGET=2
 NODES=15
 
-for VAR in {1..5}
+for VAR in {6..10}
 	do
 		echo $VAR
 		SEED=$VAR
