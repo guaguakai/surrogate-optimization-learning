@@ -342,7 +342,7 @@ def attackerOracle(G, coverage_probs, phi, omega=4, num_paths=100):
     simulated_defender_utility_list = []
     for _ in range(num_paths):
         path = getMarkovianWalk(G, biased_probs)
-        # path = getSimplePath(G, path) # TODO
+        path = getSimplePath(G, path) # TODO
         path_list.append(path)
 
         defender_utility = -G.node[path[-1][1]]['utility']
