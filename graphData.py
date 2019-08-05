@@ -327,6 +327,33 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
             
     return transition_probs
 
+def attackerOracle(G, coverage_probs, phi, omega=4, num_paths=100):
+    N=nx.number_of_nodes(G) 
+    coverage_prob_matrix=torch.zeros((N,N))
+    for i, e in enumerate(list(G.edges())):
+        coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
+        coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
+
+    # EXACT EDGE PROBS
+    biased_probs = generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=omega)
+
+    # EMPIRICAL EDGE PROBS
+    path_list = []
+    simulated_defender_utility_list = []
+    for _ in range(num_paths):
+        path = getMarkovianWalk(G, biased_probs)
+        path = getSimplePath(G, path) # TODO
+        path_list.append(path)
+
+        defender_utility = -G.node[path[-1][1]]['utility']
+        for e in path:
+            defender_utility *= (1 - coverage_prob_matrix[e[0]][e[1]])
+        simulated_defender_utility_list.append(defender_utility)
+
+    simulated_defender_utility = np.mean(simulated_defender_utility_list)
+
+    return path_list, simulated_defender_utility
+
 def generateSyntheticData(node_feature_size, omega=4, 
                           n_graphs=20, samples_per_graph=100, empirical_samples_per_instance=10,
                           fixed_graph=False, path_type='random_walk',
@@ -426,18 +453,17 @@ def generateSyntheticData(node_feature_size, omega=4,
             Fv=Fv_torch.detach().numpy()
             
             # EXACT EDGE PROBS
-            biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi)
+            biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi, omega=omega)
             unbiased_probs = phi2prob(G, phi)
 
+            # Call Attacker Oracle
+            path_list, _ = attackerOracle(G, private_coverage_prob, phi, omega=omega, num_paths=empirical_samples_per_instance)
+
             # EMPIRICAL EDGE PROBS
-            path_list = []
             empirical_transition_probs=torch.zeros((N,N))
-            for _ in range(empirical_samples_per_instance):
-                path = getMarkovianWalk(G, biased_probs)
-                # path = getSimplePath(G, path) # TODO
+            for path in path_list:
                 for e in path:
                     empirical_transition_probs[e[0]][e[1]]+=1
-                path_list.append(path)
 
             row_sum = torch.sum(empirical_transition_probs, dim=1)
             adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
