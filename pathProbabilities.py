@@ -210,7 +210,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
-    options = {"maxiter": 200, "disp": verbose}
+    options = {"maxiter": 100, "disp": verbose}
     tol = None
     method = "SLSQP"
 
@@ -348,7 +348,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 200
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 50
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
