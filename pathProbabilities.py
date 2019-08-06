@@ -144,6 +144,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
+
                 # if (training_method == 'decision-focused') or (epoch == n_epochs - 1) or (not time_analysis):
                 def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
                 def_obj_list.append(def_obj.item())
@@ -209,7 +210,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
-    options = {"maxiter": 200, "disp": verbose}
+    options = {"maxiter": 100, "disp": verbose}
     tol = None
     method = "SLSQP"
 
@@ -347,7 +348,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 200
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 50
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
