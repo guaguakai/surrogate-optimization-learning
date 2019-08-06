@@ -1,4 +1,4 @@
-FILENAME="0806-simple-local"
+FILENAME="0806-1100-simple-local"
 BUDGET=2
 NODES=15
 
