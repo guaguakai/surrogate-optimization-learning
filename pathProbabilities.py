@@ -145,10 +145,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                if (training_method == 'decision-focused' and (mode!="testing")) or (epoch == n_epochs - 1) or (not time_analysis):
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
-                    def_obj_list.append(def_obj.item())
-                    simulated_def_obj_list.append(simulated_def_obj)
+                #if (training_method == 'decision-focused' and (mode!="testing")) or (epoch == n_epochs - 1) or (not time_analysis):
+                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
+                def_obj_list.append(def_obj.item())
+                simulated_def_obj_list.append(simulated_def_obj)
 
                 loss_list.append(loss.item())
 
