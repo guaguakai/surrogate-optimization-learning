@@ -106,6 +106,10 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
         for node in list(G.nodes()):
             # Compute distance from the target: 
             dist_target=min([nx.shortest_path_length(G, source=node, target=target) for target in targets])
+            dist_src_trg=0
+            for s in sources: 
+                dist_src_trg=max(dist_src_trg,min([nx.shortest_path_length(G, source=s, target=target) for target in targets]))
+            
             if node in sources:
                 range_of_phi=possible_ranges[0]
             elif node in targets:
@@ -113,7 +117,8 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
             else:
                 range_of_phi=possible_ranges[1]
             
-            range_of_phi=(2**(5-dist_target),2**(6-dist_target))
+            #range_of_phi=(2**(5-dist_target),2**(6-dist_target))
+            range_of_phi=2*(dist_src_trg-dist_target)
             #node_features=np.random.randn(feature_length)
             # TODO: Use a better feature computation for a given node
             #r=np.random.choice(len(possible_ranges))
