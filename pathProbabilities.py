@@ -146,8 +146,16 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 single_data = dataset[iter_n]
 
                 #if (training_method == 'decision-focused' and (mode!="testing")) or (epoch == n_epochs - 1) or (not time_analysis):
-                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
-                def_obj_list.append(def_obj.item())
+                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True, verbose=False)
+		if (not (restrict_mincut)):
+			G=single_data[0]
+			mincut=single_data[-3]
+			E=len(list(G.edges()))
+			intial_coverage=[def_coverage[mincut.index(i)] if i in mincut else 0 for i in range(E)]
+			 
+	                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, initial_coverage_prob=initial_coverage)
+                
+		def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
 
                 loss_list.append(loss.item())
@@ -204,7 +212,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     
 
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False, initial_coverage_prob=None):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
     
     budget = G.graph['budget']
@@ -235,7 +243,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
 
         # initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
         # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
-        initial_coverage_prob = np.zeros(len(edge_set))
+	if initial_coverage_prob==None:
+	        initial_coverage_prob = np.zeros(len(edge_set))
 
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)
 
