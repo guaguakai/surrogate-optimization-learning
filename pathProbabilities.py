@@ -266,7 +266,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         for idx, edge in enumerate(edge_set):
             full_optimal_coverage[edge] = coverage_qp_solution[idx].item()
 
-        _, simulated_defender_utility = attackerOracle(G, full_optimal_coverage, phi_true, omega=omega, num_paths=100)
+        # _, simulated_defender_utility = attackerOracle(G, full_optimal_coverage, phi_true, omega=omega, num_paths=100)
+        simulated_defender_utility = 0
 
         # ========================= Error message =========================
         if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.5): # or 0.01 for GUROBI, 0.1 for qpth
@@ -278,8 +279,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
                 print("Gradient: {}".format(jac))
                 print("Eigen decomposition: {}".format(np.linalg.eig(Q_sym.detach().numpy())[0]))
                 print("Eigen decomposition: {}".format(np.linalg.eig(Q_regularized.detach().numpy())[0]))
-                print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-                print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+                print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
+                print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
                 print(pred_optimal_coverage, torch.sum(pred_optimal_coverage))
                 print(coverage_qp_solution, torch.sum(coverage_qp_solution))
                 print("Solution difference:", torch.norm(pred_optimal_coverage - coverage_qp_solution))

@@ -96,4 +96,4 @@ if __name__=='__main__':
     
 
     
-    print(len(to_plot['tr_loss'][0]))
+    #print(len(to_plot['tr_loss'][0]))

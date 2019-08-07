@@ -348,7 +348,6 @@ def attackerOracle(G, coverage_probs, phi, omega=4, num_paths=100):
     # EMPIRICAL EDGE PROBS
     path_list = []
     simulated_defender_utility_list = []
-    num_paths=1
     for _ in range(num_paths):
         path = getMarkovianWalk(G, biased_probs)
         # path = getSimplePath(G, path) # TODO
