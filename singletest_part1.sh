@@ -1,8 +1,8 @@
-FILENAME="0805variablephi"
+FILENAME="0805linearphi"
 BUDGET=2
 NODES=20
 
-for VAR in {1..10}
+for VAR in {1..5}
 	do
 		echo $VAR
 		SEED=$VAR
