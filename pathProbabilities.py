@@ -242,8 +242,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
 
         # initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
         # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
-	if initial_coverage_prob==None:
-	        initial_coverage_prob = np.zeros(len(edge_set))
+        if initial_coverage_prob==None:
+            initial_coverage_prob = np.zeros(len(edge_set))
 
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)
 
