@@ -1,4 +1,4 @@
-FILENAME="trial0807normto10_linearphi_dist_tenruns"
+FILENAME="0807normto10_linearphi_dist_tenruns"
 BUDGET=2
 NODES=20
 

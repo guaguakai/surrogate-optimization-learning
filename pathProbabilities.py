@@ -146,6 +146,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 single_data = dataset[iter_n]
 
                 #if (training_method == 'decision-focused' and (mode!="testing")) or (epoch == n_epochs - 1) or (not time_analysis):
+                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
+                '''
                 def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True, verbose=False)
                 if (not (restrict_mincut)):
                     G=single_data[0]
@@ -153,7 +155,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     E=len(list(G.edges()))
                     initial_coverage=[def_coverage[mincut.index(i)] if i in mincut else 0 for i in range(E)]
                     def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, initial_coverage_prob=initial_coverage)
-                
+                '''
                 def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
 
