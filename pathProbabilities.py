@@ -151,7 +151,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     G=single_data[0]
                     mincut=single_data[-3]
                     E=len(list(G.edges()))
-                    intial_coverage=[def_coverage[mincut.index(i)] if i in mincut else 0 for i in range(E)]
+                    initial_coverage=[def_coverage[mincut.index(i)] if i in mincut else 0 for i in range(E)]
                     def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, initial_coverage_prob=initial_coverage)
                 
                 def_obj_list.append(def_obj.item())
