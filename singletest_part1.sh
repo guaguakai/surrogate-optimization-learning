@@ -1,4 +1,4 @@
-FILENAME="0809linearphi_diameter_budget"
+FILENAME="0809randomphi_diameter_budget"
 BUDGET=1.5
 NODES=15
 
