@@ -83,7 +83,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
     N= nx.number_of_nodes(G)
     sources=G.graph['sources']
     targets=G.graph['targets']
-    
+    diameter=nx.diameter(G)
     if fixed_phi == 2:
         for node in list(G.nodes()):
             if node in sources:
@@ -118,7 +118,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
                 range_of_phi=possible_ranges[1]
             
             #range_of_phi=(2**(5-dist_target),2**(6-dist_target))
-            #range_of_phi=((1.0*(dist_src_trg-dist_target))/dist_src_trg,(1.0*(1+dist_src_trg-dist_target))/dist_src_trg)
+            range_of_phi=(((4.0*(diameter-dist_target))/diameter),((4.0*(1+diameter-dist_target))/diameter))
             #node_features=np.random.randn(feature_length)
             # TODO: Use a better feature computation for a given node
             #r=np.random.choice(len(possible_ranges))
