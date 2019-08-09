@@ -1,5 +1,5 @@
-FILENAME="0808gcn_Empirical_normto1_randomphi"
-BUDGET=2
+FILENAME="0809randomphi_diameter_budget"
+BUDGET=1.5
 NODES=15
 
 for VAR in {3..5}
