@@ -1,4 +1,4 @@
-FILENAME="0808gcn_Empirical_normto1"
+FILENAME="0808gcn_Empirical_normto1_randomphi"
 BUDGET=2
 NODES=15
 
