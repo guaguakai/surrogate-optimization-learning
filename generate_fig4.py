@@ -48,6 +48,7 @@ def return_yaxis(file):
     te_defu=[np.average(to_plot['te_defu'][i]) for i in range(max_epochs+1)]
     x=range(max_epochs+1)
     
+    return (to_plot,x,max_epochs+1)
     return (tr_loss, te_loss, tr_defu, te_defu, x)
 
 def generatePlot(x,y1,label1, y2,label2, y3,label3, y4,label4, title="", ytitle=""):
@@ -83,20 +84,28 @@ def generatePlot(x,y1,label1, y2,label2, y3,label3, y4,label4, title="", ytitle=
 if __name__=='__main__':
     
     l=['DF-full','DF-fast','2S-full','2S-fast']
-    file1="./results/0808normto10_linearphi_dist_tenruns_fullINIT_decision-focused_n20_p0.3_b2.0_global.csv"
-    file2="./results/0808normto10_linearphi_dist_tenruns_fullINIT_decision-focused_n20_p0.3_b2.0_mincut.csv"
-    file3="./results/0808normto10_linearphi_dist_tenruns_fullINIT_two-stage_n20_p0.3_b2.0_global.csv"
-    file4="./results/0808normto10_linearphi_dist_tenruns_fullINIT_two-stage_n20_p0.3_b2.0_mincut.csv"
+    f="./results/0808normto10_linearphi_dist_tenruns_fullINIT_decision-focused_n20_p0.3_b2.0_global - Copy.csv"
+    #file1="./results/0808normto10_linearphi_dist_tenruns_fullINIT_decision-focused_n20_p0.3_b2.0_global.csv"
+    #file2="./results/0808normto10_linearphi_dist_tenruns_fullINIT_decision-focused_n20_p0.3_b2.0_mincut.csv"
+    #file3="./results/0808normto10_linearphi_dist_tenruns_fullINIT_two-stage_n20_p0.3_b2.0_global.csv"
+    #file4="./results/0808normto10_linearphi_dist_tenruns_fullINIT_two-stage_n20_p0.3_b2.0_mincut.csv"
     
-    tr_loss1, te_loss1, tr_defu1, te_defu1, x1=return_yaxis(file1)
-    tr_loss2, te_loss2, tr_defu2, te_defu2, x2=return_yaxis(file2)
-    tr_loss3, te_loss3, tr_defu3, te_defu3, x3=return_yaxis(file3)
-    tr_loss4, te_loss4, tr_defu4, te_defu4, x4=return_yaxis(file4)
+    to_plot,x,epochs,=return_yaxis(f)
+    #tr_loss2, te_loss2, tr_defu2, te_defu2, x2=return_yaxis(file2)
+    #tr_loss3, te_loss3, tr_defu3, te_defu3, x3=return_yaxis(file3)
+    #tr_loss4, te_loss4, tr_defu4, te_defu4, x4=return_yaxis(file4)
     
-    generatePlot(x1,tr_loss1,l[0],tr_loss2,l[1],tr_loss3,l[2],tr_loss4,l[3], title="Training Loss", ytitle='KL Divergence')
-    generatePlot(x1,te_loss1,l[0],te_loss2,l[1],te_loss3,l[2],te_loss4,l[3], title="Testing Loss", ytitle='KL Divergence')
-    generatePlot(x1,tr_defu1,l[0],tr_defu2,l[1],tr_defu3,l[2],tr_defu4,l[3],title="Training Defender Utility", ytitle='Defender utility')
-    generatePlot(x1,te_defu1,l[0],te_defu2,l[1],te_defu3,l[2],te_defu4,l[3],title="Testing Defender Utility", ytitle='Defender utility')
+    n=3
+    
+    plt.plot(x1,[to_plot['tr_loss'][i][n] for i in range(epochs)],label=l[0])
+    plt.plot(x1,[to_plot['te_loss'][i][n] for i in range(epochs)],label=l[0])
+    plt.plot(x1,[to_plot['tr_defu'][i][n] for i in range(epochs)],label=l[0])
+    plt.plot(x1,[to_plot['te_defu'][i][n] for i in range(epochs)],label=l[0])
+    
+    #generatePlot(x1,tr_loss1,l[0],tr_loss2,l[1],tr_loss3,l[2],tr_loss4,l[3], title="Training Loss", ytitle='KL Divergence')
+    #generatePlot(x1,te_loss1,l[0],te_loss2,l[1],te_loss3,l[2],te_loss4,l[3], title="Testing Loss", ytitle='KL Divergence')
+    #generatePlot(x1,tr_defu1,l[0],tr_defu2,l[1],tr_defu3,l[2],tr_defu4,l[3],title="Training Defender Utility", ytitle='Defender utility')
+    #generatePlot(x1,te_defu1,l[0],te_defu2,l[1],te_defu3,l[2],te_defu4,l[3],title="Testing Defender Utility", ytitle='Defender utility')
     
     
     
