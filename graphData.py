@@ -206,10 +206,15 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.add_edges_from([(s, m1) for s in sources for m1 in layer1] + [(m1, m2) for m1 in layer1 for m2 in layer2] + [(m2, t) for m2 in layer2 for t in targets]) # undirected graph
         G.graph['sources']=sources
         G.graph['targets']=targets
-
-        G.graph['U']=np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
-        G.graph['budget']=budget
         
+        G.graph['U']=[]
+        for target in G.graph['targets']:
+            G.node[target]['utility']=np.random.rand()
+            G.graph['U'].append(G.node[target]['utility'])
+        G.graph['U'].append(0)
+        G.graph['U']=np.array(G.graph['U'])
+        
+        G.graph['budget']=budget
         sources=G.graph['sources']
         nodes=list(G.nodes())
         transients=[node for node in nodes if not (node in G.graph['targets'])]
