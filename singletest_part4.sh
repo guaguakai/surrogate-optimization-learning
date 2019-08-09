@@ -1,8 +1,8 @@
-FILENAME="0808normto10_linearphi_dist_tenruns_fullINIT"
+FILENAME="0808gcn_Empirical_normto1"
 BUDGET=2
-NODES=20
+NODES=15
 
-for VAR in {3..12}
+for VAR in {3..5}
 	do
 		echo $VAR
 		SEED=$VAR

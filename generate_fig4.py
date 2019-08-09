@@ -17,7 +17,7 @@ def return_yaxis(file):
     columns=df.columns
     matrix=df.as_matrix()
     
-    unique_epochs=[int(item) for item in (list(set(matrix[:,1]))) if len(str(item))<=3]
+    unique_epochs=[int(item) for item in (list(set(matrix[:,1]))) if len(str(item))<3]
     print (unique_epochs)
     max_epochs=max(unique_epochs)
     print (max_epochs)
@@ -29,9 +29,8 @@ def return_yaxis(file):
     #d={'lol':[[] for i in range(max_epochs+1)]}
     
     for item in matrix:
-        if len(str(item[1]))<=3:
+        if len(str(item[1]))<3:
             epoch=int(item[1])
-        
             if epoch>-1:
                 if item[0]=='training':
                     to_plot['tr_loss'][epoch].append(float(item[2]))
@@ -77,10 +76,10 @@ def generatePlot(x,y1,label1, y2,label2, y3,label3, y4,label4, title="", ytitle=
 if __name__=='__main__':
     
     l=['DF-full','DF-fast','2S-full','2S-fast']
-    file1="./results/0807normto10_linearphi_dist_decision-focused_n20_p0.3_b2.0_global.csv"
-    file2="./results/0807normto10_linearphi_dist_decision-focused_n20_p0.3_b2.0_mincut.csv"
-    file3="./results/0807normto10_linearphi_dist_two-stage_n20_p0.3_b2.0_global.csv"
-    file4="./results/0807normto10_linearphi_dist_two-stage_n20_p0.3_b2.0_mincut.csv"
+    file1="./results/0807normto10_linearphi_dist_tenruns_decision-focused_n20_p0.3_b2.0_global.csv"
+    file2="./results/0807normto10_linearphi_dist_tenruns_decision-focused_n20_p0.3_b2.0_mincut.csv"
+    file3="./results/0807normto10_linearphi_dist_tenruns_two-stage_n20_p0.3_b2.0_global.csv"
+    file4="./results/0807normto10_linearphi_dist_tenruns_two-stage_n20_p0.3_b2.0_mincut.csv"
     
     tr_loss1, te_loss1, tr_defu1, te_defu1, x1=return_yaxis(file1)
     tr_loss2, te_loss2, tr_defu2, te_defu2, x2=return_yaxis(file2)
