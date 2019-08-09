@@ -85,6 +85,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
     targets=G.graph['targets']
     diameter=nx.diameter(G)
     if fixed_phi == 2:
+        """
         for node in list(G.nodes()):
             if node in sources:
                 node_phi=0
@@ -93,7 +94,16 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
             else:
                 node_phi=0
             G.node[node]['node_phi']=node_phi
-
+        """
+        for node in list(G.nodes()):
+            if node in sources:
+                node_phi=np.random.uniform(0, 1)
+            elif node in targets:
+                node_phi=5 if node == 15 else 0.5
+            else:
+                node_phi=np.random.uniform(2, 3) if (node ==12 or node==13) else np.random.uniform(1, 2)
+            G.node[node]['node_phi']=node_phi
+        
     elif fixed_phi == 3:
         for i in range(3):
             for node in range(i*5, i*5+5):

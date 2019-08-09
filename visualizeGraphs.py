@@ -39,6 +39,28 @@ for _ in range(N):
     print ("DIAM",nx.diameter(G))
     print (s,t)
     #nx.draw(G)
+
+
+if True:
+        layers = [8,4,2,2]
+        nodes = list(range(sum(layers)))
+        sources, layer1, layer2, targets = nodes[:layers[0]], nodes[layers[0]:layers[0]+layers[1]], nodes[layers[0]+layers[1]:layers[0]+layers[1]+layers[2]], nodes[-layers[3]:]
+        transients = nodes[:-layers[3]]
+
+        G = nx.Graph()
+        G.add_nodes_from(nodes)
+        G.add_edges_from([(s, m1) for s in sources for m1 in layer1] + [(m1, m2) for m1 in layer1 for m2 in layer2] + [(m2, t) for m2 in layer2 for t in targets]) # undirected graph
+        G.graph['sources']=sources
+        G.graph['targets']=targets
+
+        G.graph['U']=np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
+        #G.graph['budget']=budget
+        
+        sources=G.graph['sources']
+        nodes=list(G.nodes())
+        transients=[node for node in nodes if not (node in G.graph['targets'])]
+        initial_distribution=np.array([1.0/len(sources) if n in sources else 0.0 for n in transients])
+        G.graph['initial_distribution']=initial_distribution
     
 print(sum(ratios)/N)
 nx.draw(G)
