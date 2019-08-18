@@ -208,9 +208,13 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['targets']=targets
         
         G.graph['U']=[]
-        for target in G.graph['targets']:
-            G.node[target]['utility']=np.random.rand()
-            G.graph['U'].append(G.node[target]['utility'])
+
+        G.node[targets[0]]['utility'] = 0 
+        G.graph['U'].append(1)
+        G.node[targets[1]]['utility'] = 10
+        G.graph['U'].append(10)
+
+
         G.graph['U'].append(0)
         G.graph['U']=np.array(G.graph['U'])
         
@@ -275,7 +279,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
                 min_dist_src_target=diameter # Temporary large assignment
                 for s in sources:
                     for t in targets:
-                        dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t))
+                        min_dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t))
                 if min_dist_src_target>max((diameter/2.0),1):
                     src_target_is_ok=True
                 

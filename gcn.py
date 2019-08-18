@@ -14,7 +14,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     to decompress this to features of size feature_size,
     
     """
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[20,15,12,10], nn_hidden_layer_sizes=[7,4]):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[20,15,12,10], nn_hidden_layer_sizes=[10,20]):
         super(featureGenerationNet2, self).__init__()
         
         r1,r2,r3,r4 = gcn_hidden_layer_sizes       
@@ -27,10 +27,10 @@ class featureGenerationNet2(nn.Module): # message passing version
         # self.fc4 = nn.Linear(r7, raw_feature_size)
         
         # Define the layers of gcn 
-        self.gcn1 = GraphConv(1,  r1, aggr='mean')
-        self.gcn2 = GraphConv(r1, r2, aggr='mean')
-        self.gcn3 = GraphConv(r2, r3, aggr='mean')
-        self.gcn4 = GraphConv(r3, r4, aggr='mean')
+        self.gcn1 = GraphConv(1,  r1, aggr='add')
+        self.gcn2 = GraphConv(r1, r2, aggr='add')
+        self.gcn3 = GraphConv(r2, r3, aggr='add')
+        self.gcn4 = GraphConv(r3, r4, aggr='add')
 
         self.activation = nn.Softplus()
         # self.activation = F.relu
@@ -71,8 +71,8 @@ class GCNPredictionNet2(nn.Module):
         r3=nn_hidden_layer_sizes
         
         # Define the layers of gcn 
-        self.gcn1 = GraphConv(raw_feature_size, r1, aggr='mean')
-        self.gcn2 = GraphConv(r1, r2, aggr='mean')
+        self.gcn1 = GraphConv(raw_feature_size, r1, aggr='add')
+        self.gcn2 = GraphConv(r1, r2, aggr='add')
         
         #Define the layers of NN to predict the attractiveness function for every node
         self.fc1 = nn.Linear(r2, 1)

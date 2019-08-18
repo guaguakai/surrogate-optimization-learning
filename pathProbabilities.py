@@ -148,14 +148,14 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 #if (training_method == 'decision-focused' and (mode!="testing")) or (epoch == n_epochs - 1) or (not time_analysis):
                 #def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
                 
-                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True, verbose=False)
-                if (not (restrict_mincut)):
-                    G=single_data[0]
-                    mincut=single_data[-3]
-                    E=len(list(G.edges()))
-                    initial_coverage=[def_coverage[mincut.index(i)] if i in mincut else 0 for i in range(E)]
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, initial_coverage_prob=initial_coverage)
-                
+                if mode == 'testing':
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False, verbose=False)
+                else:
+                    if training_method == 'decision-focused':
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
+                    else:
+                        def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
+
                 def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
 
@@ -255,19 +255,23 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         #                                zhats=None, slacks=None, nus=None, lams=None)
 
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
-        Q_sym = Q #+ Q.t()) / 2
+        Q_sym = (Q + Q.t()) / 2
 
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
         Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-10)
+        new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
 
-        coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        # coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
         # ======================= Defender Utility ========================
+        # print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
+        # print("New Minimum Eigenvalue: {}".format(min(new_eigenvalues)))
         pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
         # ==================== Actual Defender Utility ====================
@@ -359,7 +363,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 20
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
