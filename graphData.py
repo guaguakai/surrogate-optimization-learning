@@ -85,7 +85,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
     targets=G.graph['targets']
     diameter=nx.diameter(G)
     if fixed_phi == 2:
-        """
+        # """
         for node in list(G.nodes()):
             if node in sources:
                 node_phi=0
@@ -94,15 +94,15 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
             else:
                 node_phi=0
             G.node[node]['node_phi']=node_phi
-        """
-        for node in list(G.nodes()):
-            if node in sources:
-                node_phi=np.random.uniform(0, 1)
-            elif node in targets:
-                node_phi = G.node[node]['utility']
-            else:
-                node_phi=np.random.uniform(2, 3) if (node ==12 or node==13) else np.random.uniform(1, 2)
-            G.node[node]['node_phi']=node_phi
+        # """
+        # for node in list(G.nodes()):
+        #     if node in sources:
+        #         node_phi=np.random.uniform(0, 1)
+        #     elif node in targets:
+        #         node_phi = G.node[node]['utility']
+        #     else:
+        #         node_phi=np.random.uniform(2, 3) if (node ==12 or node==13) else np.random.uniform(1, 2)
+        #     G.node[node]['node_phi']=node_phi
         
     elif fixed_phi == 3:
         for i in range(3):
@@ -207,12 +207,14 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['sources']=sources
         G.graph['targets']=targets
         
-        G.graph['U']=[]
+        G.graph['U'] = []
 
-        G.graph['U'] = np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
         for idx, target in enumerate(targets):
-            print(idx, target)
-            G.node[target]['utility'] = G.graph['U'][idx]
+            random_payoff = np.random.rand() * 10 + 5
+            G.node[target]['utility'] = random_payoff
+            G.graph['U'].append(random_payoff)
+
+        G.graph['U'].append(0)
         
         G.graph['budget']=budget
         sources=G.graph['sources']

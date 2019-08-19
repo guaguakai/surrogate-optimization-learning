@@ -7,6 +7,7 @@ from torch_geometric.nn import GCNConv, GraphConv
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
 
+aggregation_function_generation = 'add' # either mean or add
 aggregation_function = 'add' # either mean or add
 
 class featureGenerationNet2(nn.Module): # message passing version
@@ -29,10 +30,10 @@ class featureGenerationNet2(nn.Module): # message passing version
         # self.fc4 = nn.Linear(r7, raw_feature_size)
         
         # Define the layers of gcn 
-        self.gcn1 = GraphConv(1,  r1, aggr=aggregation_function)
-        self.gcn2 = GraphConv(r1, r2, aggr=aggregation_function)
-        self.gcn3 = GraphConv(r2, r3, aggr=aggregation_function)
-        self.gcn4 = GraphConv(r3, r4, aggr=aggregation_function)
+        self.gcn1 = GraphConv(1,  r1, aggr=aggregation_function_generation)
+        self.gcn2 = GraphConv(r1, r2, aggr=aggregation_function_generation)
+        self.gcn3 = GraphConv(r2, r3, aggr=aggregation_function_generation)
+        self.gcn4 = GraphConv(r3, r4, aggr=aggregation_function_generation)
 
         self.activation = nn.Softplus()
         # self.activation = F.relu
@@ -66,24 +67,25 @@ class featureGenerationNet2(nn.Module): # message passing version
     
 class GCNPredictionNet2(nn.Module):
 
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[10,5], nn_hidden_layer_sizes=20):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[10,20,20], nn_hidden_layer_sizes=20):
         super(GCNPredictionNet2, self).__init__()
         
-        r1,r2=gcn_hidden_layer_sizes
-        r3=nn_hidden_layer_sizes
+        r1, r2, r3 = gcn_hidden_layer_sizes
+        n1 = nn_hidden_layer_sizes
         
         # Define the layers of gcn 
         self.gcn1 = GraphConv(raw_feature_size, r1, aggr=aggregation_function)
         self.gcn2 = GraphConv(r1, r2, aggr=aggregation_function)
+        self.gcn3 = GraphConv(r2, r3, aggr=aggregation_function)
         
         #Define the layers of NN to predict the attractiveness function for every node
-        self.fc1 = nn.Linear(r2, 1)
+        # self.fc1 = nn.Linear(r2, 1)
         self.dropout = nn.Dropout()
-        # self.fc1 = nn.Linear(r2, r3)
-        # self.fc2 = nn.Linear(r3, 1)
+        self.fc1 = nn.Linear(r3, n1)
+        self.fc2 = nn.Linear(n1, 1)
 
-        self.activation = nn.Softplus()
-        # self.activation = F.relu
+        # self.activation = nn.Softplus()
+        self.activation = F.relu
         
         #self.node_adj=A
 
@@ -98,10 +100,11 @@ class GCNPredictionNet2(nn.Module):
         x = self.activation(self.gcn1(x, edge_index))
         # x = self.dropout(x)
         x = self.activation(self.gcn2(x, edge_index))
+        x = self.activation(self.gcn3(x, edge_index))
         
         # x = self.dropout(x)
-        x = self.fc1(x)
-        # x = self.fc2(x)
+        x = self.activation(self.fc1(x))
+        x = self.fc2(x)
         x = x - torch.min(x)
         # x = nn.ReLU6()(x)
 
