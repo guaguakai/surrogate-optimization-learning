@@ -64,7 +64,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     
 class GCNPredictionNet2(nn.Module):
 
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[10,5], nn_hidden_layer_sizes=5):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[10,5], nn_hidden_layer_sizes=20):
         super(GCNPredictionNet2, self).__init__()
         
         r1,r2=gcn_hidden_layer_sizes
@@ -75,10 +75,10 @@ class GCNPredictionNet2(nn.Module):
         self.gcn2 = GraphConv(r1, r2, aggr='add')
         
         #Define the layers of NN to predict the attractiveness function for every node
-        self.fc1 = nn.Linear(r2, 1)
+        # self.fc1 = nn.Linear(r2, 1)
         self.dropout = nn.Dropout()
-        # self.fc1 = nn.Linear(r2, r3)
-        # self.fc2 = nn.Linear(r3, 1)
+        self.fc1 = nn.Linear(r2, r3)
+        self.fc2 = nn.Linear(r3, 1)
 
         self.activation = nn.Softplus()
         # self.activation = F.relu
@@ -98,8 +98,10 @@ class GCNPredictionNet2(nn.Module):
         x = self.activation(self.gcn2(x, edge_index))
         
         # x = self.dropout(x)
-        x = self.fc1(x)
+        x = self.activation(self.fc1(x))
+        x = self.fc2(x)
         x = x - torch.min(x)
+        # x = nn.ReLU6()(x)
 
         # Now, x is a nX1 tensor consisting of the predicted phi(v,f) for each of the n nodes v.
         

@@ -250,24 +250,24 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)
 
         pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
-        qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
-        # qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-        #                                zhats=None, slacks=None, nus=None, lams=None)
+        # qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+        qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
+                                       zhats=None, slacks=None, nus=None, lams=None)
 
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
         Q_sym = (Q + Q.t()) / 2
 
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-10)
+        Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
         new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
 
-        # coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-        coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        # coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
         # ======================= Defender Utility ========================
         # print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
@@ -363,7 +363,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 20
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
