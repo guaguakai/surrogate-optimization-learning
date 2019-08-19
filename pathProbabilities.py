@@ -23,44 +23,12 @@ from obsoleteCode import *
 from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 import qpthlocal
 
-def plotEverything(all_params,train_loss, test_loss, training_graph_def_u, testing_graph_def_u, filepath="figure/"):
-    learning_model=all_params['learning model']
+def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
+    full_coverage = np.zeros(number_of_edges)
+    for idx, edge in enumerate(cut):
+        full_coverage[edge] = mincut_coverage[idx].item()
 
-    fig = plt.figure()
-    ax1 = fig.add_subplot(221)
-    ax2 = fig.add_subplot(222)
-    ax3 = fig.add_subplot(223)
-    ax4 = fig.add_subplot(224)
-
-    fig.text(0.5, 0.04, '# epochs', ha='center', va='center')
-    fig.text(0.06, 0.75, 'KL-divergence loss', ha='center', va='center', rotation='vertical')
-    fig.text(0.06, 0.25, 'Defender utility', ha='center', va='center', rotation='vertical')
-
-    epochs = len(train_loss) - 1
-    x=range(-1, epochs)
-
-    # Training loss
-    ax1.plot(x, train_loss, label='Training loss')
-    ax1.set_title("Training")
-    ax1.legend()
-        
-    # Testing loss
-    ax2.plot(x, test_loss, label='Testing loss')
-    ax2.set_title("Testing")
-    ax2.legend()
-
-    # Entire training graph Defender utility
-    ax3.plot(x, training_graph_def_u, label='ML Model')
-    ax3.legend()
-
-    # Entire testing graph Defender utility
-    ax4.plot(x, testing_graph_def_u, label='ML Model')
-    ax4.legend()
-
-    plt.savefig('{}'.format(filepath))
-    
-    return
-    
+    return full_coverage
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', restrict_mincut=True):
@@ -145,11 +113,12 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                #if (training_method == 'decision-focused' and (mode!="testing")) or (epoch == n_epochs - 1) or (not time_analysis):
-                #def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
-                
                 if mode == 'testing':
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False, verbose=False)
+                    if training_method == 'decision-focused':
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                    else:
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                        # def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
                 else:
                     if training_method == 'decision-focused':
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
@@ -164,6 +133,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
                 if training_method == "two-stage":
                     batch_loss += loss
+                    if torch.isnan(loss):
+                        print(phi_pred)
+                        print(log_prob_pred)
+                        print(biased_probs_pred)
                 elif training_method == "decision-focused":
                     batch_loss += (-def_obj)
                 else:
@@ -244,15 +217,18 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
 
         # initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
         # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
-        if initial_coverage_prob==None:
+        if initial_coverage_prob is None:
             initial_coverage_prob = np.zeros(len(edge_set))
 
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)
 
         pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
-        # qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
-        qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-                                       zhats=None, slacks=None, nus=None, lams=None)
+        solver_option = 'default'
+        if solver_option == 'default':
+            qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+        else:
+            qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
+                                           zhats=None, slacks=None, nus=None, lams=None)
 
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
         Q_sym = (Q + Q.t()) / 2
@@ -266,12 +242,12 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
 
-        coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-        # coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        if solver_option == 'default':
+            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        else:
+            coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
         # ======================= Defender Utility ========================
-        # print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
-        # print("New Minimum Eigenvalue: {}".format(min(new_eigenvalues)))
         pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
         # ==================== Actual Defender Utility ====================
@@ -363,7 +339,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 20
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
@@ -442,7 +418,4 @@ if __name__=='__main__':
                 "Test Loss:": test_loss} 
     
     cprint (all_params, 'green')
-    #############################            
-    if plot_everything:
-        plotEverything(all_params,train_loss, test_loss, training_graph_def_u, testing_graph_def_u, filepath=filepath_figure)
         
