@@ -90,7 +90,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
             if node in sources:
                 node_phi=0
             elif node in targets:
-                node_phi=5 if node == 15 else 0
+                node_phi=6 if node == 15 else 0
             else:
                 node_phi=0
             G.node[node]['node_phi']=node_phi
@@ -210,7 +210,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['U'] = []
 
         for idx, target in enumerate(targets):
-            random_payoff = np.random.rand() * 10 + 5
+            random_payoff = 10
             G.node[target]['utility'] = random_payoff
             G.graph['U'].append(random_payoff)
 
