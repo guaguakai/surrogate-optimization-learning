@@ -12,7 +12,7 @@ from coverageProbability import get_optimal_coverage_prob, objective_function_ma
 def objective_function_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4, lib=torch):
     n = len(G.nodes)
     targets = G.graph["targets"] + [n] # adding the caught node
-    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.uint8)
+    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.bool)
 
     # COVERAGE PROBABILITY MATRIX
     coverage_prob_matrix=torch.zeros((n,n))
@@ -43,7 +43,7 @@ def objective_function_matrix_form(coverage_probs, G, phi, U, initial_distributi
 def dobj_dx_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4, lib=torch):
     n = len(G.nodes)
     targets = G.graph["targets"] + [n] # adding the caught node
-    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.uint8)
+    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.bool)
 
     # COVERAGE PROBABILITY MATRIX
     coverage_prob_matrix=torch.zeros((n,n))

@@ -100,7 +100,7 @@ def get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs, U, initial_distribu
 def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, edge_set, omega=4, lib=torch):
     n = len(G.nodes)
     targets = list(G.graph["targets"]) + [n] # adding the caught node
-    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.uint8)
+    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.bool)
 
     # COVERAGE PROBABILITY MATRIX
     coverage_prob_matrix=torch.zeros((n,n))
@@ -132,7 +132,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
 def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, edge_set, omega=4, lib=torch):
     n = len(G.nodes)
     targets = list(G.graph["targets"]) + [n] # adding the caught node
-    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.uint8)
+    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)]).type(torch.bool)
 
     # COVERAGE PROBABILITY MATRIX
     coverage_prob_matrix=torch.zeros((n,n))
