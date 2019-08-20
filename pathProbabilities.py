@@ -228,9 +228,13 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         if initial_coverage_prob is None:
             initial_coverage_prob = np.zeros(len(edge_set))
 
-        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)
+        # pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set) # scipy version
+        # pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
 
-        pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
+        start_time = time.time()
+        pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=20, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
+        # print('optimization time:', time.time() - start_time)
+
         solver_option = 'default'
         if solver_option == 'default':
             qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
@@ -238,17 +242,23 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
             qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
                                            zhats=None, slacks=None, nus=None, lams=None)
 
+        start_time = time.time()
+
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+        # print('computation time 1:', time.time() - start_time)
+        start_time = time.time()
         Q_sym = (Q + Q.t()) / 2
 
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
         Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
-        new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
+        # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
+        # print('computation time 2:', time.time() - start_time)
+        start_time = time.time()
 
         if solver_option == 'default':
             coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
@@ -257,6 +267,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
 
         # ======================= Defender Utility ========================
         pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
+        # print('QP time:', time.time() - start_time)
 
         # ==================== Actual Defender Utility ====================
         # Running simulations to check the actual defender utility
@@ -270,8 +281,13 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         # ========================= Error message =========================
         if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.5): # or 0.01 for GUROBI, 0.1 for qpth
             print('QP solution and scipy solution differ too much...', torch.norm(pred_optimal_coverage - coverage_qp_solution))
+            print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
+            print(pred_optimal_coverage)
+            print("objective value (QP): {}".format(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
+            print(coverage_qp_solution)
+
             if verbose:
-                print(pred_optimal_res)
+                # print(pred_optimal_res)
                 print("Minimum Eigenvalue: {}".format(min(eigenvalues)))
                 print("Hessian: {}".format(Q_sym))
                 print("Gradient: {}".format(jac))
