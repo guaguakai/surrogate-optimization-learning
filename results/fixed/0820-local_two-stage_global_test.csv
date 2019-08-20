@@ -662,3 +662,21 @@ testing, 25, 1.4050710678100586, -1.909113347530365, 0.0
 mode, epoch, average loss, defender utility
 training, -1, 0.33802073342459543, 0.0, 0.0
 validating, -1, 0.36455764770507815, 0.0, 0.0
+mode, epoch, average loss, defender utility
+training, -1, 0.33802073342459543, 0.0, 0.0
+validating, -1, 0.36455764770507815, 0.0, 0.0
+mode, epoch, average loss, defender utility
+training, -1, 0.33802073342459543, 0.0, 0.0
+validating, -1, 0.36455764770507815, 0.0, 0.0
+mode, epoch, average loss, defender utility
+training, -1, 0.33802073342459543, 0.0, 0.0
+validating, -1, 0.36455764770507815, 0.0, 0.0
+mode, epoch, average loss, defender utility
+training, -1, 0.33802073342459543, 0.0, 0.0
+validating, -1, 0.36455764770507815, 0.0, 0.0
+mode, epoch, average loss, defender utility
+training, -1, 0.33802073342459543, 0.0, 0.0
+validating, -1, 0.36455764770507815, 0.0, 0.0
+mode, epoch, average loss, defender utility
+training, -1, 0.33802073342459543, 0.0, 0.0
+validating, -1, 0.36455764770507815, 0.0, 0.0
