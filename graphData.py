@@ -90,7 +90,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
             if node in sources:
                 node_phi=0
             elif node in targets:
-                node_phi=6 if node == 15 else 0
+                node_phi=5 if node == 15 else 0
             else:
                 node_phi=0
             G.node[node]['node_phi']=node_phi
@@ -128,7 +128,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
                 range_of_phi=possible_ranges[1]
             
             #range_of_phi=(2**(5-dist_target),2**(6-dist_target))
-            #range_of_phi=(((4.0*(diameter-dist_target))/diameter),((4.0*(1+diameter-dist_target))/diameter))
+            range_of_phi=(((2*(diameter-dist_target))-2),((2*(1+diameter-dist_target))+2))
             #node_features=np.random.randn(feature_length)
             # TODO: Use a better feature computation for a given node
             #r=np.random.choice(len(possible_ranges))
@@ -207,14 +207,15 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['sources']=sources
         G.graph['targets']=targets
         
-        G.graph['U'] = []
+        G.graph['U']=np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
+
+        # G.graph['U'] = []
 
         for idx, target in enumerate(targets):
-            random_payoff = 10
-            G.node[target]['utility'] = random_payoff
-            G.graph['U'].append(random_payoff)
+            # random_payoff = 10
+            G.node[target]['utility'] = G.graph['U'][idx]
 
-        G.graph['U'].append(0)
+        # G.graph['U'].append(0)
         
         G.graph['budget']=budget
         sources=G.graph['sources']
@@ -277,7 +278,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
                 min_dist_src_target=diameter # Temporary large assignment
                 for s in sources:
                     for t in targets:
-                        min_dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t))
+                        dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t))
                 if min_dist_src_target>max((diameter/2.0),1):
                     src_target_is_ok=True
                 
