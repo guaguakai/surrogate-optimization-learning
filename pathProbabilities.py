@@ -122,10 +122,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         else:
                             def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
                     else:
-                        if epoch < 90:
-                            def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
-                        else:
-                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                        # if epoch < 90:
+                        #     def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
+                        # else:
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
 
                 else:
                     if training_method == 'decision-focused':
