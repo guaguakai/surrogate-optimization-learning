@@ -228,11 +228,11 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         if initial_coverage_prob is None:
             initial_coverage_prob = np.zeros(len(edge_set))
 
-        # pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set) # scipy version
-        # pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
+        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set) # scipy version
+        pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
 
         start_time = time.time()
-        pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=20, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
+        # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=20, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
         # print('optimization time:', time.time() - start_time)
 
         solver_option = 'default'
