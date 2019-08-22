@@ -160,7 +160,9 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     dstate_dx = torch.zeros((n,n,len(coverage_probs)))
 
     edges = list(G.edges())
-    for i, edge_i_idx in enumerate(edge_set):
+    # for i, edge_i_idx in enumerate(edge_set):
+    for i in range(len(edges)):
+        edge_i_idx = i
         edge_i = edges[edge_i_idx]
         for (u, v) in [(edge_i[0], edge_i[1]), (edge_i[1], edge_i[0])]:
             for j, edge_j_idx in enumerate(edge_set): 

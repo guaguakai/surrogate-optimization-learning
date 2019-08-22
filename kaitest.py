@@ -189,8 +189,10 @@ if __name__ == "__main__":
 
     # derivatives...
     dobj_dx = dobj_dx_matrix_form(initial_coverage_prob, G, transition_probs, U, initial_distribution, edge_set=edge_set, omega=omega)
+    print(dobj_dx)
 
     torch_dobj_dx = torch.autograd.grad(obj_matrix_form, initial_coverage_prob, create_graph=True, retain_graph=True)[0]
+    print(torch_dobj_dx)
     empirical_dobj_dx = torch.zeros(11)
 
     torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, edge_set=edge_set, omega=omega)

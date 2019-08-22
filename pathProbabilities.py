@@ -113,19 +113,22 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
+                start_iteration = 25
                 if mode == 'testing':
                     if training_method == 'decision-focused':
                         if restrict_mincut:
-                            # mincut_def_obj, mincut_def_coverage, mincut_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False)
-                            # initial_coverage_prob = mincut_coverage_to_full(mincut_def_coverage, cut, G.number_of_edges())
-                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                            # def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                            if epoch < start_iteration:
+                                def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
+                            else:
+                                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
                         else:
                             def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
                     else:
-                        # if epoch < 90:
-                        #     def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
-                        # else:
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                        if epoch < start_iteration:
+                            def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
+                        else:
+                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
 
                 else:
                     if training_method == 'decision-focused':
@@ -290,7 +293,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         simulated_defender_utility = 0
 
         # ========================= Error message =========================
-        if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.5): # or 0.01 for GUROBI, 0.1 for qpth
+        if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.01): # or 0.01 for GUROBI, 0.1 for qpth
             print('QP solution and scipy solution differ too much...', torch.norm(pred_optimal_coverage - coverage_qp_solution))
             print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
             print(pred_optimal_coverage)
@@ -374,7 +377,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 500
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     

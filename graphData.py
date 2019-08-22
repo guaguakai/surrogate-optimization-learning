@@ -128,7 +128,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
                 range_of_phi=possible_ranges[1]
             
             #range_of_phi=(2**(5-dist_target),2**(6-dist_target))
-            range_of_phi=(((2*(diameter-dist_target))),((2*(1+diameter-dist_target))))
+            range_of_phi=(((2*(diameter-dist_target-1))),((2*(2+diameter-dist_target))))
             #node_features=np.random.randn(feature_length)
             # TODO: Use a better feature computation for a given node
             #r=np.random.choice(len(possible_ranges))
@@ -278,7 +278,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
                 min_dist_src_target=diameter # Temporary large assignment
                 for s in sources:
                     for t in targets:
-                        dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t))
+                        min_dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t))
                 if min_dist_src_target>max((diameter/2.0),1):
                     src_target_is_ok=True
                 
