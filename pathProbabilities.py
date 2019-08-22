@@ -30,7 +30,7 @@ def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
 
     return full_coverage
 
-def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, lr=0.1, learning_model='random_walk_distribution'
+def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', restrict_mincut=True):
 
     
@@ -187,7 +187,18 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
         average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
 
+        # ============== using results on validation set to choose solution ===============
+        if training_method == "two-stage":
+            max_epoch = np.argmax(validating_loss_list) # choosing based on loss
+            final_loss = testing_loss_list[max_epoch]
+            final_defender_utility = testing_defender_utility_list[max_epoch]
+        else:
+            max_epoch = np.argmax(validating_defender_utility_list) # choosing based on defender utility
+            final_loss = testing_loss_list[max_epoch]
+            final_defender_utility = testing_defender_utility_list[max_epoch]
+
         f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, time4-time3))
+        f_summary.write("final loss, {}, final defender utility, {}".format(final_loss, final_defender_utility))
         time3=time4
             
     return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
@@ -382,16 +393,19 @@ if __name__=='__main__':
     filename = args.filename
     mincut_name = 'mincut' if restrict_mincut else 'global'
     if FIXED_GRAPH == 0:
-        filepath_data   = "results/random/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
-        filepath_figure = "figures/random/{}_{}_n{}_p{}_b{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
-        filepath_time   = "results/time/random/{}_{}_b{}_{}.csv".format(filename, training_method, DEFENDER_BUDGET, mincut_name)
+        filepath_data    = "results/random/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_figure  = "figures/random/{}_{}_n{}_p{}_b{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_time    = "results/time/random/{}_{}_b{}_{}.csv".format(filename, training_method, DEFENDER_BUDGET, mincut_name)
+        filepath_summary = "results/summary/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
     else:
-        filepath_data   = "results/fixed/{}_{}_{}_test.csv".format(filename, training_method, mincut_name)
-        filepath_figure = "figures/fixed/{}_{}_{}_test.png".format(filename, training_method, mincut_name)
-        filepath_time   = "results/time/fixed/{}_{}_b{}_{}.csv".format(filename, training_method, DEFENDER_BUDGET, mincut_name)
+        filepath_data    = "results/fixed/{}_{}_{}_test.csv".format(filename, training_method, mincut_name)
+        filepath_figure  = "figures/fixed/{}_{}_{}_test.png".format(filename, training_method, mincut_name)
+        filepath_time    = "results/time/fixed/{}_{}_b{}_{}.csv".format(filename, training_method, DEFENDER_BUDGET, mincut_name)
+        filepath_summary = "results/summary/fixed/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
 
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')
+    f_summary = open(filepath_summary, 'a')
       
     ############################### Data genaration:
     train_data, validate_data, test_data = generateSyntheticData(feature_size, path_type=learning_model_type,
@@ -414,7 +428,7 @@ if __name__=='__main__':
     time3=time.time()
     # Learn the neural networks:
     net2, train_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
-                                train_data, validate_data, test_data, f_save, f_time,
+                                train_data, validate_data, test_data, f_save, f_time, f_summary,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                 optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, restrict_mincut=restrict_mincut)

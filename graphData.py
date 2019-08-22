@@ -207,7 +207,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['sources']=sources
         G.graph['targets']=targets
         
-        G.graph['U']=np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
+        G.graph['U']= [10, 10, 0] # np.concatenate([np.random.rand(layers[-1]) * 10, np.array([0])])
 
         # G.graph['U'] = []
 
