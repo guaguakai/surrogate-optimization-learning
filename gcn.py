@@ -84,10 +84,10 @@ class GCNPredictionNet2(nn.Module):
         # self.gcn3 = Conv(r2, r3)
         
         #Define the layers of NN to predict the attractiveness function for every node
-        self.fc1 = nn.Linear(r2, 1)
+        # self.fc1 = nn.Linear(r2, 1)
         self.dropout = nn.Dropout()
-        # self.fc1 = nn.Linear(r2, n1)
-        # self.fc2 = nn.Linear(n1, 1)
+        self.fc1 = nn.Linear(r2, n1)
+        self.fc2 = nn.Linear(n1, 1)
 
         self.activation = nn.Softplus()
         # self.activation = F.relu
@@ -110,8 +110,8 @@ class GCNPredictionNet2(nn.Module):
         # x = self.activation(self.gcn3(x, edge_index))
         
         # x = self.dropout(x)
-        x = self.fc1(x)
-        # x = self.fc2(x) * 5
+        x = self.activation(self.fc1(x))
+        x = self.fc2(x)
         x = x - torch.min(x)
         # x = nn.ReLU6()(x)
 

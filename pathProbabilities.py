@@ -113,22 +113,23 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                start_iteration = 25
+                start_iteration = -1 # -1: disable
+                enable_mincut_optimization = restrict_mincut
                 if mode == 'testing':
                     if training_method == 'decision-focused':
                         if restrict_mincut:
-                            # def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                            # def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=enable_mincut_optimization,  verbose=False)
                             if epoch < start_iteration:
                                 def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
                             else:
-                                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=enable_mincut_optimization,  verbose=False)
                         else:
-                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=enable_mincut_optimization,  verbose=False)
                     else:
                         if epoch < start_iteration:
                             def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
                         else:
-                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=enable_mincut_optimization,  verbose=False)
 
                 else:
                     if training_method == 'decision-focused':
@@ -265,7 +266,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
 
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
+        Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-5)
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
