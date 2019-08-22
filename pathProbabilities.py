@@ -57,7 +57,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     ######################################################
     time3 = time.time()
 
-    f_save.write("mode, epoch, average loss, defender utility\n")
+    f_save.write("mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility\n")
 
     for epoch in range(-1, n_epochs):
         for mode in ["training", "validating", "testing"]:
@@ -82,7 +82,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
             else:
                 raise TypeError("Not valid mode: {}".format(mode))
 
-            loss_list, def_obj_list, simulated_def_obj_list = [], [], []
+            loss_list, def_obj_list, simulated_def_obj_list, fast_obj_list = [], [], [], [] # fast obj list only used in testing time
             batch_loss = 0
             for iter_n in tqdm.trange(len(dataset)):
                 ################################### Gather data based on learning model
@@ -116,29 +116,25 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 start_iteration = -1 # -1: disable
                 enable_mincut_optimization = restrict_mincut
                 if mode == 'testing':
-                    if training_method == 'decision-focused':
-                        if restrict_mincut:
-                            # def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=enable_mincut_optimization,  verbose=False)
-                            if epoch < start_iteration:
-                                def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
-                            else:
-                                def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=enable_mincut_optimization,  verbose=False)
-                        else:
-                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=enable_mincut_optimization,  verbose=False)
+                    if epoch < start_iteration:
+                        def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
+                        fast_def_obj = 0
                     else:
-                        if epoch < start_iteration:
-                            def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
-                        else:
-                            def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=enable_mincut_optimization,  verbose=False)
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                        fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False)
+                        fast_def_obj = fast_def_obj.item()
 
                 else:
                     if training_method == 'decision-focused':
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
+                        fast_def_obj = 0
                     else:
                         def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
+                        fast_def_obj = 0
 
                 def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
+                fast_obj_list.append(fast_def_obj)
 
                 loss_list.append(loss.item())
 
@@ -180,10 +176,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
             ################################### Print stuff after every epoch 
             np.random.shuffle(dataset)
-            print("Mode: {}/ Epoch number: {}/ Average training loss: {}/ Average defender objective: {}/ Simulated defender objective: {}".format(
-                  mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
+            print("Mode: {}/ Epoch number: {}/ Loss: {}/ DefU: {}/ Simulated DefU: {}/ Fast DefU: {}".format(
+                  mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list), np.mean(fast_obj_list)))
 
-            f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
+            f_save.write("{}, {}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list), np.mean(fast_obj_list)))
         
         time4=time.time()
         if time_analysis:

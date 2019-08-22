@@ -7,8 +7,8 @@ from torch_geometric.nn import GCNConv, GraphConv, SAGEConv
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
 
-aggregation_function_generation = 'mean' # either mean or add
-aggregation_function = 'mean' # either mean or add
+aggregation_function_generation = 'add' # either mean or add
+aggregation_function = 'add' # either mean or add
 
 Conv = GraphConv
 
@@ -40,7 +40,7 @@ class featureGenerationNet2(nn.Module): # message passing version
         self.activation = nn.Softplus()
         # self.activation = F.relu
         # self.activation = nn.Sigmoid()
-        self.noise_std = 3.0
+        self.noise_std = 0.0
 
     def forward(self, x, edge_index):
         """
