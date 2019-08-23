@@ -114,7 +114,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 single_data = dataset[iter_n]
 
                 start_iteration = -1 # -1: disable
-                enable_mincut_optimization = restrict_mincut
                 if mode == 'testing':
                     if epoch < start_iteration:
                         def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
