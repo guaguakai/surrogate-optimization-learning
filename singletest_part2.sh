@@ -1,4 +1,4 @@
-FILENAME="0823-local"
+FILENAME="0823-server"
 BUDGET=2
 NODES=15
 
