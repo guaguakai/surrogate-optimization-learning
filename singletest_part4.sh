@@ -1,6 +1,6 @@
-FILENAME="0823-server"
+FILENAME="0823-1700-server"
 BUDGET=2
-NODES=15
+NODES=20
 
 for VAR in {21..25}
 	do

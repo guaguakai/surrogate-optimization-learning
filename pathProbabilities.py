@@ -120,8 +120,12 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         fast_def_obj = 0
                     else:
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
+                        # print('full coverage:', def_coverage)
                         fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False)
+                        # print('fast coverage:', fast_def_coverage)
                         fast_def_obj = fast_def_obj.item()
+                        coverage_on_cut = np.sum([def_coverage[x].item() for x in cut])
+                        # print("total optimal coverage on the cut: {}, full optimal DefU: {}, fast optimal DefU: {}".format(coverage_on_cut, def_obj, fast_def_obj))
 
                 else:
                     if training_method == 'decision-focused':

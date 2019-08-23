@@ -1,0 +1,6 @@
+mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility
+training, -1, 0.07217334817562784, 0.0, 0.0, 0.0
+validating, -1, 0.10285577774047852, 0.0, 0.0, 0.0
+mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility
+training, -1, 0.10931069872209004, 0.0, 0.0, 0.0
+validating, -1, 0.10936119258403779, 0.0, 0.0, 0.0
