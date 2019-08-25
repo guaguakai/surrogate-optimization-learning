@@ -403,14 +403,14 @@ if __name__=='__main__':
     filename = args.filename
     mincut_name = 'mincut' if restrict_mincut else 'global'
     if FIXED_GRAPH == 0:
-        filepath_data    = "results/random/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
-        filepath_figure  = "figures/random/{}_{}_n{}_p{}_b{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
-        filepath_time    = "results/time/random/{}_{}_b{}_{}.csv".format(filename, training_method, DEFENDER_BUDGET, mincut_name)
-        filepath_summary = "results/summary/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_data    = "results/random/{}_{}_n{}_p{}_b{}_{}.csv"       .format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_figure  = "figures/random/{}_{}_n{}_p{}_b{}_{}.png"       .format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_{}.csv"  .format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_summary = "results/summary/{}_{}_n{}_p{}_b{}_{}.csv"      .format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
     else:
-        filepath_data    = "results/fixed/{}_{}_{}_test.csv".format(filename, training_method, mincut_name)
-        filepath_figure  = "figures/fixed/{}_{}_{}_test.png".format(filename, training_method, mincut_name)
-        filepath_time    = "results/time/fixed/{}_{}_b{}_{}.csv".format(filename, training_method, DEFENDER_BUDGET, mincut_name)
+        filepath_data    = "results/fixed/{}_{}_{}_test.csv"               .format(filename, training_method, mincut_name)
+        filepath_figure  = "figures/fixed/{}_{}_{}_test.png"               .format(filename, training_method, mincut_name)
+        filepath_time    = "results/time/fixed/{}_{}_b{}_{}.csv"           .format(filename, training_method, DEFENDER_BUDGET, mincut_name)
         filepath_summary = "results/summary/fixed/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
 
     f_save = open(filepath_data, 'a')

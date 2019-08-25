@@ -1,4 +1,4 @@
-FILENAME="0825-test"
+FILENAME="0825-server"
 BUDGET=2
 NODES=30
 
