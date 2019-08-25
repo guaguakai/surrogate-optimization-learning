@@ -7,6 +7,7 @@ Created on Tue Apr 30 01:25:29 2019
 from scipy.optimize import minimize 
 import networkx as nx
 import numpy as np
+import time
 # import autograd.numpy as np
 from numpy.linalg import *
 from graphData import *
@@ -135,6 +136,7 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)])
 
     # COVERAGE PROBABILITY MATRIX
+    # start_time = time.time()
     coverage_prob_matrix=torch.zeros((n,n))
     edges = list(G.edges())
     for i, edge_idx in enumerate(edge_set):
@@ -156,33 +158,46 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
     B = N @ R
 
-    dP_dx = torch.zeros((n,n,len(coverage_probs)))
+    # dP_dx = torch.zeros((n,n,len(coverage_probs)))
     dstate_dx = torch.zeros((n,n,len(coverage_probs)))
 
     edges = list(G.edges())
-    # for i, edge_i_idx in enumerate(edge_set):
-    for i in range(len(edges)):
-        edge_i_idx = i
-        edge_i = edges[edge_i_idx]
-        for (u, v) in [(edge_i[0], edge_i[1]), (edge_i[1], edge_i[0])]:
-            for j, edge_j_idx in enumerate(edge_set): 
-                edge_j = edges[edge_j_idx]
-                if edge_j[0] == u: # only proceed when edge_j = (u,w)
-                    (_, w) = edge_j
-                elif edge_j[1] == u:
-                    (w, _) = edge_j
-                else:
-                    continue
+    # =============== newer implementation of gradient computation ================ # speed up like 6 sec per instance
+    for j, edge_j_idx in enumerate(edge_set):
+        edge_j = edges[edge_j_idx]
+        (v, w) = edge_j
+        for u in G.neighbors(v): # case: v->u and v->w
+            dstate_dx[v,u,j] = omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w]
+        dstate_dx[v,w,j] = dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1
 
-                if v == w:
-                    dP_dx[u,v,j] = omega * (-1 + marginal_prob[u,v])
-                    dstate_dx[u,v,j] = omega * (1 - coverage_prob_matrix[u,v]) * (-1 + marginal_prob[u,v]) - 1 
-                else:
-                    dP_dx[u,v,j] = omega * marginal_prob[u, w]
-                    dstate_dx[u,v,j] = omega * (1 - coverage_prob_matrix[u,v]) * marginal_prob[u, w]
+        for u in G.neighbors(w): # case: w->u and w->v
+            dstate_dx[w,u,j] = omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v]
+        dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
 
-            dP_dx[u,v,:] *= marginal_prob[u,v]
-            dstate_dx[u,v,:] *= marginal_prob[u,v]
+    dstate_dx = torch.einsum('ij,ijk->ijk', marginal_prob, dstate_dx)
+
+    # =============== older implementation of gradient computation ================
+    # for i in range(len(edges)):
+    #     edge_i_idx = i
+    #     edge_i = edges[edge_i_idx]
+    #     for (u, v) in [(edge_i[0], edge_i[1]), (edge_i[1], edge_i[0])]:
+    #         for j, edge_j_idx in enumerate(edge_set): 
+    #             edge_j = edges[edge_j_idx]
+    #             if edge_j[0] == u: # only proceed when edge_j = (u,w)
+    #                 (_, w) = edge_j
+    #             elif edge_j[1] == u:
+    #                 (w, _) = edge_j
+    #             else:
+    #                 continue
+
+    #             if v == w:
+    #                 # dP_dx[u,v,j] = omega * (-1 + marginal_prob[u,v])
+    #                 dstate_dx[u,v,j] = omega * (1 - coverage_prob_matrix[u,v]) * (-1 + marginal_prob[u,v]) - 1 
+    #             else:
+    #                 # dP_dx[u,v,j] = omega * marginal_prob[u, w]
+    #                 dstate_dx[u,v,j] = omega * (1 - coverage_prob_matrix[u,v]) * marginal_prob[u, w]
+    #
+    #         dP_dx[u,v,:] *= marginal_prob[u,v]
 
     dcaught_dx = -torch.sum(dstate_dx, keepdim=True, dim=1)
     dfull_dx = torch.cat((dstate_dx, dcaught_dx), dim=1)
@@ -198,6 +213,7 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     distNdQ_dxNRU = distN @ torch.einsum("abc,b->ac", dQ_dx, (N @ (R @ U)))
     distNdR_dxU = distN @ (torch.einsum("abc,b->ac", dR_dx, U))
     dobj_dx = distNdQ_dxNRU + distNdR_dxU
+    # print('gradient time:', time.time() - start_time)
 
     if lib == np:
         dobj_dx = dobj_dx.detach().numpy()

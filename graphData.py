@@ -129,7 +129,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
                 range_of_phi=possible_ranges[1]
             
             #range_of_phi=(2**(5-dist_target),2**(6-dist_target))
-            range_of_phi=(((2*(diameter-dist_target-1))),((2*(2+diameter-dist_target))))
+            range_of_phi=(2 * (-dist_target-1), 2 * (-dist_target+1))
             #node_features=np.random.randn(feature_length)
             # TODO: Use a better feature computation for a given node
             #r=np.random.choice(len(possible_ranges))
@@ -408,7 +408,9 @@ def generateSyntheticData(node_feature_size, omega=4,
 
     # initialization
     data=[] # aggregate all the data first then split into training and testing
-    net3= featureGenerationNet2(node_feature_size)
+    generated_node_feature_size = node_feature_size * 2
+    net3= featureGenerationNet2(generated_node_feature_size)
+    # net3= featureGenerationNet2(node_feature_size)
     n_samples = n_graphs * samples_per_graph
     
     print("N_samples: ", n_samples)
@@ -472,7 +474,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             print('new cut:', new_cut)
             # ==============================================================
 
-            if value >= budget * 2:
+            if value > budget:
                 break
 
         # COMPUTE ADJACENCY MATRIX
@@ -511,6 +513,8 @@ def generateSyntheticData(node_feature_size, omega=4,
         for node in list(G.nodes()):
             Fv[node]=G.node[node]['node_features']
         '''
+
+        random_feature_indices = np.random.choice(generated_node_feature_size, node_feature_size, replace=False)
         for _ in range(samples_per_graph):
             # Randomly assign coverage probability
             private_coverage_prob = np.random.rand(nx.number_of_edges(G))
@@ -526,8 +530,9 @@ def generateSyntheticData(node_feature_size, omega=4,
             phi=torch.as_tensor(phi, dtype=torch.float)
 
             # Generate features from phi values
-            Fv_torch=net3.forward(phi.view(-1,1), edge_index)
-            Fv=Fv_torch.detach().numpy()
+            Fv_torch = net3.forward(phi.view(-1,1), edge_index)
+            Fv = Fv_torch.detach().numpy()
+            Fv = Fv[:,random_feature_indices]
             
             # EXACT EDGE PROBS
             biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi, omega=omega)

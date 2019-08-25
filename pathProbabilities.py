@@ -113,18 +113,19 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                start_iteration = -1 # -1: disable
+                start_iteration = n_epochs - 1 # -1: disable
                 if mode == 'testing':
                     if epoch < start_iteration:
                         def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
-                        fast_def_obj = 0
+                        fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False)
+                        fast_def_obj = fast_def_obj.item()
                     else:
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
-                        # print('full coverage:', def_coverage)
                         fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False)
-                        # print('fast coverage:', fast_def_coverage)
                         fast_def_obj = fast_def_obj.item()
-                        coverage_on_cut = np.sum([def_coverage[x].item() for x in cut])
+                        # print('fast coverage:', fast_def_coverage)
+                        # print('full coverage:', def_coverage)
+                        # coverage_on_cut = np.sum([def_coverage[x].item() for x in cut])
                         # print("total optimal coverage on the cut: {}, full optimal DefU: {}, fast optimal DefU: {}".format(coverage_on_cut, def_obj, fast_def_obj))
 
                 else:
@@ -146,8 +147,11 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     batch_loss += loss
                     if torch.isnan(loss):
                         print(phi_pred)
-                        print(log_prob_pred)
                         print(biased_probs_pred)
+                        raise ValueError('loss is nan!')
+                        # print(phi_pred)
+                        # print(log_prob_pred)
+                        # print(biased_probs_pred)
                 elif training_method == "decision-focused":
                     batch_loss += (-def_obj)
                 else:
@@ -214,7 +218,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
-    options = {"maxiter": 100, "disp": verbose}
+    options = {"maxiter": 200, "disp": verbose}
     tol = None
     method = "SLSQP"
 
@@ -242,11 +246,11 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         if initial_coverage_prob is None:
             initial_coverage_prob = np.zeros(len(edge_set))
 
+        start_time = time.time()
         pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set) # scipy version
         pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
 
-        start_time = time.time()
-        # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=20, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
+        # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
         # print('optimization time:', time.time() - start_time)
 
         solver_option = 'gurobi'
@@ -259,13 +263,13 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         start_time = time.time()
 
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
-        # print('computation time 1:', time.time() - start_time)
+        # print('Hessian computation time:', time.time() - start_time)
         start_time = time.time()
         Q_sym = (Q + Q.t()) / 2
 
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-5)
+        Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
@@ -377,7 +381,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 200
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     
@@ -409,6 +413,10 @@ if __name__=='__main__':
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')
     f_summary = open(filepath_summary, 'a')
+
+    f_save.write('Random seed, {}\n'.format(SEED))
+    f_time.write('Random seed, {}\n'.format(SEED))
+    f_summary.write('Random seed, {}\n'.format(SEED))
       
     ############################### Data genaration:
     train_data, validate_data, test_data = generateSyntheticData(feature_size, path_type=learning_model_type,

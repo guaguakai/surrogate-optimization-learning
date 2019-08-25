@@ -7,8 +7,8 @@ from torch_geometric.nn import GCNConv, GraphConv, SAGEConv
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
 
-aggregation_function_generation = 'mean' # either mean or add
-aggregation_function = 'mean' # either mean or add
+aggregation_function_generation = 'add' # either mean or add
+aggregation_function = 'add' # either mean or add
 
 Conv = GraphConv
 
@@ -19,7 +19,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     to decompress this to features of size feature_size,
     
     """
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[20,15,12,10], nn_hidden_layer_sizes=[7,4]):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[8,16,16,8], nn_hidden_layer_sizes=[32,16]):
         super(featureGenerationNet2, self).__init__()
         
         self.r1, self.r2, self.r3, self.r4 = gcn_hidden_layer_sizes       
@@ -37,8 +37,8 @@ class featureGenerationNet2(nn.Module): # message passing version
         self.gcn3 = Conv(self.r2, self.r3, aggr=aggregation_function_generation)
         self.gcn4 = Conv(self.r3, self.r4, aggr=aggregation_function_generation)
 
-        self.activation = nn.Softplus()
-        # self.activation = F.relu
+        # self.activation = nn.Softplus()
+        self.activation = F.relu
         # self.activation = nn.Sigmoid()
         self.noise_std = 1.0
 
@@ -72,7 +72,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     
 class GCNPredictionNet2(nn.Module):
 
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[15, 10], nn_hidden_layer_sizes=5):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[15, 10], nn_hidden_layer_sizes=10):
         super(GCNPredictionNet2, self).__init__()
         
         r1, r2 = gcn_hidden_layer_sizes
@@ -89,8 +89,8 @@ class GCNPredictionNet2(nn.Module):
         self.fc1 = nn.Linear(r2, n1)
         self.fc2 = nn.Linear(n1, 1)
 
-        self.activation = nn.Softplus()
-        # self.activation = F.relu
+        # self.activation = nn.Softplus()
+        self.activation = F.relu
         # self.activation = nn.Sigmoid()
 
         
@@ -112,7 +112,8 @@ class GCNPredictionNet2(nn.Module):
         # x = self.dropout(x)
         x = self.activation(self.fc1(x))
         x = self.fc2(x)
-        x = x - torch.min(x)
+        x = x - torch.mean(x)
+        # x = x / torch.std(x) * 5
         # x = nn.ReLU6()(x)
 
         # Now, x is a nX1 tensor consisting of the predicted phi(v,f) for each of the n nodes v.
