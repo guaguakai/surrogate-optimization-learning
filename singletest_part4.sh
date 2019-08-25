@@ -1,8 +1,8 @@
-FILENAME="0824-server"
+FILENAME="0825-test"
 BUDGET=2
 NODES=30
 
-for VAR in {1..10}
+for VAR in 5
 	do
 		echo $VAR
 		SEED=$VAR
