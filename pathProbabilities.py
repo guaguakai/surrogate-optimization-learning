@@ -113,15 +113,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                start_iteration = n_epochs - 1 # -1: disable
-                if mode == 'testing':
+                start_iteration = - 1 # -1: disable
+                if mode == 'testing' or mode == "validating":
                     if epoch < start_iteration:
-                        def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
-                        fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False)
-                        fast_def_obj = fast_def_obj.item()
+                        def_obj, simulated_def_obj, fast_def_obj = torch.zeros(1), torch.zeros(1), torch.zeros(1)
                     else:
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False)
-                        fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False)
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False, training_mode=False)
+                        fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False, training_mode=False)
                         fast_def_obj = fast_def_obj.item()
                         # print('fast coverage:', fast_def_coverage)
                         # print('full coverage:', def_coverage)
@@ -130,7 +128,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
                 else:
                     if training_method == 'decision-focused':
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False)
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, training_mode=True)
                         fast_def_obj = 0
                     else:
                         def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
@@ -212,7 +210,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     
 
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False, initial_coverage_prob=None):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False, initial_coverage_prob=None, training_mode=True):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
     
     budget = G.graph['budget']
@@ -253,46 +251,51 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
         # print('optimization time:', time.time() - start_time)
 
-        solver_option = 'gurobi'
-        if solver_option == 'default':
-            qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+        if training_mode:
+            solver_option = 'gurobi'
+            if solver_option == 'default':
+                qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+            else:
+                qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
+                                               zhats=None, slacks=None, nus=None, lams=None)
+    
+            start_time = time.time()
+    
+            Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+            # print('Hessian computation time:', time.time() - start_time)
+            start_time = time.time()
+            Q_sym = (Q + Q.t()) / 2
+    
+            eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
+            eigenvalues = [x.real for x in eigenvalues]
+            Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
+            # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
+            
+            is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
+            jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
+            p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
+            # print('computation time 2:', time.time() - start_time)
+            start_time = time.time()
+    
+            if solver_option == 'default':
+                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            else:
+                coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+
         else:
-            qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-                                           zhats=None, slacks=None, nus=None, lams=None)
+            coverage_qp_solution = pred_optimal_coverage
 
-        start_time = time.time()
-
-        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
-        # print('Hessian computation time:', time.time() - start_time)
-        start_time = time.time()
-        Q_sym = (Q + Q.t()) / 2
-
-        eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
-        eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
-        # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
-        
-        is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
-        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
-        p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
-        # print('computation time 2:', time.time() - start_time)
-        start_time = time.time()
-
-        if solver_option == 'default':
-            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-        else:
-            coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-
+        # ================== Evaluation on the ground truth ===============
         # ======================= Defender Utility ========================
         pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
         # print('QP time:', time.time() - start_time)
-
+    
         # ==================== Actual Defender Utility ====================
         # Running simulations to check the actual defender utility
         full_optimal_coverage = torch.zeros(G.number_of_edges())
         for idx, edge in enumerate(edge_set):
             full_optimal_coverage[edge] = coverage_qp_solution[idx].item()
-
+    
         # _, simulated_defender_utility = attackerOracle(G, full_optimal_coverage, phi_true, omega=omega, num_paths=100)
         simulated_defender_utility = 0
 

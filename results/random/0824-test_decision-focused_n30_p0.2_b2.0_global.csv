@@ -1,0 +1,18 @@
+Random seed, 5
+mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility
+Random seed, 5
+mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility
+training, -1, 0.1273497019495283, -2.3535704135894777, 0.0, 0.0
+validating, -1, 0.16358704566955568, -2.5648883819580077, 0.0, 0.0
+testing, -1, 0.13891564607620238, -2.840502119064331, 0.0, -3.1163676202297212
+training, 0, 1.4293114917618888, -2.99776839528765, 0.0, 0.0
+validating, 0, 1.553271722793579, -3.0912850141525268, 0.0, 0.0
+testing, 0, 1.4310227036476135, -3.3622541666030883, 0.0, -3.4052307069301606
+Random seed, 5
+mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility
+training, -1, 0.14350645201546805, -2.0525159776210784, 0.0, 0.0
+validating, -1, 0.14850540161132814, -1.7857044965028763, 0.0, 0.0
+testing, -1, 0.14727564454078673, -1.9152865707874298, 0.0, -2.16583366394043
+training, 0, 2.15114654643195, -2.9242870926856996, 0.0, 0.0
+validating, 0, 2.947343373298645, -2.8411579966545104, 0.0, 0.0
+testing, 0, 2.3203504741191865, -2.7672864377498625, 0.0, -2.617145448923111

@@ -129,7 +129,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
                 range_of_phi=possible_ranges[1]
             
             #range_of_phi=(2**(5-dist_target),2**(6-dist_target))
-            range_of_phi=(2 * (-dist_target-1), 2 * (-dist_target+1))
+            range_of_phi=((-dist_target-1), (-dist_target+1))
             #node_features=np.random.randn(feature_length)
             # TODO: Use a better feature computation for a given node
             #r=np.random.choice(len(possible_ranges))
@@ -457,21 +457,21 @@ def generateSyntheticData(node_feature_size, omega=4,
             print('cut:', cut)
 
             # ==============================================================
-            # checking multiple min-cuts
-            dummyG.add_node('tmp')
-            edge = list(edges)[cut[0]]
-            dummyG.add_edge(edge[0], 'tmp')
-            dummyG.add_edge(edge[1], 'tmp')
-            value, partition = nx.minimum_cut(dummyG, 'ds', 'dt')
-            print('new cut size:', value)
-            partition0, partition1 = set(partition[0]), set(partition[1])
-            new_cut = []
-            for idx, edge in enumerate(G.edges()):
-                if edge[0] in partition0 and edge[1] in partition1:
-                    new_cut.append(idx)
-                elif edge[0] in partition1 and edge[1] in partition0:
-                    new_cut.append(idx)
-            print('new cut:', new_cut)
+            # # checking multiple min-cuts
+            # dummyG.add_node('tmp')
+            # edge = list(edges)[cut[0]]
+            # dummyG.add_edge(edge[0], 'tmp')
+            # dummyG.add_edge(edge[1], 'tmp')
+            # new_value, new_partition = nx.minimum_cut(dummyG, 'ds', 'dt')
+            # print('new cut size:', new_value)
+            # partition0, partition1 = set(partition[0]), set(partition[1])
+            # new_cut = []
+            # for idx, edge in enumerate(G.edges()):
+            #     if edge[0] in partition0 and edge[1] in partition1:
+            #         new_cut.append(idx)
+            #     elif edge[0] in partition1 and edge[1] in partition0:
+            #         new_cut.append(idx)
+            # print('new cut:', new_cut)
             # ==============================================================
 
             if value > budget:
