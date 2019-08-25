@@ -51,7 +51,49 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     
     print ("Training...") 
     time2=time.time()
-    
+
+    ######################################################
+    #                   Pre-train Loop
+    ######################################################
+    # for epoch in range(0, 10):
+    #     net2.train()
+    #     dataset = train_data
+    #     batch_loss = 0
+    #     loss_list = []
+    #     for iter_n in tqdm.trange(len(dataset)):
+    #         ################################### Gather data based on learning model
+    #         G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
+    #         
+    #         ################################### Compute edge probabilities
+    #         Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
+    #         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
+    #         phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
+
+    #         unbiased_probs_pred = phi2prob(G, phi_pred)
+    #         biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+    #         
+    #         ################################### Compute loss
+    #         log_prob_pred = torch.zeros(1)
+    #         for path in path_list:
+    #             for e in path: 
+    #                 log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
+    #         log_prob_pred /= len(path_list)
+    #         loss = log_prob_pred - log_prob
+
+    #         single_data = dataset[iter_n]
+    #         
+    #         batch_loss += loss
+    #         loss_list.append(loss.item())
+
+    #         if (iter_n%batch_size == (batch_size-1)):
+    #             optimizer.zero_grad()
+    #             batch_loss.backward()
+    #             # print(np.mean([parameter.grad.norm(2).item() for parameter in net2.parameters()]))
+    #             optimizer.step()
+    #             batch_loss = 0
+
+    #     print("Mode: {}/ loss: {}".format("Initialization", np.mean(loss_list)))
+
     ######################################################
     #                   TRAINING LOOP
     ######################################################
@@ -268,7 +310,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     
             eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
             eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
+            Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-5)
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
