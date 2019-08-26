@@ -277,9 +277,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
             m = G.number_of_edges()
             edge_set = set(range(m))
 
-        A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
-        G_matrix = torch.cat((-torch.eye(m), torch.eye(m), torch.ones(1,m)))
-        h_matrix = torch.cat((torch.zeros(m), torch.ones(m), torch.Tensor([budget])))
+        A_matrix, b_matrix = torch.ones(1,m), torch.Tensor([budget])
+        G_matrix = torch.cat((-torch.eye(m), torch.eye(m)))
+        h_matrix = torch.cat((torch.zeros(m), torch.ones(m)))
 
         # initial_coverage_prob = np.random.rand(nx.number_of_edges(G))
         # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget * 0.1
@@ -294,7 +294,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         # print('optimization time:', time.time() - start_time)
 
         if training_mode:
-            solver_option = 'gurobi'
+            solver_option = 'default'
             if solver_option == 'default':
                 qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
             else:
@@ -432,7 +432,7 @@ if __name__=='__main__':
     
     N_EPOCHS = args.epochs
     LR = args.learning_rate # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
-    BATCH_SIZE = 1
+    BATCH_SIZE = 5
     OPTIMIZER = 'adam'
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     FIXED_GRAPH = args.fixed_graph
@@ -474,7 +474,7 @@ if __name__=='__main__':
     time2 =time.time()
     if time_analysis:
         cprint (("DATA GENERATION: ", time2-time1), 'red')
-    np.random.shuffle(train_data)
+
     np.random.shuffle(train_data)
 
     print ("Training method: {}".format(training_method))

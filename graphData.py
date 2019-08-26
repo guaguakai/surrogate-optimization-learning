@@ -280,7 +280,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
                 for s in sources:
                     for t in targets:
                         dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t)) # TODO
-                if min_dist_src_target>max((diameter/2.0),1):
+                if min_dist_src_target > 2:
                     src_target_is_ok=True
                 
                 
@@ -361,7 +361,8 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
 
     # GENERATE EDGE PROBABILITIES 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    exponential_term = torch.exp(- omega * coverage_prob_matrix) * torch.exp(phi) * adj
+    exponential_term = torch.exp(- omega * coverage_prob_matrix + phi) * adj
+    # exponential_term = torch.exp(- omega * coverage_prob_matrix) * torch.exp(phi) * adj
     transition_probs = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
             
     return transition_probs

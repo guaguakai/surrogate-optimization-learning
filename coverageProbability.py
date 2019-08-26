@@ -61,8 +61,8 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
     # Bounds and constraints
     bounds=[(0.0,1.0) for _ in edge_set]
 
-    ineq_fn = lambda x: budget - sum(x)
-    constraints=[{'type':'ineq','fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)}]
+    eq_fn = lambda x: budget - sum(x)
+    constraints=[{'type':'eq','fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
     
     # Optimization step
     coverage_prob_optimal= minimize(objective_function_matrix_form,initial_coverage_prob,args=(G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega, np), method=method, jac=dobj_dx_matrix_form, bounds=bounds, constraints=constraints, tol=tol, options=options)
