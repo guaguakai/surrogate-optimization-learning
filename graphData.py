@@ -279,8 +279,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
                 min_dist_src_target=diameter # Temporary large assignment
                 for s in sources:
                     for t in targets:
-                        dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t)) # TODO
-                if min_dist_src_target > 2:
+                        min_dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t)) # TODO
+                if min_dist_src_target > 0:
                     src_target_is_ok=True
                 
                 
@@ -409,7 +409,7 @@ def generateSyntheticData(node_feature_size, omega=4,
 
     # initialization
     data=[] # aggregate all the data first then split into training and testing
-    generated_node_feature_size = node_feature_size * 2
+    generated_node_feature_size = node_feature_size
     net3= featureGenerationNet2(generated_node_feature_size)
     # net3= featureGenerationNet2(node_feature_size)
     n_samples = n_graphs * samples_per_graph
@@ -533,7 +533,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             # Generate features from phi values
             Fv_torch = net3.forward(phi.view(-1,1), edge_index)
             Fv = Fv_torch.detach().numpy()
-            Fv = Fv[:,random_feature_indices]
+            # Fv = Fv[:,random_feature_indices]
             
             # EXACT EDGE PROBS
             biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi, omega=omega)

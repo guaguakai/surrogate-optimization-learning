@@ -15,7 +15,7 @@ import torch
 import autograd
 from gurobipy import *
 
-REG = 0.00
+REG = 0.01
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
@@ -54,15 +54,15 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
 
     # Randomly initialize coverage probability distribution
     if initial_coverage_prob is None:
-        # initial_coverage_prob=np.random.rand(nx.number_of_edges(G))
-        # initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
-        initial_coverage_prob = np.zeros(len(edge_set))
+        initial_coverage_prob=np.random.rand(len(edge_set))
+        initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+        # initial_coverage_prob = np.zeros(len(edge_set))
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for _ in edge_set]
 
     eq_fn = lambda x: budget - sum(x)
-    constraints=[{'type':'eq','fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
+    constraints=[{'type': 'eq','fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
     
     # Optimization step
     coverage_prob_optimal= minimize(objective_function_matrix_form,initial_coverage_prob,args=(G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega, np), method=method, jac=dobj_dx_matrix_form, bounds=bounds, constraints=constraints, tol=tol, options=options)
@@ -101,7 +101,7 @@ def get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs, U, initial_distribu
 def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, edge_set, omega=4, lib=torch):
     n = len(G.nodes)
     targets = list(G.graph["targets"]) + [n] # adding the caught node
-    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)])
+    transient_vector = list(set(range(n)) - set(targets))
 
     # COVERAGE PROBABILITY MATRIX
     coverage_prob_matrix=torch.zeros((n,n))
@@ -119,8 +119,12 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
     state_prob = marginal_prob * (1 - coverage_prob_matrix)
     caught_prob = 1 - torch.sum(state_prob, keepdim=True, dim=1)
     full_prob = torch.cat((state_prob, caught_prob), dim=1)
-    Q = full_prob[transient_vector[:-1].type(torch.bool)][:,transient_vector.type(torch.bool)]
-    R = full_prob[transient_vector[:-1].type(torch.bool)][:,(1 - transient_vector).type(torch.bool)]
+
+    Q = full_prob[transient_vector][:,transient_vector]
+    R = full_prob[transient_vector][:,targets]
+
+    # Q = full_prob[transient_vector[:-1].type(torch.bool)][:,transient_vector.type(torch.bool)]
+    # R = full_prob[transient_vector[:-1].type(torch.bool)][:,(1 - transient_vector).type(torch.bool)]
     N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
     B = N @ R
     obj = torch.Tensor(initial_distribution) @ B @ torch.Tensor(U)
@@ -133,7 +137,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
 def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, edge_set, omega=4, lib=torch):
     n = len(G.nodes)
     targets = list(G.graph["targets"]) + [n] # adding the caught node
-    transient_vector = torch.Tensor([0 if v in targets else 1 for v in range(n+1)])
+    transient_vector = list(set(range(n)) - set(targets))
 
     # COVERAGE PROBABILITY MATRIX
     # start_time = time.time()
@@ -153,8 +157,12 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     state_prob = marginal_prob * (1 - coverage_prob_matrix)
     caught_prob = torch.sum(marginal_prob * coverage_prob_matrix, keepdim=True, dim=1)
     full_prob = torch.cat((state_prob, caught_prob), dim=1)
-    Q = full_prob[transient_vector[:-1].type(torch.bool)][:,transient_vector.type(torch.bool)]
-    R = full_prob[transient_vector[:-1].type(torch.bool)][:,(1 - transient_vector).type(torch.bool)]
+
+    Q = full_prob[transient_vector][:,transient_vector]
+    R = full_prob[transient_vector][:,targets]
+
+    # Q = full_prob[transient_vector[:-1].type(torch.bool)][:,transient_vector.type(torch.bool)]
+    # R = full_prob[transient_vector[:-1].type(torch.bool)][:,(1 - transient_vector).type(torch.bool)]
     N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
     B = N @ R
 
@@ -201,8 +209,11 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
 
     dcaught_dx = -torch.sum(dstate_dx, keepdim=True, dim=1)
     dfull_dx = torch.cat((dstate_dx, dcaught_dx), dim=1)
-    dQ_dx = dfull_dx[transient_vector[:-1].type(torch.bool)][:,transient_vector.type(torch.bool),:]
-    dR_dx = dfull_dx[transient_vector[:-1].type(torch.bool)][:,(1 - transient_vector).type(torch.bool),:]
+    dQ_dx = dfull_dx[transient_vector][:,transient_vector,:]
+    dR_dx = dfull_dx[transient_vector][:,targets,:]
+
+    # dQ_dx = dfull_dx[transient_vector[:-1].type(torch.bool)][:,transient_vector.type(torch.bool),:]
+    # dR_dx = dfull_dx[transient_vector[:-1].type(torch.bool)][:,(1 - transient_vector).type(torch.bool),:]
     # NdQ_dx = torch.einsum("ab,bcd->acd", N, dQ_dx)
     # NdQ_dxNR = torch.einsum("abc,bd->adc", NdQ_dx, (N @ R))
     # NdR_dx = torch.einsum("ab,bcd->acd", N, dR_dx)
