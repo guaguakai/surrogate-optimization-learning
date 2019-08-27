@@ -201,12 +201,15 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # print(batch_loss)
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
-                    batch_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                    try:
+                        batch_loss.backward()
+                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
                     # print(torch.norm(net2.gcn1.weight.grad))
                     # print(torch.norm(net2.gcn2.weight.grad))
                     # print(torch.norm(net2.fc1.weight.grad))
-                    optimizer.step()
+                        optimizer.step()
+                    except:
+                        print("no grad is backpropagated...")
                     batch_loss = 0
 
                 # print('running time for optimization:', time.time() - start_time)
