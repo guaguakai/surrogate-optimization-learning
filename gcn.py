@@ -116,8 +116,8 @@ class GCNPredictionNet2(nn.Module):
         x = x - torch.mean(x)
 
         # only allow attractiveness value between -10 ~ 10
-        # x = -nn.Softplus()(-x + 10) + 10
-        # x =  nn.Softplus()(x + 10) - 10
+        x = -nn.Softplus()(-x + 10) + 10
+        x =  nn.Softplus()(x + 10) - 10
         # x = x / (torch.std(x))
         # x = nn.ReLU6()(x)
 
