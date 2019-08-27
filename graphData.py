@@ -13,7 +13,7 @@ import copy
 import matplotlib.pyplot as plt
 
 from gcn import *
-from coverageProbability import prob2unbiased, phi2prob
+from coverageProbability import prob2unbiased, phi2prob, generate_EdgeProbs_from_Attractiveness
 
 # Random Seed Initialization
 # SEED = 1289 #  random.randint(0,10000)
@@ -350,22 +350,6 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
 #     #print ("Path probs:", path_probs, sum(path_probs))
 #     
 #     return path_probs
-
-def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
-    N=nx.number_of_nodes(G) 
-    coverage_prob_matrix=torch.zeros((N,N))
-    for i, e in enumerate(list(G.edges())):
-        #G.edge[e[0]][e[1]]['coverage_prob']=coverage_prob[i]
-        coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
-        coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
-
-    # GENERATE EDGE PROBABILITIES 
-    adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    exponential_term = torch.exp(- omega * coverage_prob_matrix + phi) * adj
-    # exponential_term = torch.exp(- omega * coverage_prob_matrix) * torch.exp(phi) * adj
-    transition_probs = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
-            
-    return transition_probs
 
 def attackerOracle(G, coverage_probs, phi, omega=4, num_paths=100):
     N=nx.number_of_nodes(G) 

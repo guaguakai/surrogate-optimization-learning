@@ -20,7 +20,7 @@ from gcn import GCNPredictionNet2
 from graphData import *
 from coverageProbability import *
 from obsoleteCode import *
-from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
+# from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 import qpthlocal
 
 def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
@@ -31,7 +31,7 @@ def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
     return full_coverage
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, restrict_mincut=True):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=1, restrict_mincut=True):
 
     
     time1=time.time()
@@ -55,44 +55,55 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     ######################################################
     #                   Pre-train Loop
     ######################################################
-    # for epoch in range(0, 10):
-    #     net2.train()
-    #     dataset = train_data
-    #     batch_loss = 0
-    #     loss_list = []
-    #     for iter_n in tqdm.trange(len(dataset)):
-    #         ################################### Gather data based on learning model
-    #         G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
-    #         
-    #         ################################### Compute edge probabilities
-    #         Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
-    #         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
-    #         phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
+    for epoch in range(0, 0):
+        net2.train()
+        dataset = train_data
+        batch_loss = 0
+        loss_list = []
+        for iter_n in tqdm.trange(len(dataset)):
+            ################################### Gather data based on learning model
+            G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
+            
+            ################################### Compute edge probabilities
+            Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
+            edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
+            phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
 
-    #         unbiased_probs_pred = phi2prob(G, phi_pred)
-    #         biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
-    #         
-    #         ################################### Compute loss
-    #         log_prob_pred = torch.zeros(1)
-    #         for path in path_list:
-    #             for e in path: 
-    #                 log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
-    #         log_prob_pred /= len(path_list)
-    #         loss = log_prob_pred - log_prob
+            unbiased_probs_pred = phi2prob(G, phi_pred)
+            biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+            
+            ################################### Compute loss
+            log_prob_pred = torch.zeros(1)
+            for path in path_list:
+                for e in path: 
+                    log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
+            log_prob_pred /= len(path_list)
+            loss = log_prob_pred - log_prob
+            print(phi_pred)
+            print(loss)
 
-    #         single_data = dataset[iter_n]
-    #         
-    #         batch_loss += loss
-    #         loss_list.append(loss.item())
+            single_data = dataset[iter_n]
+            
+            batch_loss += loss
+            loss_list.append(loss.item())
+            if torch.isnan(loss):
+                print(phi_pred)
+                print(unbiased_probs_pred)
+                print(biased_probs_pred)
+                raise ValueError('loss is nan!')
 
-    #         if (iter_n%batch_size == (batch_size-1)):
-    #             optimizer.zero_grad()
-    #             batch_loss.backward()
-    #             # print(np.mean([parameter.grad.norm(2).item() for parameter in net2.parameters()]))
-    #             optimizer.step()
-    #             batch_loss = 0
+            if (iter_n%batch_size == (batch_size-1)):
+                try:
+                    optimizer.zero_grad()
+                    batch_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                    # print(np.mean([parameter.grad.norm(2).item() for parameter in net2.parameters()]))
+                    optimizer.step()
+                except:
+                    print("no grad is backpropagated...")
+                batch_loss = 0
 
-    #     print("Mode: {}/ loss: {}".format("Initialization", np.mean(loss_list)))
+        print("Mode: {}/ loss: {}".format("Initialization", np.mean(loss_list)))
 
     ######################################################
     #                   TRAINING LOOP
@@ -188,6 +199,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     batch_loss += loss
                     if torch.isnan(loss):
                         print(phi_pred)
+                        print(unbiased_probs_pred)
                         print(biased_probs_pred)
                         raise ValueError('loss is nan!')
                         # print(phi_pred)
@@ -204,9 +216,9 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     try:
                         batch_loss.backward()
                         torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
-                    # print(torch.norm(net2.gcn1.weight.grad))
-                    # print(torch.norm(net2.gcn2.weight.grad))
-                    # print(torch.norm(net2.fc1.weight.grad))
+                        # print(torch.norm(net2.gcn1.weight.grad))
+                        # print(torch.norm(net2.gcn2.weight.grad))
+                        # print(torch.norm(net2.fc1.weight.grad))
                         optimizer.step()
                     except:
                         print("no grad is backpropagated...")
@@ -340,7 +352,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         coverage_qp_solution = pred_optimal_coverage
 
     pred_obj_value = objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)
-    if pred_obj_value < 0: # unknown ERROR # TODO
+    if pred_obj_value < -0.1: # unknown ERROR # TODO
         print("unknown behavior happened...")
         print("objective value (SLSQP): {}".format(pred_obj_value))
         coverage_qp_solution = torch.Tensor(initial_coverage_prob)
