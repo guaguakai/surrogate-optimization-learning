@@ -55,7 +55,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     ######################################################
     #                   Pre-train Loop
     ######################################################
-    for epoch in range(0, 0):
+    for epoch in range(0, 3):
         net2.train()
         dataset = train_data
         batch_loss = 0
