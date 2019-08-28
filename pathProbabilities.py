@@ -314,7 +314,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
 
     if training_mode:
         try:
-            solver_option = 'gurobi'
+            solver_option = 'default'
             if solver_option == 'default':
                 qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
             else:
