@@ -31,7 +31,7 @@ def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
     return full_coverage
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=1, restrict_mincut=True):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, restrict_mincut=True):
 
     
     time1=time.time()
@@ -79,8 +79,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
             log_prob_pred /= len(path_list)
             loss = log_prob_pred - log_prob
-            print(phi_pred)
-            print(loss)
 
             single_data = dataset[iter_n]
             
@@ -108,6 +106,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     ######################################################
     #                   TRAINING LOOP
     ######################################################
+    beginning_time = time.time()
     time3 = time.time()
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility\n")
@@ -245,25 +244,25 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
             f_save.write("{}, {}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list), np.mean(fast_obj_list)))
         
-        time4=time.time()
         if time_analysis:
+            time4 = time.time()
             cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
+            time3 = time4
         average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
         average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
 
-        # ============== using results on validation set to choose solution ===============
-        if training_method == "two-stage":
-            max_epoch = np.argmax(validating_loss_list) # choosing based on loss
-            final_loss = testing_loss_list[max_epoch]
-            final_defender_utility = testing_defender_utility_list[max_epoch]
-        else:
-            max_epoch = np.argmax(validating_defender_utility_list) # choosing based on defender utility
-            final_loss = testing_loss_list[max_epoch]
-            final_defender_utility = testing_defender_utility_list[max_epoch]
+    # ============== using results on validation set to choose solution ===============
+    if training_method == "two-stage":
+        max_epoch = np.argmax(validating_loss_list) # choosing based on loss
+        final_loss = testing_loss_list[max_epoch]
+        final_defender_utility = testing_defender_utility_list[max_epoch]
+    else:
+        max_epoch = np.argmax(validating_defender_utility_list) # choosing based on defender utility
+        final_loss = testing_loss_list[max_epoch]
+        final_defender_utility = testing_defender_utility_list[max_epoch]
 
-        f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, time4-time3))
-        f_summary.write("final loss, {}, final defender utility, {}".format(final_loss, final_defender_utility))
-        time3=time4
+    f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, time.time() - beginning_time))
+    f_summary.write("final loss, {}, final defender utility, {}\n".format(final_loss, final_defender_utility))
             
     return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
     
@@ -275,7 +274,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
-    options = {"maxiter": 500, "disp": verbose}
+    options = {"maxiter": 100, "disp": verbose}
     tol = None
     method = "SLSQP"
 
@@ -435,7 +434,7 @@ if __name__=='__main__':
     
     NUMBER_OF_GRAPHS  = args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
-    EMPIRICAL_SAMPLES_PER_INSTANCE = 200
+    EMPIRICAL_SAMPLES_PER_INSTANCE = 100
     NUMBER_OF_SOURCES = args.number_sources
     NUMBER_OF_TARGETS = args.number_targets
     

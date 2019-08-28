@@ -105,15 +105,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
         #         node_phi=np.random.uniform(2, 3) if (node ==12 or node==13) else np.random.uniform(1, 2)
         #     G.node[node]['node_phi']=node_phi
         
-    elif fixed_phi == 3:
-        for i in range(3):
-            for node in range(i*5, i*5+5):
-                lower_bound = possible_ranges[i][0]
-                upper_bound = possible_ranges[i][1]
-                node_phi = np.random.uniform(lower_bound, upper_bound)
-                G.node[node]['node_phi'] = node_phi
-
-    elif fixed_phi == 0 or fixed_phi == 1:
+    else:
         for node in list(G.nodes()):
             # Compute distance from the target: 
             dist_target=min([nx.shortest_path_length(G, source=node, target=target) for target in targets])
@@ -227,7 +219,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
 
     elif fixed_graph == 3:
         sizes = [5, 5, 5]
-        probs = [[0.8, 0.2, 0.2], [0.2, 0.8, 0.2], [0.2, 0.2, 0.7]]
+        probs = [[0.8, 0.2, 0.2], [0.2, 0.8, 0.2], [0.2, 0.2, 0.8]]
         is_connected = False
         while (not is_connected):
             G = nx.stochastic_block_model(sizes, probs)
