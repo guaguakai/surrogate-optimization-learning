@@ -31,7 +31,7 @@ def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
     return full_coverage
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, restrict_mincut=True):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=1, restrict_mincut=True):
 
     
     time1=time.time()
@@ -55,7 +55,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     ######################################################
     #                   Pre-train Loop
     ######################################################
-    for epoch in range(0, 3):
+    for epoch in range(0, 10):
         net2.train()
         dataset = train_data
         batch_loss = 0
@@ -94,7 +94,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 try:
                     optimizer.zero_grad()
                     batch_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
                     # print(np.mean([parameter.grad.norm(2).item() for parameter in net2.parameters()]))
                     optimizer.step()
                 except:
@@ -229,7 +228,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 if training_method == "two-stage":
                     scheduler.step(np.sum(loss_list))
                 elif training_method == "decision-focused":
-                    scheduler.step(np.sum(def_obj_list))
+                    scheduler.step(-np.sum(def_obj_list))
                 else:
                     raise TypeError("Not Implemented Method")
 
@@ -330,7 +329,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     
             eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
             eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = Q_sym - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
+            Q_regularized = Q_sym # - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)

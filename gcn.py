@@ -19,7 +19,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     to decompress this to features of size feature_size,
     
     """
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[8, 16, 16, 4], nn_hidden_layer_sizes=[32, 8]):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[4, 7, 10, 8], nn_hidden_layer_sizes=[8, 16]):
         super(featureGenerationNet2, self).__init__()
         
         self.r1, self.r2, self.r3, self.r4 = gcn_hidden_layer_sizes       
@@ -40,7 +40,7 @@ class featureGenerationNet2(nn.Module): # message passing version
         # self.activation = nn.Softplus()
         self.activation = F.relu
         # self.activation = nn.Sigmoid()
-        self.noise_std = 0.0
+        self.noise_std = 0.2
 
     def forward(self, x, edge_index):
         """
@@ -73,7 +73,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     
 class GCNPredictionNet2(nn.Module):
 
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[5, 10], nn_hidden_layer_sizes=8):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[16, 32], nn_hidden_layer_sizes=64):
         super(GCNPredictionNet2, self).__init__()
         
         r1, r2 = gcn_hidden_layer_sizes
@@ -116,8 +116,8 @@ class GCNPredictionNet2(nn.Module):
         x = x - torch.mean(x)
 
         # only allow attractiveness value between -10 ~ 10
-        x = -nn.Softplus()(-x + 10) + 10
-        x =  nn.Softplus()(x  + 10) - 10
+        # x = -nn.Softplus()(-x + 10) + 10
+        # x =  nn.Softplus()(x  + 10) - 10
         # x = x / (torch.std(x))
         # x = nn.ReLU6()(x)
 
