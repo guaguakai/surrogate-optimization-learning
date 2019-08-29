@@ -55,52 +55,52 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     ######################################################
     #                   Pre-train Loop
     ######################################################
-    for epoch in range(0, 10):
-        net2.train()
-        dataset = train_data
-        batch_loss = 0
-        loss_list = []
-        for iter_n in tqdm.trange(len(dataset)):
-            ################################### Gather data based on learning model
-            G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
-            
-            ################################### Compute edge probabilities
-            Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
-            edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
-            phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
+    # for epoch in range(0, 10):
+    #     net2.train()
+    #     dataset = train_data
+    #     batch_loss = 0
+    #     loss_list = []
+    #     for iter_n in tqdm.trange(len(dataset)):
+    #         ################################### Gather data based on learning model
+    #         G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
+    #         
+    #         ################################### Compute edge probabilities
+    #         Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
+    #         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
+    #         phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
 
-            unbiased_probs_pred = phi2prob(G, phi_pred)
-            biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
-            
-            ################################### Compute loss
-            log_prob_pred = torch.zeros(1)
-            for path in path_list:
-                for e in path: 
-                    log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
-            log_prob_pred /= len(path_list)
-            loss = log_prob_pred - log_prob
+    #         unbiased_probs_pred = phi2prob(G, phi_pred)
+    #         biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+    #         
+    #         ################################### Compute loss
+    #         log_prob_pred = torch.zeros(1)
+    #         for path in path_list:
+    #             for e in path: 
+    #                 log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
+    #         log_prob_pred /= len(path_list)
+    #         loss = log_prob_pred - log_prob
 
-            single_data = dataset[iter_n]
-            
-            batch_loss += loss
-            loss_list.append(loss.item())
-            if torch.isnan(loss):
-                print(phi_pred)
-                print(unbiased_probs_pred)
-                print(biased_probs_pred)
-                raise ValueError('loss is nan!')
+    #         single_data = dataset[iter_n]
+    #         
+    #         batch_loss += loss
+    #         loss_list.append(loss.item())
+    #         if torch.isnan(loss):
+    #             print(phi_pred)
+    #             print(unbiased_probs_pred)
+    #             print(biased_probs_pred)
+    #             raise ValueError('loss is nan!')
 
-            if (iter_n%batch_size == (batch_size-1)):
-                try:
-                    optimizer.zero_grad()
-                    batch_loss.backward()
-                    # print(np.mean([parameter.grad.norm(2).item() for parameter in net2.parameters()]))
-                    optimizer.step()
-                except:
-                    print("no grad is backpropagated...")
-                batch_loss = 0
+    #         if (iter_n%batch_size == (batch_size-1)):
+    #             try:
+    #                 optimizer.zero_grad()
+    #                 batch_loss.backward()
+    #                 # print(np.mean([parameter.grad.norm(2).item() for parameter in net2.parameters()]))
+    #                 optimizer.step()
+    #             except:
+    #                 print("no grad is backpropagated...")
+    #             batch_loss = 0
 
-        print("Mode: {}/ loss: {}".format("Initialization", np.mean(loss_list)))
+    #     print("Mode: {}/ loss: {}".format("Initialization", np.mean(loss_list)))
 
     ######################################################
     #                   TRAINING LOOP
@@ -110,6 +110,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility\n")
 
+    pretrain_epochs = 5
     for epoch in range(-1, n_epochs):
         for mode in ["training", "validating", "testing"]:
             if mode == "training":
@@ -178,7 +179,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         # print("total optimal coverage on the cut: {}, full optimal DefU: {}, fast optimal DefU: {}".format(coverage_on_cut, def_obj, fast_def_obj))
 
                 else:
-                    if training_method == 'decision-focused':
+                    if training_method == 'decision-focused' and epoch > pretrain_epochs:
                         def_obj, def_coverage, simulated_def_obj                = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, training_mode=True)
                         fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False, training_mode=False)
                     else:
@@ -193,7 +194,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 loss_list.append(loss.item())
 
                 # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
-                if training_method == "two-stage":
+                if training_method == "two-stage" or epoch <= pretrain_epochs:
                     batch_loss += loss
                     if torch.isnan(loss):
                         print(phi_pred)
@@ -225,10 +226,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # print('running time for optimization:', time.time() - start_time)
 
             if (epoch > 0) and (mode == "validating"):
-                if training_method == "two-stage":
-                    scheduler.step(np.sum(loss_list))
+                if training_method == "two-stage" or epoch <= pretrain_epochs:
+                    scheduler.step(np.mean(loss_list))
                 elif training_method == "decision-focused":
-                    scheduler.step(-np.sum(def_obj_list))
+                    scheduler.step(-np.mean(def_obj_list))
                 else:
                     raise TypeError("Not Implemented Method")
 
