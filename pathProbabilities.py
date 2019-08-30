@@ -110,7 +110,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility\n")
 
-    pretrain_epochs = 5
+    pretrain_epochs = 0
     for epoch in range(-1, n_epochs):
         for mode in ["training", "validating", "testing"]:
             if mode == "training":
@@ -309,8 +309,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
             break
         print('optimization fails...')
 
-    # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
-    # print('optimization time:', time.time() - start_time)
+        # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
+        # print('optimization time:', time.time() - start_time)
 
     if training_mode:
         try:
@@ -330,7 +330,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     
             eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
             eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = Q_sym # - torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
+            Q_regularized = Q_sym + torch.eye(len(edge_set)) * 10 # min(0, min(eigenvalues)-1)
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
