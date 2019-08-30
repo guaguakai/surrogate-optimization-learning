@@ -118,7 +118,7 @@ class GCNPredictionNet2(nn.Module):
         # only allow attractiveness value between -10 ~ 10
         # x = -nn.Softplus()(-x + 10) + 10
         # x =  nn.Softplus()(x  + 10) - 10
-        x = x / (torch.std(x))
+        # x = x / (torch.std(x))
         # x = nn.ReLU6()(x)
 
         # Now, x is a nX1 tensor consisting of the predicted phi(v,f) for each of the n nodes v.

@@ -31,7 +31,7 @@ def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
     return full_coverage
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=1, restrict_mincut=True):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, restrict_mincut=True):
 
     
     time1=time.time()
@@ -110,7 +110,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility\n")
 
-    pretrain_epochs = 0
+    pretrain_epochs = 20
     for epoch in range(-1, n_epochs):
         for mode in ["training", "validating", "testing"]:
             if mode == "training":
