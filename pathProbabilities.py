@@ -330,7 +330,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     
             eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
             eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = Q_sym + torch.eye(len(edge_set)) * min(0, min(eigenvalues)-1)
+            Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues)+1)
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
