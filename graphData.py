@@ -384,7 +384,7 @@ def generateSyntheticData(node_feature_size, omega=4,
         random.seed(random_seed)
 
     # initialization
-    data=[] # aggregate all the data first then split into training and testing
+    data = [] # aggregate all the data first then split into training and testing
     generated_node_feature_size = node_feature_size
     net3= featureGenerationNet2(generated_node_feature_size)
     # net3= featureGenerationNet2(node_feature_size)
@@ -561,6 +561,14 @@ def generateSyntheticData(node_feature_size, omega=4,
     train_size = int(train_test_split_ratio[0] * len(data))
     validate_size = int(train_test_split_ratio[1] * len(data))
 
+    Fv_training_list = [data[i][1] for i in range(train_size)]
+    Fv_training_features = np.concatenate(Fv_training_list, axis=0) # concatenate all the features
+    Fv_training_mean = np.mean(Fv_training_features)
+    Fv_training_std  = np.std(Fv_training_features)
+
+    for i in range(len(data)): # normalizing based on the training set
+        data[i][1] = (data[i][1] - Fv_training_mean) / Fv_training_std
+    
     training_data, validate_data, testing_data = data[:train_size], data[train_size:train_size+validate_size], data[train_size+validate_size:]
 
     return np.array(training_data), np.array(validate_data), np.array(testing_data)
