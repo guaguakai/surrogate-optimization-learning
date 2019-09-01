@@ -1,4 +1,4 @@
-FILENAME="0901-server"
+FILENAME="0901-server-nonoise"
 BUDGET=3
 NODES=20
 EPOCHS=51
