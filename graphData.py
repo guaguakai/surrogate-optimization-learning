@@ -385,7 +385,7 @@ def generateSyntheticData(node_feature_size, omega=4,
 
     # initialization
     data = [] # aggregate all the data first then split into training and testing
-    generated_node_feature_size = node_feature_size
+    generated_node_feature_size = node_feature_size * 2
     net3= featureGenerationNet2(generated_node_feature_size)
     # net3= featureGenerationNet2(node_feature_size)
     n_samples = n_graphs * samples_per_graph
@@ -509,7 +509,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             # Generate features from phi values
             Fv_torch = net3.forward(phi.view(-1,1), edge_index)
             Fv = Fv_torch.detach().numpy()
-            # Fv = Fv[:,random_feature_indices]
+            Fv = Fv[:,random_feature_indices]
             
             # EXACT EDGE PROBS
             biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi, omega=omega)
