@@ -1,4 +1,4 @@
-FILENAME="0903-server"
+FILENAME="0903-server-noise1"
 BUDGET=2
 NODES=30
 EPOCHS=51
