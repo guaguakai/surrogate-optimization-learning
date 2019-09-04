@@ -40,7 +40,7 @@ class featureGenerationNet2(nn.Module): # message passing version
         # self.activation = nn.Softplus()
         self.activation = F.relu
         # self.activation = nn.Sigmoid()
-        self.noise_std = 1.0
+        self.noise_std = 0.0
 
     def forward(self, x, edge_index):
         """
