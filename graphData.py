@@ -385,7 +385,7 @@ def generateSyntheticData(node_feature_size, omega=4,
 
     # initialization
     data = [] # aggregate all the data first then split into training and testing
-    generated_node_feature_size = node_feature_size * 2
+    generated_node_feature_size = node_feature_size
     net3= featureGenerationNet2(generated_node_feature_size)
     # net3= featureGenerationNet2(node_feature_size)
     n_samples = n_graphs * samples_per_graph
