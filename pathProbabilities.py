@@ -396,6 +396,7 @@ if __name__=='__main__':
     parser.add_argument('--seed', type=int, default=0, help='random seed')
 
     parser.add_argument('--feature-size', type=int, default=5, help='feature size of each node')
+    parser.add_argument('--noise', type=float, default=0, help='noise level of the normalized features (in variance)')
     parser.add_argument('--omega', type=float, default=1, help='risk aversion of the attacker')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
 
@@ -446,6 +447,7 @@ if __name__=='__main__':
     FIXED_GRAPH = args.fixed_graph
     GRAPH_TYPE = "random_graph" if FIXED_GRAPH == 0 else "fixed_graph"
     SEED = args.seed
+    NOISE_LEVEL = args.noise
     if SEED == 0:
         SEED = np.random.randint(1, 100000)
 
@@ -453,10 +455,10 @@ if __name__=='__main__':
     filename = args.filename
     mincut_name = 'mincut' if restrict_mincut else 'global'
     if FIXED_GRAPH == 0:
-        filepath_data    = "results/random/{}_{}_n{}_p{}_b{}_{}.csv"       .format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
-        filepath_figure  = "figures/random/{}_{}_n{}_p{}_b{}_{}.png"       .format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
-        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_{}.csv"  .format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
-        filepath_summary = "results/summary/{}_{}_n{}_p{}_b{}_{}.csv"      .format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, mincut_name)
+        filepath_figure  =      "figures/random/{}_{}_n{}_p{}_b{}_noise{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, mincut_name)
+        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, mincut_name)
+        filepath_summary =     "results/summary/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, mincut_name)
     else:
         filepath_data    = "results/fixed/{}_{}_{}_test.csv"               .format(filename, training_method, mincut_name)
         filepath_figure  = "figures/fixed/{}_{}_{}_test.png"               .format(filename, training_method, mincut_name)
@@ -477,7 +479,7 @@ if __name__=='__main__':
             fixed_graph=FIXED_GRAPH, omega=OMEGA,
             N_low=GRAPH_N_LOW, N_high=GRAPH_N_HIGH, e_low=GRAPH_E_PROB_LOW, e_high=GRAPH_E_PROB_HIGH,
             budget=DEFENDER_BUDGET, n_sources=NUMBER_OF_SOURCES, n_targets=NUMBER_OF_TARGETS,
-            random_seed=SEED)
+            random_seed=SEED, noise_level=NOISE_LEVEL)
     
     time2 =time.time()
     if time_analysis:

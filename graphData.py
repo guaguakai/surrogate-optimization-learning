@@ -374,7 +374,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                           n_graphs=20, samples_per_graph=100, empirical_samples_per_instance=10,
                           fixed_graph=False, path_type='random_walk',
                           N_low=16, N_high=20, e_low=0.6, e_high=0.7, budget=2, train_test_split_ratio=(0.7, 0.1, 0.2),
-                          n_sources=1, n_targets=1, random_seed=0):
+                          n_sources=1, n_targets=1, random_seed=0, noise_level=0):
     
     # Random seed setting
     print("Random seed: {}".format(random_seed))
@@ -565,7 +565,7 @@ def generateSyntheticData(node_feature_size, omega=4,
     Fv_training_features = np.concatenate(Fv_training_list, axis=0) # concatenate all the features
     Fv_training_mean = np.mean(Fv_training_features)
     Fv_training_std  = np.std(Fv_training_features)
-    noise_level = 0.1 # in terms of variance. at most with norm 1
+    # noise_level = 0.1 # in terms of variance. at most with norm 1
 
     for i in range(len(data)): # normalizing based on the training set
         data[i][1] = (data[i][1] - Fv_training_mean) / Fv_training_std * np.sqrt(1 - noise_level) + np.random.normal(size=data[i][1].shape) * np.sqrt(noise_level)
