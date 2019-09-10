@@ -1,9 +1,0 @@
-Random seed, 1
-Random seed, 1
-mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility
-Random seed, 1
-mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility
-training, -1, 0.5307100772857666, 0.0, 0.0, -1.9745854139328003
-validating, -1, 0.5722331047058106, -1.8891801595687867, 0.0, -2.195306921005249
-testing, -1, 0.4808264493942261, -1.6250535726547242, 0.0, -1.8424822688102722
-Random seed, 1
