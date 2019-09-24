@@ -7,7 +7,7 @@ import copy
 import autograd
 
 from graphData import generateSyntheticData, returnGraph, generatePhi
-from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form, phi2prob
+from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, dobj_dx_matrix_form_np, obj_hessian_matrix_form, obj_hessian_matrix_form_np, phi2prob
 
 """
 def objective_function_matrix_form(coverage_probs, G, phi, U, initial_distribution, omega=4, lib=torch):
@@ -213,20 +213,28 @@ if __name__ == "__main__":
     # initial_coverage_prob = torch.zeros(nx.number_of_edges(G), requires_grad=True) / 10
     # initial_coverage_prob.retain_grad()
     coverage_probs = initial_coverage_prob.detach()
-    approximate = True
+    approximate = False
 
     obj_matrix_form = objective_function_matrix_form(initial_coverage_prob, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set=edge_set, omega=omega, approximate=approximate)
     print('objective value:', obj_matrix_form)
 
     # derivatives...
     dobj_dx = dobj_dx_matrix_form(initial_coverage_prob, G, transition_probs, U, initial_distribution, edge_set=edge_set, omega=omega, approximate=approximate)
-    print(dobj_dx)
+    print('torch version:', dobj_dx)
+    dobj_dx_np = dobj_dx_matrix_form_np(initial_coverage_prob.detach().numpy(), G,
+            transition_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(),
+            edge_set=edge_set, omega=omega, approximate=approximate)
+
+    print('np version:', dobj_dx_np)
 
     torch_dobj_dx = torch.autograd.grad(obj_matrix_form, initial_coverage_prob, create_graph=True, retain_graph=True)[0]
-    print(torch_dobj_dx)
+    print('autograd version:', torch_dobj_dx)
     empirical_dobj_dx = torch.zeros(11)
 
     torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, edge_set=edge_set, omega=omega, approximate=approximate)
+    # np_obj_hessian = obj_hessian_matrix_form_np(coverage_probs.detach().numpy(), G,
+    #         transition_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(),
+    #         edge_set=edge_set, omega=omega, approximate=approximate)
 
     eigenvalues, eigenvectors = np.linalg.eig(torch_obj_hessian)
     indices = sorted(enumerate(eigenvalues), reverse=False, key = lambda x: x[1])
