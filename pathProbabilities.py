@@ -32,7 +32,6 @@ def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, restrict_mincut=True):
-
     
     time1=time.time()
     net2= GCNPredictionNet2(feature_size)
@@ -170,17 +169,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     if epoch < start_iteration:
                         def_obj, simulated_def_obj, fast_def_obj = torch.zeros(1), torch.zeros(1), torch.zeros(1)
                     else:
-                        def_obj, def_coverage, simulated_def_obj                = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False,  verbose=False, training_mode=False)
+                        def_obj, def_coverage, simulated_def_obj                = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False, verbose=False, training_mode=False)
                         fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False, training_mode=False)
                         fast_def_obj = fast_def_obj.item()
-                        # print('fast coverage:', fast_def_coverage)
-                        # print('full coverage:', def_coverage)
-                        # coverage_on_cut = np.sum([def_coverage[x].item() for x in cut])
-                        # print("total optimal coverage on the cut: {}, full optimal DefU: {}, fast optimal DefU: {}".format(coverage_on_cut, def_obj, fast_def_obj))
 
                 else:
                     if training_method == 'decision-focused' and epoch > pretrain_epochs:
-                        def_obj, def_coverage, simulated_def_obj                = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, training_mode=True)
+                        def_obj, def_coverage, simulated_def_obj                = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, training_mode=True, approximate=False) # most time-consuming part
                         fast_def_obj, fast_def_coverage, fast_simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=True,  verbose=False, training_mode=False)
                     else:
                         def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
@@ -268,7 +263,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     
 
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False, initial_coverage_prob=None, training_mode=True):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False, initial_coverage_prob=None, training_mode=True, adding_edge=False, approximate=False):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
     
     budget = G.graph['budget']
@@ -301,19 +296,12 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     # if initial_coverage_prob is None:
     #     initial_coverage_prob = np.zeros(len(edge_set))
 
-    start_time = time.time()
-    for tmp_iter in range(1): # no retry
-        pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set) # scipy version
-        pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
-        if pred_optimal_res['success'] == True:
-            break
-        print('optimization fails...')
-
-        # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
-        # print('optimization time:', time.time() - start_time)
+    pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set) # scipy version
+    pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
+    # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
 
     if training_mode:
-        try:
+        # try:
             solver_option = 'default'
             if solver_option == 'default':
                 qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
@@ -323,7 +311,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
 
             start_time = time.time()
     
-            Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+            Q = torch.eye(pred_optimal_coverage.shape[0])
+            # Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, approximate=approximate)
             # print('Hessian computation time:', time.time() - start_time)
             start_time = time.time()
             Q_sym = (Q + Q.t()) / 2
@@ -334,7 +323,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
-            jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
+            jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch, approximate=approximate)
             p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
             # print('computation time 2:', time.time() - start_time)
             start_time = time.time()
@@ -343,9 +332,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
                 coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
             else:
                 coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-        except:
-            print("QP inaccurate error, not backpropagating this instance.")
-            coverage_qp_solution = pred_optimal_coverage
+        # except:
+        #     print("QP inaccurate error, not backpropagating this instance.")
+        #     coverage_qp_solution = pred_optimal_coverage
 
     else:
         coverage_qp_solution = pred_optimal_coverage
@@ -357,7 +346,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
         coverage_qp_solution = torch.Tensor(initial_coverage_prob)
 
     # ========================= Error message =========================
-    if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 0.05): # or 0.01 for GUROBI, 0.1 for qpth
+    if (torch.norm(pred_optimal_coverage - coverage_qp_solution) > 1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - coverage_qp_solution)))
         print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(pred_optimal_coverage)

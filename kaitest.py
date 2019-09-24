@@ -213,19 +213,20 @@ if __name__ == "__main__":
     # initial_coverage_prob = torch.zeros(nx.number_of_edges(G), requires_grad=True) / 10
     # initial_coverage_prob.retain_grad()
     coverage_probs = initial_coverage_prob.detach()
+    approximate = True
 
-    obj_matrix_form = objective_function_matrix_form(initial_coverage_prob, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set=edge_set, omega=omega)
+    obj_matrix_form = objective_function_matrix_form(initial_coverage_prob, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set=edge_set, omega=omega, approximate=approximate)
     print('objective value:', obj_matrix_form)
 
     # derivatives...
-    dobj_dx = dobj_dx_matrix_form(initial_coverage_prob, G, transition_probs, U, initial_distribution, edge_set=edge_set, omega=omega)
+    dobj_dx = dobj_dx_matrix_form(initial_coverage_prob, G, transition_probs, U, initial_distribution, edge_set=edge_set, omega=omega, approximate=approximate)
     print(dobj_dx)
 
     torch_dobj_dx = torch.autograd.grad(obj_matrix_form, initial_coverage_prob, create_graph=True, retain_graph=True)[0]
     print(torch_dobj_dx)
     empirical_dobj_dx = torch.zeros(11)
 
-    torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, edge_set=edge_set, omega=omega)
+    torch_obj_hessian = obj_hessian_matrix_form(coverage_probs, G, transition_probs, U, initial_distribution, edge_set=edge_set, omega=omega, approximate=approximate)
 
     eigenvalues, eigenvectors = np.linalg.eig(torch_obj_hessian)
     indices = sorted(enumerate(eigenvalues), reverse=False, key = lambda x: x[1])
@@ -238,9 +239,9 @@ if __name__ == "__main__":
     input_points_np = np.array([[x1, x2] for x1 in x_axis for x2 in x_axis])
     input_points_torch = [coverage_probs + v1 * x1 + v2 * x2 for (x1,x2) in input_points_np]
 
-    optimal_obj = objective_function_matrix_form(coverage_probs, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set=edge_set, omega=omega).item()
+    optimal_obj = objective_function_matrix_form(coverage_probs, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set=edge_set, omega=omega, approximate=approximate).item()
     print('optimal obj: {}'.format(optimal_obj))
-    labels = np.array([objective_function_matrix_form(x, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set=edge_set, omega=omega).item() - (torch_dobj_dx @ (x - coverage_probs)).item() - optimal_obj for x in input_points_torch])
+    labels = np.array([objective_function_matrix_form(x, G, transition_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set=edge_set, omega=omega, approximate=approximate).item() - (torch_dobj_dx @ (x - coverage_probs)).item() - optimal_obj for x in input_points_torch])
 
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
