@@ -23,15 +23,8 @@ from obsoleteCode import *
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 import qpthlocal
 
-def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
-    full_coverage = np.zeros(number_of_edges)
-    for idx, edge in enumerate(cut):
-        full_coverage[edge] = mincut_coverage[idx].item()
-
-    return full_coverage
-
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, restrict_mincut=True):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1):
     
     time1=time.time()
     net2= GCNPredictionNet2(feature_size)
@@ -107,19 +100,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                start_iteration = - 1 # -1: disable
                 if mode == 'testing' or mode == "validating":
-                    if epoch < start_iteration:
-                        def_obj, simulated_def_obj, fast_def_obj = torch.zeros(1), torch.zeros(1), torch.zeros(1)
-                    else:
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=False, verbose=False, training_mode=False)
-
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False)
                 else:
-                    if training_method == 'decision-focused' and epoch > pretrain_epochs:
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, restrict_mincut=restrict_mincut, verbose=False, training_mode=True) # most time-consuming part
-                    else:
-                        def_obj, simulated_def_obj = torch.zeros(1), torch.zeros(1)
-
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True) # most time-consuming part
                 fast_def_obj = 0
 
                 def_obj_list.append(def_obj.item())
@@ -136,9 +120,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         print(unbiased_probs_pred)
                         print(biased_probs_pred)
                         raise ValueError('loss is nan!')
-                        # print(phi_pred)
-                        # print(log_prob_pred)
-                        # print(biased_probs_pred)
                 elif training_method == "decision-focused":
                     batch_loss += (-def_obj)
                 else:
@@ -202,7 +183,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
     
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restrict_mincut=True, verbose=False, initial_coverage_prob=None, training_mode=True, adding_edge=False):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, adding_edge=False):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
     
     budget = G.graph['budget']
@@ -321,7 +302,6 @@ if __name__=='__main__':
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
 
     parser.add_argument('--distribution', type=int, default=1, help='0 -> random walk distribution, 1 -> empirical distribution')
-    parser.add_argument('--mincut', type=int, default=0, help='0 -> choose from all edges, 1 -> choose from a min-cut')
     parser.add_argument('--method', type=int, default=0, help='0 -> two-stage, 1 -> decision-focused')
     
     args = parser.parse_args()
@@ -336,8 +316,7 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
     training_mode = args.method
     training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
-    restrict_mincut = True if args.mincut == 1 else False
-    print('restrict mincut:', restrict_mincut)
+    print('block version')
 
     feature_size = args.feature_size
     OMEGA = args.omega
@@ -367,17 +346,17 @@ if __name__=='__main__':
 
     ###############################
     filename = args.filename
-    mincut_name = 'mincut' if restrict_mincut else 'global'
+    suffix = 'block'
     if FIXED_GRAPH == 0:
-        filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, mincut_name)
-        filepath_figure  =      "figures/random/{}_{}_n{}_p{}_b{}_noise{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, mincut_name)
-        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, mincut_name)
-        filepath_summary =     "results/summary/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, mincut_name)
+        filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, suffix)
+        filepath_figure  =      "figures/random/{}_{}_n{}_p{}_b{}_noise{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, suffix)
+        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, suffix)
+        filepath_summary =     "results/summary/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, suffix)
     else:
-        filepath_data    = "results/fixed/{}_{}_{}_test.csv"               .format(filename, training_method, mincut_name)
-        filepath_figure  = "figures/fixed/{}_{}_{}_test.png"               .format(filename, training_method, mincut_name)
-        filepath_time    = "results/time/fixed/{}_{}_b{}_{}.csv"           .format(filename, training_method, DEFENDER_BUDGET, mincut_name)
-        filepath_summary = "results/summary/fixed/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, mincut_name)
+        filepath_data    = "results/fixed/{}_{}_{}_test.csv"               .format(filename, training_method, suffix)
+        filepath_figure  = "figures/fixed/{}_{}_{}_test.png"               .format(filename, training_method, suffix)
+        filepath_time    = "results/time/fixed/{}_{}_b{}_{}.csv"           .format(filename, training_method, DEFENDER_BUDGET, suffix)
+        filepath_summary = "results/summary/fixed/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, suffix)
 
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')
@@ -411,7 +390,7 @@ if __name__=='__main__':
                                 train_data, validate_data, test_data, f_save, f_time, f_summary,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
-                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, restrict_mincut=restrict_mincut)
+                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
 
     time4=time.time()
     if time_analysis:
