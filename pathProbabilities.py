@@ -33,7 +33,6 @@ def mincut_coverage_to_full(mincut_coverage, cut, number_of_edges):
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, restrict_mincut=True):
     
-    time1=time.time()
     net2= GCNPredictionNet2(feature_size)
     net2.train()
     if optimizer=='adam':
@@ -49,7 +48,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
     
     print ("Training...") 
-    time2=time.time()
 
     ######################################################
     #                   Pre-train Loop
@@ -301,40 +299,28 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol, edge_set=edge_set)) # Frank Wolfe version
 
     if training_mode:
-        # try:
-            solver_option = 'default'
-            if solver_option == 'default':
-                qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
-            else:
-                qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-                                               zhats=None, slacks=None, nus=None, lams=None)
+        solver_option = 'default'
+        if solver_option == 'default':
+            qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+        else:
+            qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
+                                           zhats=None, slacks=None, nus=None, lams=None)
 
-            start_time = time.time()
+        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, approximate=approximate)
+        Q_sym = (Q + Q.t()) / 2
     
-            # Q = torch.eye(pred_optimal_coverage.shape[0])
-            Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, approximate=approximate)
-            # print('Hessian computation time:', time.time() - start_time)
-            start_time = time.time()
-            Q_sym = (Q + Q.t()) / 2
+        eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
+        eigenvalues = [x.real for x in eigenvalues]
+        Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues)+1)
+        
+        is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
+        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch, approximate=approximate)
+        p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
     
-            eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
-            eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues)+1)
-            # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
-            
-            is_symmetric = np.allclose(Q_sym.numpy(), Q_sym.numpy().T)
-            jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch, approximate=approximate)
-            p = jac.view(1, -1) - pred_optimal_coverage @ Q_regularized
-            # print('computation time 2:', time.time() - start_time)
-            start_time = time.time()
-    
-            if solver_option == 'default':
-                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-            else:
-                coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-        # except:
-        #     print("QP inaccurate error, not backpropagating this instance.")
-        #     coverage_qp_solution = pred_optimal_coverage
+        if solver_option == 'default':
+            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        else:
+            coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
     else:
         coverage_qp_solution = pred_optimal_coverage
@@ -358,7 +344,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, restric
     # ================== Evaluation on the ground truth ===============
     # ======================= Defender Utility ========================
     pred_defender_utility  = -(objective_function_matrix_form(coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
-    # print('QP time:', time.time() - start_time)
     
     # ==================== Actual Defender Utility ====================
     # Running simulations to check the actual defender utility

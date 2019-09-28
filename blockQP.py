@@ -26,7 +26,6 @@ import qpthlocal
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1):
     
-    time1=time.time()
     net2= GCNPredictionNet2(feature_size)
     net2.train()
     if optimizer=='adam':
@@ -75,7 +74,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
             batch_loss = 0
             for iter_n in tqdm.trange(len(dataset)):
                 ################################### Gather data based on learning model
-                start_time = time.time()
                 G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
                 
                 ################################### Compute edge probabilities
@@ -93,9 +91,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
                 log_prob_pred /= len(path_list)
                 loss = log_prob_pred - log_prob
-
-                # print('running time for prediction:', time.time() - start_time)
-                start_time = time.time()
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
@@ -139,8 +134,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         print("no grad is backpropagated...")
                     batch_loss = 0
 
-                # print('running time for optimization:', time.time() - start_time)
-
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage" or epoch <= pretrain_epochs:
                     scheduler.step(np.mean(loss_list))
@@ -160,10 +153,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
             f_save.write("{}, {}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list), np.mean(fast_obj_list)))
         
-        if time_analysis:
-            time4 = time.time()
-            cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
-            time3 = time4
+        time4 = time.time()
+        cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
+        time3 = time4
+
         average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
         average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
 
@@ -223,10 +216,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
                                            zhats=None, slacks=None, nus=None, lams=None)
 
-        start_time = time.time()
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
-        # print('Hessian computation time:', time.time() - start_time)
-        start_time = time.time()
         Q_sym = (Q + Q.t()) / 2
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
@@ -236,8 +226,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
-        # print('computation time 2:', time.time() - start_time)
-        start_time = time.time()
     
         if solver_option == 'default':
             coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
@@ -268,7 +256,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # ================== Evaluation on the ground truth ===============
     # ======================= Defender Utility ========================
     pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
-    # print('QP time:', time.time() - start_time)
     
     # ==================== Actual Defender Utility ====================
     # Running simulations to check the actual defender utility
@@ -309,8 +296,6 @@ if __name__=='__main__':
     ############################# Parameters and settings:
     time1 =time.time()
     
-    time_analysis=True
-
     plot_everything=True
     learning_mode = args.distribution
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
@@ -374,9 +359,8 @@ if __name__=='__main__':
             budget=DEFENDER_BUDGET, n_sources=NUMBER_OF_SOURCES, n_targets=NUMBER_OF_TARGETS,
             random_seed=SEED, noise_level=NOISE_LEVEL)
     
-    time2 =time.time()
-    if time_analysis:
-        cprint (("DATA GENERATION: ", time2-time1), 'red')
+    time2 = time.time()
+    cprint (("DATA GENERATION: ", time2-time1), 'red')
 
     np.random.shuffle(train_data)
 
@@ -393,8 +377,7 @@ if __name__=='__main__':
                                 optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
 
     time4=time.time()
-    if time_analysis:
-        cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')
+    cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')
 
     f_save.close()
 
