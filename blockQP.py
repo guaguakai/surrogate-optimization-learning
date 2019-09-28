@@ -19,7 +19,6 @@ import qpth
 from gcn import GCNPredictionNet2
 from graphData import *
 from blockDerivative import *
-from obsoleteCode import *
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 import qpthlocal
 
