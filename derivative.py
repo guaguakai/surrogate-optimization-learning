@@ -109,8 +109,9 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
     m = nx.number_of_edges(G)
 
     # Randomly initialize coverage probability distribution
-    initial_coverage_prob=np.random.rand(m)
-    initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+    if initial_coverage_prob is None:
+        initial_coverage_prob=np.random.rand(m)
+        initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for _ in range(m)]
@@ -124,16 +125,13 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
     
     return coverage_prob_optimal
 
-def get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs, U, initial_distribution, budget, omega=4, num_iterations=100, initial_coverage_prob=None, tol=0.1, edge_set=None):
-    N=nx.number_of_nodes(G)
-    E=nx.number_of_edges(G)
-
-    if edge_set is None:
-        edge_set = list(range(E))
+def get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs, U, initial_distribution, budget, omega=4, num_iterations=100, initial_coverage_prob=None, tol=0.1):
+    n=nx.number_of_nodes(G)
+    m=nx.number_of_edges(G)
 
     # Randomly initialize coverage probability distribution
     if initial_coverage_prob is None:
-        initial_coverage_prob = np.zeros(len(edge_set))
+        initial_coverage_prob = np.zeros(m)
 
     x = initial_coverage_prob
     for k in range(num_iterations):

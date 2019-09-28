@@ -18,7 +18,7 @@ import qpth
 
 from gcn import GCNPredictionNet2
 from graphData import *
-from blockDerivative import *
+from derivative import *
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 import qpthlocal
 
@@ -43,7 +43,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     beginning_time = time.time()
     time3 = time.time()
 
-    f_save.write("mode, epoch, average loss, defender utility, simulated defender utility, fast defender utility\n")
+    f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
 
     pretrain_epochs = 0
     for epoch in range(-1, n_epochs):
@@ -69,7 +69,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
             else:
                 raise TypeError("Not valid mode: {}".format(mode))
 
-            loss_list, def_obj_list, simulated_def_obj_list, fast_obj_list = [], [], [], [] # fast obj list only used in testing time
+            loss_list, def_obj_list, simulated_def_obj_list = [], [], [] 
             batch_loss = 0
             for iter_n in tqdm.trange(len(dataset)):
                 ################################### Gather data based on learning model
@@ -94,15 +94,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                if mode == 'testing' or mode == "validating":
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False)
+                if mode == 'testing' or mode == "validating" or training_method == "two-stage" or epoch <= 0:
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True) # most time-consuming part
-                fast_def_obj = 0
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
 
                 def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
-                fast_obj_list.append(fast_def_obj)
 
                 loss_list.append(loss.item())
 
@@ -114,7 +112,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         print(unbiased_probs_pred)
                         print(biased_probs_pred)
                         raise ValueError('loss is nan!')
-                elif training_method == "decision-focused":
+                elif training_method == "decision-focused" or training_method == "block-decision-focused":
                     batch_loss += (-def_obj)
                 else:
                     raise TypeError("Not Implemented Method")
@@ -124,7 +122,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     optimizer.zero_grad()
                     try:
                         batch_loss.backward()
-                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                        # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
                         # print(torch.norm(net2.gcn1.weight.grad))
                         # print(torch.norm(net2.gcn2.weight.grad))
                         # print(torch.norm(net2.fc1.weight.grad))
@@ -136,7 +134,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage" or epoch <= pretrain_epochs:
                     scheduler.step(np.mean(loss_list))
-                elif training_method == "decision-focused":
+                elif training_method == "decision-focused" or training_method == "block-decision-focused":
                     scheduler.step(-np.mean(def_obj_list))
                 else:
                     raise TypeError("Not Implemented Method")
@@ -147,10 +145,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
             ################################### Print stuff after every epoch 
             np.random.shuffle(dataset)
-            print("Mode: {}/ Epoch number: {}/ Loss: {}/ DefU: {}/ Simulated DefU: {}/ Fast DefU: {}".format(
-                  mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list), np.mean(fast_obj_list)))
+            print("Mode: {}/ Epoch number: {}/ Loss: {}/ DefU: {}/ Simulated DefU: {}".format(
+                  mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
 
-            f_save.write("{}, {}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list), np.mean(fast_obj_list)))
+            f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
         
         time4 = time.time()
         cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
@@ -175,9 +173,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
     
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, adding_edge=False):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage'):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
     
+    n, m = G.number_of_nodes(), G.number_of_edges()
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
@@ -191,16 +190,20 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge2index[edge] = idx
         edge2index[(edge[1], edge[0])] = idx
 
-    # cut_size = len(edges) // 2
-    cut_size = 10
-    edge_set = sorted(np.random.choice(range(len(edges)), size=cut_size, replace=False))
+    if training_method == 'block-decision-focused':
+        cut_size = 10
+        edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False))
+    else:
+        cut_size = m
+        edge_set = list(range(m))
 
     # full forward path, the decision variables are the entire set of variables
-    initial_coverage_prob = np.random.rand(len(edges))
+    initial_coverage_prob = np.random.rand(m)
     initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
+    # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol)) # Frank Wolfe version
 
     # ========================== QP part ===========================
     A_matrix, b_matrix = torch.ones(1, cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])
@@ -227,8 +230,11 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
     
         if solver_option == 'default':
+            qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
             coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
         else:
+            qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
+                                           zhats=None, slacks=None, nus=None, lams=None)
             coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
         full_coverage_qp_solution = pred_optimal_coverage
@@ -243,7 +249,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         coverage_qp_solution = torch.Tensor(initial_coverage_prob)
 
     # ========================= Error message =========================
-    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 1): # or 0.01 for GUROBI, 0.1 for qpth
+    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
         print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(pred_optimal_coverage)
@@ -298,9 +304,11 @@ if __name__=='__main__':
     plot_everything=True
     learning_mode = args.distribution
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
+
     training_mode = args.method
-    training_method = 'two-stage' if training_mode == 0 else 'decision-focused' # 'two-stage' or 'decision-focused'
-    print('block version')
+    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused'}
+    training_method = method_dict[training_mode]
+    print('training method:', training_method)
 
     feature_size = args.feature_size
     OMEGA = args.omega
@@ -330,17 +338,16 @@ if __name__=='__main__':
 
     ###############################
     filename = args.filename
-    suffix = 'block'
     if FIXED_GRAPH == 0:
-        filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, suffix)
-        filepath_figure  =      "figures/random/{}_{}_n{}_p{}_b{}_noise{}_{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, suffix)
-        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, suffix)
-        filepath_summary =     "results/summary/{}_{}_n{}_p{}_b{}_noise{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL, suffix)
+        filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+        filepath_figure  =      "figures/random/{}_{}_n{}_p{}_b{}_noise{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+        filepath_summary =     "results/summary/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     else:
-        filepath_data    = "results/fixed/{}_{}_{}_test.csv"               .format(filename, training_method, suffix)
-        filepath_figure  = "figures/fixed/{}_{}_{}_test.png"               .format(filename, training_method, suffix)
-        filepath_time    = "results/time/fixed/{}_{}_b{}_{}.csv"           .format(filename, training_method, DEFENDER_BUDGET, suffix)
-        filepath_summary = "results/summary/fixed/{}_{}_n{}_p{}_b{}_{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, suffix)
+        filepath_data    = "results/fixed/{}_{}_test.csv"               .format(filename, training_method)
+        filepath_figure  = "figures/fixed/{}_{}_test.png"               .format(filename, training_method)
+        filepath_time    = "results/time/fixed/{}_{}_b{}.csv"           .format(filename, training_method, DEFENDER_BUDGET)
+        filepath_summary = "results/summary/fixed/{}_{}_n{}_p{}_b{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
 
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')
