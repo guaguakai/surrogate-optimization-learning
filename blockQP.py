@@ -191,7 +191,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge2index[(edge[1], edge[0])] = idx
 
     if training_method == 'block-decision-focused':
-        cut_size = 10
+        cut_size = 20
         edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False))
     else:
         cut_size = m
