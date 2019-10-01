@@ -223,7 +223,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues)+1)
+        Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.1 * max(eigenvalues))
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
