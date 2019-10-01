@@ -94,10 +94,18 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                if mode == 'testing' or mode == "validating" or training_method == "two-stage" or epoch <= 0:
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
+                if mode == 'testing' or mode == "validating": # or training_method == "two-stage" or epoch <= 0:
+                    if training_method == "two-stage":
+                        # def_obj, simulated_def_obj = torch.Tensor([0]), 0 # for two-stage testing only
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
+                    else:
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                    if training_method == "two-stage":
+                        # def_obj, simulated_def_obj = torch.Tensor([0]), 0 # for two-stage testing only
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
+                    else:
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
 
                 def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
@@ -191,7 +199,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge2index[(edge[1], edge[0])] = idx
 
     if training_method == 'block-decision-focused':
-        cut_size = 20
+        cut_size = min(len(min_cut) * 2, m)
         edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False))
     else:
         cut_size = m
@@ -223,7 +231,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.1 * max(eigenvalues))
+        Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1)
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
@@ -301,7 +309,6 @@ if __name__=='__main__':
     ############################# Parameters and settings:
     time1 =time.time()
     
-    plot_everything=True
     learning_mode = args.distribution
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
 

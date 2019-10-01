@@ -19,7 +19,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     to decompress this to features of size feature_size,
     
     """
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[4, 7, 10, 16], nn_hidden_layer_sizes=[16, 4]):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[4, 7, 10, 16], nn_hidden_layer_sizes=[32, 16]):
         super(featureGenerationNet2, self).__init__()
         
         self.r1, self.r2, self.r3, self.r4 = gcn_hidden_layer_sizes       
@@ -64,7 +64,7 @@ class featureGenerationNet2(nn.Module): # message passing version
         x = self.activation(self.fc1(x)) # + self.noise_std * torch.randn(self.r5) 
         x = self.activation(self.fc2(x)) # + self.noise_std * torch.randn(self.r6)
         x = self.fc3(x)
-        x = x + self.noise_std * torch.randn(x.shape)
+        x = x # + self.noise_std * torch.randn(x.shape)
 
 
         # Now, x is a nXr tensor consisting of features for each of the n nodes v.
