@@ -568,7 +568,7 @@ def generateSyntheticData(node_feature_size, omega=4,
     # noise_level = 0.1 # in terms of variance. at most with norm 1
 
     for i in range(len(data)): # normalizing based on the training set
-        data[i][1] = (data[i][1] - Fv_training_mean) / Fv_training_std * np.sqrt(1 - noise_level) + np.random.normal(size=data[i][1].shape) * np.sqrt(noise_level)
+        data[i][1] = (data[i][1] - Fv_training_mean) / Fv_training_std + np.random.normal(size=data[i][1].shape) * noise_level
     
     training_data, validate_data, testing_data = data[:train_size], data[train_size:train_size+validate_size], data[train_size+validate_size:]
 
