@@ -107,6 +107,19 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     else:
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
 
+                # =============== checking gradient manually ===============
+                grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                dobj_dphi = torch.autograd.grad(grad_def_obj, phi_pred)
+                dobj_dxopt = torch.autograd.grad(grad_def_obj, grad_def_coverage)
+                new_phi_pred = phi_pred + dobj_dphi
+
+                # validating
+                new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
+                new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                print('estimated dobj/dopt:', dobj_dxopt)
+                print('revealed dobj/dopt:', new_def_coverage - def_coverage)
+                # ==========================================================
+
                 def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
 
@@ -338,7 +351,7 @@ if __name__=='__main__':
     
     N_EPOCHS = args.epochs
     LR = args.learning_rate # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
-    BATCH_SIZE = 5
+    BATCH_SIZE = 1
     OPTIMIZER = 'adam'
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     FIXED_GRAPH = args.fixed_graph
