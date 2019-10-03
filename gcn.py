@@ -37,8 +37,8 @@ class featureGenerationNet2(nn.Module): # message passing version
         self.gcn3 = Conv(self.r2, self.r3, aggr=aggregation_function_generation)
         self.gcn4 = Conv(self.r3, self.r4, aggr=aggregation_function_generation)
 
-        # self.activation = nn.Softplus()
-        self.activation = F.relu
+        self.activation = nn.Softplus()
+        # self.activation = F.relu
         # self.activation = nn.Sigmoid()
         self.noise_std = 0.0
 
@@ -90,8 +90,8 @@ class GCNPredictionNet2(nn.Module):
         self.fc1 = nn.Linear(r2, n1)
         self.fc2 = nn.Linear(n1, 1)
 
-        # self.activation = nn.Softplus()
-        self.activation = F.relu
+        self.activation = nn.Softplus()
+        # self.activation = F.relu
         # self.activation = nn.Sigmoid()
 
         
