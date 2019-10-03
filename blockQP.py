@@ -79,6 +79,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
                 edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
                 phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
+                phi_pred.require_grad = True
 
                 unbiased_probs_pred = phi2prob(G, phi_pred)
                 biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
@@ -107,18 +108,19 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     else:
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
 
-                # =============== checking gradient manually ===============
-                grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
-                dobj_dphi = torch.autograd.grad(grad_def_obj, phi_pred)
-                dobj_dxopt = torch.autograd.grad(grad_def_obj, grad_def_coverage)
-                new_phi_pred = phi_pred + dobj_dphi
-
-                # validating
-                new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
-                new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
-                print('estimated dobj/dopt:', dobj_dxopt)
-                print('revealed dobj/dopt:', new_def_coverage - def_coverage)
-                # ==========================================================
+                        # =============== checking gradient manually ===============
+                        grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        dobj_dphi = torch.autograd.grad(grad_def_obj, phi_pred, retain_graph=True)[0]
+                        dobj_dxopt = torch.autograd.grad(grad_def_obj, grad_def_coverage)[0]
+                        step_size = 0.001
+                        new_phi_pred = phi_pred + step_size * dobj_dphi
+        
+                        # validating
+                        new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
+                        new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        print('estimated dobj/dopt:', dobj_dxopt)
+                        print('revealed dobj/dopt:', (new_def_coverage - grad_def_coverage) / step_size)
+                        # ==========================================================
 
                 def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
@@ -233,7 +235,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     if training_mode:
         try:
-            solver_option = 'gurobi'
+            solver_option = 'default'
             if solver_option == 'default':
                 qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
             else:
@@ -267,6 +269,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             
     else:
         full_coverage_qp_solution = pred_optimal_coverage
+    full_coverage_qp_solution.require_grad = True
 
     pred_obj_value = objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)
     if pred_obj_value < -0.1: # unknown ERROR # TODO
@@ -282,7 +285,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         print("objective value (QP): {}".format(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(full_coverage_qp_solution)
         full_coverage_qp_solution = pred_optimal_coverage
-
 
     # ================== Evaluation on the ground truth ===============
     # ======================= Defender Utility ========================
