@@ -101,7 +101,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     else:
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
-                    if training_method == "two-stage":
+                    if training_method == "two-stage" or epoch <= pretrain_epochs:
                         # def_obj, simulated_def_obj = torch.Tensor([0]), 0 # for two-stage testing only
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
                     else:
@@ -130,7 +130,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     optimizer.zero_grad()
                     try:
                         batch_loss.backward()
-                        # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
                         # print(torch.norm(net2.gcn1.weight.grad))
                         # print(torch.norm(net2.gcn2.weight.grad))
                         # print(torch.norm(net2.fc1.weight.grad))
@@ -219,34 +219,39 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
     if training_mode:
-        solver_option = 'default'
-        if solver_option == 'default':
-            qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
-        else:
-            qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-                                           zhats=None, slacks=None, nus=None, lams=None)
+        try:
+            solver_option = 'gurobi'
+            if solver_option == 'default':
+                qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+            else:
+                qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
+                                               zhats=None, slacks=None, nus=None, lams=None)
 
-        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
-        Q_sym = (Q + Q.t()) / 2
+            Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+            Q_sym = (Q + Q.t()) / 2
     
-        eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
-        eigenvalues = [x.real for x in eigenvalues]
-        Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1)
-        # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
-        
-        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
-        p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
+            eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
+            eigenvalues = [x.real for x in eigenvalues]
+            Q_regularized = 2 * (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1))
+            # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
+            
+            jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
+            p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
     
-        if solver_option == 'default':
-            qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
-            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-        else:
-            qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-                                           zhats=None, slacks=None, nus=None, lams=None)
-            coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            if solver_option == 'default':
+                qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            else:
+                qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
+                                               zhats=None, slacks=None, nus=None, lams=None)
+                coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
-        full_coverage_qp_solution = pred_optimal_coverage
-        full_coverage_qp_solution[edge_set] = coverage_qp_solution
+            full_coverage_qp_solution = pred_optimal_coverage
+            full_coverage_qp_solution[edge_set] = coverage_qp_solution
+        except:
+            full_coverage_qp_solution = pred_optimal_coverage
+            print("qpth error! Not back-propagating this instance!")
+            
     else:
         full_coverage_qp_solution = pred_optimal_coverage
 
