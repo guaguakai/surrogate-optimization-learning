@@ -126,104 +126,64 @@ def forward_gurobi_prebuilt(Q, p, model, x, inequality_constraints, equality_con
     return model.ObjVal, x_opt, nu, lam, slacks
 
 
-
 class QPSolvers(Enum):
     PDIPM_BATCHED = 1
-    CVXPY = 2
-    GUROBI = 3
-    CUSTOM = 4
-    SSG = 5
-
+    CVXPY         = 2
+    GUROBI        = 3
 
 def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
                  maxIter=20, solver=QPSolvers.PDIPM_BATCHED,
-                 check_Q_spd=True):
-    # def __init__(self, zhats, nus, lams, slacks, eps=1e-12, verbose=0, notImprovedLim=3,
-    #              maxIter=20, solver=QPSolvers.PDIPM_BATCHED, model_params = None, custom_solver=None):
-    #     self.eps = eps
-    #     self.verbose = verbose
-    #     self.notImprovedLim = notImprovedLim
-    #     self.maxIter = maxIter
-    #     self.solver = solver
-    #     self.custom_solver = custom_solver
-    #     self.zhats = zhats
-    #     self.nus = nus
-    #     self.lams = lams
-    #     self.slacks = slacks
-#   #      self.constant_constraints = constant_constraints
-
-    #     if model_params is not None:
-#   #      if constant_constraints:
-#   #          self.A = A
-#   #          self.b = b
-#   #          self.G = G
-#   #          self.h = h
-#   #          A_arg = A.detach().numpy() if A is not None else None
-#   #          b_arg = b.detach().numpy() if b is not None else None
-#   #          G_arg = G.detach().numpy() if G is not None else None
-#   #          h_arg = h.detach().numpy() if h is not None else None
-#   #          Q_arg = Q.detach().numpy() if Q is not None else None
-#   #          model, x, inequality_constraints, equality_constraints, obj = make_gurobi_model(G_arg,
-#   #                                                      h_arg, A_arg, b_arg, Q_arg)
-    #         model, x, inequality_constraints, equality_constraints, obj = model_params
-    #         self.model = model
-    #         self.x = x
-    #         self.inequality_constraints = inequality_constraints
-    #         self.equality_constraints = equality_constraints
-    #         self.quadobj = obj
-    #     else:
-    #         self.model = None
-
+                 check_Q_spd=True, model=None):
     class QPFunctionFn(Function):
         @staticmethod
         def forward(ctx, Q_, p_, G_, h_, A_, b_):
             """Solve a batch of QPs.
-    
+
             This function solves a batch of QPs, each optimizing over
             `nz` variables and having `nineq` inequality constraints
             and `neq` equality constraints.
             The optimization problem for each instance in the batch
             (dropping indexing from the notation) is of the form
-    
+
                 \hat z =   argmin_z 1/2 z^T Q z + p^T z
-                         subject to Gz <= h
+                        subject to Gz <= h
                                     Az  = b
-    
+
             where Q \in S^{nz,nz},
-                  S^{nz,nz} is the set of all positive semi-definite matrices,
-                  p \in R^{nz}
-                  G \in R^{nineq,nz}
-                  h \in R^{nineq}
-                  A \in R^{neq,nz}
-                  b \in R^{neq}
-    
+                S^{nz,nz} is the set of all positive semi-definite matrices,
+                p \in R^{nz}
+                G \in R^{nineq,nz}
+                h \in R^{nineq}
+                A \in R^{neq,nz}
+                b \in R^{neq}
+
             These parameters should all be passed to this function as
             Variable- or Parameter-wrapped Tensors.
             (See torch.autograd.Variable and torch.nn.parameter.Parameter)
-    
+
             If you want to solve a batch of QPs where `nz`, `nineq` and `neq`
             are the same, but some of the contents differ across the
             minibatch, you can pass in tensors in the standard way
             where the first dimension indicates the batch example.
             This can be done with some or all of the coefficients.
-    
+
             You do not need to add an extra dimension to coefficients
             that will not change across all of the minibatch examples.
             This function is able to infer such cases.
-    
+
             If you don't want to use any equality or inequality constraints,
             you can set the appropriate values to:
-    
+
                 e = Variable(torch.Tensor())
-    
+
             Parameters:
-              Q:  A (nBatch, nz, nz) or (nz, nz) Tensor.
-              p:  A (nBatch, nz) or (nz) Tensor.
-              G:  A (nBatch, nineq, nz) or (nineq, nz) Tensor.
-              h:  A (nBatch, nineq) or (nineq) Tensor.
-              A:  A (nBatch, neq, nz) or (neq, nz) Tensor.
-              b:  A (nBatch, neq) or (neq) Tensor.
-    
+            Q:  A (nBatch, nz, nz) or (nz, nz) Tensor.
+            p:  A (nBatch, nz) or (nz) Tensor.
+            G:  A (nBatch, nineq, nz) or (nineq, nz) Tensor.
+            h:  A (nBatch, nineq) or (nineq) Tensor.
+            A:  A (nBatch, neq, nz) or (neq, nz) Tensor.
+            b:  A (nBatch, neq) or (neq) Tensor.
+
             Returns: \hat z: a (nBatch, nz) Tensor.
             """
             nBatch = extract_nBatch(Q_, p_, G_, h_, A_, b_)
@@ -233,28 +193,35 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
             h, _ = expandParam(h_, nBatch, 2)
             A, _ = expandParam(A_, nBatch, 3)
             b, _ = expandParam(b_, nBatch, 2)
-    
+
+            if check_Q_spd:
+                for i in range(nBatch):
+                    e, _ = torch.eig(Q[i])
+                    if not torch.all(e[:,0] > 0):
+                        raise RuntimeError('Q is not SPD.')
+
             _, nineq, nz = G.size()
             neq = A.size(1) if A.nelement() > 0 else 0
             assert(neq > 0 or nineq > 0)
             ctx.neq, ctx.nineq, ctx.nz = neq, nineq, nz
-    
-            if ctx.solver == QPSolvers.PDIPM_BATCHED:
+
+            if solver == QPSolvers.PDIPM_BATCHED:
                 ctx.Q_LU, ctx.S_LU, ctx.R = pdipm_b.pre_factor_kkt(Q, G, A)
                 zhats, ctx.nus, ctx.lams, ctx.slacks = pdipm_b.forward(
                     Q, p, G, h, A, b, ctx.Q_LU, ctx.S_LU, ctx.R,
-                    ctx.eps, ctx.verbose, ctx.notImprovedLim, ctx.maxIter)
-            elif ctx.solver == QPSolvers.CVXPY:
+                    eps, verbose, notImprovedLim, maxIter)
+            elif solver == QPSolvers.CVXPY:
                 vals = torch.Tensor(nBatch).type_as(Q)
                 zhats = torch.Tensor(nBatch, ctx.nz).type_as(Q)
                 lams = torch.Tensor(nBatch, ctx.nineq).type_as(Q)
-                nus = torch.Tensor(nBatch, ctx.neq).type_as(Q)
+                nus = torch.Tensor(nBatch, ctx.neq).type_as(Q) \
+                    if ctx.neq > 0 else torch.Tensor()
                 slacks = torch.Tensor(nBatch, ctx.nineq).type_as(Q)
                 for i in range(nBatch):
                     Ai, bi = (A[i], b[i]) if neq > 0 else (None, None)
                     vals[i], zhati, nui, lami, si = solvers.cvxpy.forward_single_np(
-                        *[x.cpu().detach().numpy() if x is not None else None
-                          for x in (Q[i], p[i], G[i], h[i], Ai, bi)])
+                        *[x.cpu().numpy() if x is not None else None
+                        for x in (Q[i], p[i], G[i], h[i], Ai, bi)])
                     # if zhati[0] is None:
                     #     import IPython, sys; IPython.embed(); sys.exit(-1)
                     zhats[i] = torch.Tensor(zhati)
@@ -262,15 +229,12 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
                     slacks[i] = torch.Tensor(si)
                     if neq > 0:
                         nus[i] = torch.Tensor(nui)
-    
+
                 ctx.vals = vals
                 ctx.lams = lams
                 ctx.nus = nus
                 ctx.slacks = slacks
-                print(slacks.size())
-                print(nus.size())
-                print(lams.size())
-            elif ctx.solver == QPSolvers.GUROBI:
+            elif solver == QPSolvers.GUROBI:
                 vals = torch.Tensor(nBatch).type_as(Q)
                 zhats = torch.Tensor(nBatch, ctx.nz).type_as(Q)
                 lams = torch.Tensor(nBatch, ctx.nineq).type_as(Q)
@@ -281,7 +245,7 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
                 slacks = torch.Tensor(nBatch, ctx.nineq).type_as(Q)
                 for i in range(nBatch):
                     Ai, bi = (A[i], b[i]) if neq > 0 else (None, None)
-                    if ctx.model is None:
+                    if model is None:
                         vals[i], zhati, nui, lami, si = forward_single_np_gurobi(
                             *[x.cpu().detach().numpy() if x is not None else None
                               for x in (Q[i], p[i], G[i], h[i], Ai, bi)])
@@ -298,45 +262,18 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
                     slacks[i] = torch.Tensor(si)
                     if neq > 0:
                         nus[i] = torch.Tensor(nui)
-    
+
                 ctx.vals = vals
                 ctx.lams = lams
                 ctx.nus = nus
                 ctx.slacks = slacks
-            elif ctx.solver == QPSolvers.CUSTOM:
-                vals = torch.Tensor(nBatch).type_as(Q)
-                zhats = torch.Tensor(nBatch, ctx.nz).type_as(Q)
-                lams = torch.Tensor(nBatch, ctx.nineq).type_as(Q)
-                if ctx.neq > 0:
-                    nus = torch.Tensor(nBatch, ctx.neq).type_as(Q)
-                else:
-                    nus = torch.Tensor().type_as(Q)
-                slacks = torch.Tensor(nBatch, ctx.nineq).type_as(Q)
-                for i in range(nBatch):
-                    Ai, bi = (A[i], b[i]) if neq > 0 else (None, None)
-                    if ctx.model is None:
-                        vals[i], zhati, nui, lami, si = ctx.custom_solver(
-                            *[x.cpu().detach().numpy() if x is not None else None
-                              for x in (Q[i], p[i], G[i], h[i], Ai, bi)])
-                    zhats[i] = torch.Tensor(zhati)
-                    lams[i] = torch.Tensor(lami)
-                    slacks[i] = torch.Tensor(si)
-                    if neq > 0:
-                        nus[i] = torch.Tensor(nui)
-    
-                ctx.vals = vals
-                ctx.lams = lams
-                ctx.nus = nus
-                ctx.slacks = slacks
-            elif ctx.solver == QPSolvers.SSG:
-                zhats = ctx.zhats
-                # zhats = self.zhats
+
             else:
                 assert False
-    
+
             ctx.save_for_backward(zhats, Q_, p_, G_, h_, A_, b_)
             return zhats
-    
+
         @staticmethod
         def backward(ctx, dl_dzhat):
             zhats, Q, p, G, h, A, b = ctx.saved_tensors
@@ -347,56 +284,50 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
             h, h_e = expandParam(h, nBatch, 2)
             A, A_e = expandParam(A, nBatch, 3)
             b, b_e = expandParam(b, nBatch, 2)
-    
-            # neq, nineq, nz = self.neq, self.nineq, self.nz
+
+            # neq, nineq, nz = ctx.neq, ctx.nineq, ctx.nz
             neq, nineq = ctx.neq, ctx.nineq
-    
-            if ctx.solver != QPSolvers.PDIPM_BATCHED:
+
+            if solver != QPSolvers.PDIPM_BATCHED:
                 ctx.Q_LU, ctx.S_LU, ctx.R = pdipm_b.pre_factor_kkt(Q, G, A)
-    
+
             # Clamp here to avoid issues coming up when the slacks are too small.
             # TODO: A better fix would be to get lams and slacks from the
             # solver that don't have this issue.
             d = torch.clamp(ctx.lams, min=1e-8) / torch.clamp(ctx.slacks, min=1e-8)
-    
+
             pdipm_b.factor_kkt(ctx.S_LU, ctx.R, d)
             dx, _, dlam, dnu = pdipm_b.solve_kkt(
                 ctx.Q_LU, d, G, A, ctx.S_LU,
                 dl_dzhat, torch.zeros(nBatch, nineq).type_as(G),
                 torch.zeros(nBatch, nineq).type_as(G),
                 torch.zeros(nBatch, neq).type_as(G) if neq > 0 else torch.Tensor())
-    
+
             dps = dx
             dGs = bger(dlam, zhats) + bger(ctx.lams, dx)
             if G_e:
-                dGs = dGs.mean(0).squeeze(0)
+                dGs = dGs.mean(0)
             dhs = -dlam
             if h_e:
-                dhs = dhs.mean(0).squeeze(0)
+                dhs = dhs.mean(0)
             if neq > 0:
                 dAs = bger(dnu, zhats) + bger(ctx.nus, dx)
                 dbs = -dnu
                 if A_e:
-                    dAs = dAs.mean(0).squeeze(0)
+                    dAs = dAs.mean(0)
                 if b_e:
-                    dbs = dbs.mean(0).squeeze(0)
+                    dbs = dbs.mean(0)
             else:
                 dAs, dbs = None, None
             dQs = 0.5 * (bger(dx, zhats) + bger(zhats, dx))
             if Q_e:
-                dQs = dQs.mean(0).squeeze(0)
+                dQs = dQs.mean(0)
             if p_e:
-                dps = dps.mean(0).squeeze(0)
-    
-            grads = (dQs, dps, dGs, dhs, dAs, dbs)
-    
-            del ctx.zhats
-            del ctx.lams
-            del ctx.nus
-            del ctx.slacks
-    
-            return grads
+                dps = dps.mean(0)
 
+            grads = (dQs, dps, dGs, dhs, dAs, dbs)
+
+            return grads
     return QPFunctionFn.apply
 
 

@@ -20,7 +20,7 @@ from gcn import GCNPredictionNet2
 from graphData import *
 from derivative import *
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
-import qpthlocal
+import qpthnew
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1):
@@ -109,17 +109,20 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
 
                         # =============== checking gradient manually ===============
-                        grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
-                        dobj_dphi = torch.autograd.grad(grad_def_obj, phi_pred, retain_graph=True)[0]
-                        dobj_dxopt = torch.autograd.grad(grad_def_obj, grad_def_coverage)[0]
-                        step_size = 0.001
-                        new_phi_pred = phi_pred + step_size * dobj_dphi
+                        # grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        # dobj_dopt = torch.autograd.grad(grad_def_obj, grad_def_coverage, retain_graph=True)[0]
+                        # dobj_dphi = torch.autograd.grad(grad_def_obj, phi_pred, retain_graph=True)[0]
+                        # step_size = 0.001
+                        # new_phi_pred = phi_pred + step_size * dobj_dphi
         
-                        # validating
-                        new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
-                        new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
-                        print('estimated dobj/dopt:', dobj_dxopt)
-                        print('revealed dobj/dopt:', (new_def_coverage - grad_def_coverage) / step_size)
+                        # # validating
+                        # new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
+                        # new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
+                        # # print('estimated dobj/dopt:', dobj_dopt)
+                        # # print('revealed dobj/dopt:', (new_def_coverage - grad_def_coverage) / step_size)
+                        # # print('ratio:', (dobj_dopt / (new_def_coverage - grad_def_coverage) / step_size))
+
+                        # print('dobj: {}, gradient size: {}'.format(new_def_obj - grad_def_obj, torch.norm(dobj_dphi)))
                         # ==========================================================
 
                 def_obj_list.append(def_obj.item())
@@ -143,15 +146,15 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # print(batch_loss)
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
-                    try:
-                        batch_loss.backward()
-                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
-                        # print(torch.norm(net2.gcn1.weight.grad))
-                        # print(torch.norm(net2.gcn2.weight.grad))
-                        # print(torch.norm(net2.fc1.weight.grad))
-                        optimizer.step()
-                    except:
-                        print("no grad is backpropagated...")
+                    # try:
+                    batch_loss.backward()
+                    # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                    # print(torch.norm(net2.gcn1.weight.grad))
+                    # print(torch.norm(net2.gcn2.weight.grad))
+                    # print(torch.norm(net2.fc1.weight.grad))
+                    #     optimizer.step()
+                    # except:
+                    #     print("no grad is backpropagated...")
                     batch_loss = 0
 
             if (epoch > 0) and (mode == "validating"):
@@ -234,13 +237,12 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
     if training_mode:
-        try:
+        # try:
             solver_option = 'default'
             if solver_option == 'default':
-                qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+                qp_solver = qpth.qp.QPFunction()
             else:
-                qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-                                               zhats=None, slacks=None, nus=None, lams=None)
+                qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
 
             Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
             Q_sym = (Q + Q.t()) / 2
@@ -254,18 +256,17 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
     
             if solver_option == 'default':
-                qp_solver = qpthlocal.qp.QPFunction(zhats=None, slacks=None, nus=None, lams=None)
+                qp_solver = qpth.qp.QPFunction()
                 coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
             else:
-                qp_solver = qpthlocal.qp.QPFunction(verbose=verbose, solver=qpthlocal.qp.QPSolvers.GUROBI,
-                                               zhats=None, slacks=None, nus=None, lams=None)
+                qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
                 coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
             full_coverage_qp_solution = pred_optimal_coverage
             full_coverage_qp_solution[edge_set] = coverage_qp_solution
-        except:
-            full_coverage_qp_solution = pred_optimal_coverage
-            print("qpth error! Not back-propagating this instance!")
+        # except:
+        #     full_coverage_qp_solution = pred_optimal_coverage
+        #     print("qpth error! Not back-propagating this instance!")
             
     else:
         full_coverage_qp_solution = pred_optimal_coverage
