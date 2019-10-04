@@ -10,8 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
-file="./results/random/0728adi_decision-focused_n20_p0.3_b2.0_global.csv"
-
 def return_yaxis(filename):
     f = open(filename, 'r')
     max_epochs = 100

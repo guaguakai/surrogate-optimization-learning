@@ -289,8 +289,9 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
             neq, nineq = ctx.neq, ctx.nineq
 
             if solver != QPSolvers.PDIPM_BATCHED:
-                # ctx.Q_LU, ctx.S_LU, ctx.R = pdipm_b.pre_factor_kkt(Q * 2, G, A) # TESTING
                 ctx.Q_LU, ctx.S_LU, ctx.R = pdipm_b.pre_factor_kkt(Q, G, A)
+
+            # ctx.Q_LU, ctx.S_LU, ctx.R = pdipm_b.pre_factor_kkt(Q * 2, G, A) # TESTING
 
             # Clamp here to avoid issues coming up when the slacks are too small.
             # TODO: A better fix would be to get lams and slacks from the
