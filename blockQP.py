@@ -147,12 +147,12 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
                     try:
-                        batch_loss.backward()
-                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
-                        # print(torch.norm(net2.gcn1.weight.grad))
-                        # print(torch.norm(net2.gcn2.weight.grad))
-                        # print(torch.norm(net2.fc1.weight.grad))
-                        optimizer.step()
+                    	batch_loss.backward()
+                    	torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                    	# print(torch.norm(net2.gcn1.weight.grad))
+                    	# print(torch.norm(net2.gcn2.weight.grad))
+                    	# print(torch.norm(net2.fc1.weight.grad))
+                    	optimizer.step()
                     except:
                         print("no grad is backpropagated...")
                     batch_loss = 0
@@ -238,7 +238,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     if training_mode:
         try:
-            solver_option = 'gurobi'
+            solver_option = 'default'
             if solver_option == 'default':
                 qp_solver = qpth.qp.QPFunction()
             else:
