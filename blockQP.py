@@ -146,15 +146,15 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # print(batch_loss)
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
-                    # try:
-                    batch_loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
-                    # print(torch.norm(net2.gcn1.weight.grad))
-                    # print(torch.norm(net2.gcn2.weight.grad))
-                    # print(torch.norm(net2.fc1.weight.grad))
-                    #     optimizer.step()
-                    # except:
-                    #     print("no grad is backpropagated...")
+                    try:
+                        batch_loss.backward()
+                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                        # print(torch.norm(net2.gcn1.weight.grad))
+                        # print(torch.norm(net2.gcn2.weight.grad))
+                        # print(torch.norm(net2.fc1.weight.grad))
+                        optimizer.step()
+                    except:
+                        print("no grad is backpropagated...")
                     batch_loss = 0
 
             if (epoch > 0) and (mode == "validating"):
@@ -237,8 +237,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
     if training_mode:
-        # try:
-            solver_option = 'default'
+        try:
+            solver_option = 'gurobi'
             if solver_option == 'default':
                 qp_solver = qpth.qp.QPFunction()
             else:
@@ -264,9 +264,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
             full_coverage_qp_solution = pred_optimal_coverage
             full_coverage_qp_solution[edge_set] = coverage_qp_solution
-        # except:
-        #     full_coverage_qp_solution = pred_optimal_coverage
-        #     print("qpth error! Not back-propagating this instance!")
+        except:
+            full_coverage_qp_solution = pred_optimal_coverage
+            print("qpth error! Not back-propagating this instance!")
             
     else:
         full_coverage_qp_solution = pred_optimal_coverage
