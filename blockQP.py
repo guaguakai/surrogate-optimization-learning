@@ -23,7 +23,7 @@ from derivative import *
 import qpthnew
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=1):
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
@@ -157,7 +157,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     optimizer.zero_grad()
                     try:
                     	batch_loss.backward()
-                    	# torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                    	torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
                     	# print(torch.norm(net2.gcn1.weight.grad))
                     	# print(torch.norm(net2.gcn2.weight.grad))
                     	# print(torch.norm(net2.fc1.weight.grad))
@@ -258,7 +258,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
             eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
             eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1))
+            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.1))
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
