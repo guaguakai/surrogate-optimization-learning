@@ -1,0 +1,18 @@
+Random seed, 1
+nodes, 40.0, edges, 91.0, epochs, 100, time, 3193.0581800937653
+Random seed, 3
+nodes, 40.0, edges, 73.0, epochs, 100, time, 3427.3275196552277
+Random seed, 8
+nodes, 40.0, edges, 84.0, epochs, 100, time, 3859.35059094429
+Random seed, 7
+nodes, 40.0, edges, 86.0, epochs, 100, time, 4245.0614585876465
+Random seed, 6
+nodes, 40.0, edges, 86.0, epochs, 100, time, 4444.461218595505
+Random seed, 2
+nodes, 40.0, edges, 87.0, epochs, 100, time, 4724.822693824768
+Random seed, 9
+nodes, 40.0, edges, 81.0, epochs, 100, time, 5406.524787187576
+Random seed, 5
+nodes, 40.0, edges, 91.0, epochs, 100, time, 5516.180073976517
+Random seed, 10
+nodes, 40.0, edges, 106.0, epochs, 100, time, 6338.937360048294
