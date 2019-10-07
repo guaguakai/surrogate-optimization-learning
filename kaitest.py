@@ -5,11 +5,10 @@ import torch
 import time
 import copy
 import autograd
-import numdifftools as nd
 
 from graphData import generateSyntheticData, returnGraph, generatePhi
-from blockDerivative import get_optimal_coverage_prob, objective_function_matrix_form
-from blockDerivative import dobj_dx_matrix_form, obj_hessian_matrix_form, phi2prob
+from derivative import get_optimal_coverage_prob, objective_function_matrix_form
+from derivative import dobj_dx_matrix_form, obj_hessian_matrix_form, phi2prob
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, objective_function_matrix_form_np
 # from coverageProbability import dobj_dx_matrix_form, dobj_dx_matrix_form_np, obj_hessian_matrix_form, obj_hessian_matrix_form_np, phi2prob
 

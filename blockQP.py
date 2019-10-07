@@ -247,11 +247,11 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     if training_mode:
         try:
-            solver_option = 'default'
-            if solver_option == 'default':
-                qp_solver = qpthnew.qp.QPFunction()
-            else:
-                qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
+            solver_option = 'gurobi' # don't use default anymore...
+            # if solver_option == 'default':
+            #     qp_solver = qpthnew.qp.QPFunction()
+            # else:
+            qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
 
             Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
             Q_sym = (Q + Q.t()) / 2
@@ -264,12 +264,12 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
             p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
     
-            if solver_option == 'default':
-                qp_solver = qpthnew.qp.QPFunction()
-                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-            else:
-                qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
-                coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            # if solver_option == 'default':
+            #     qp_solver = qpthnew.qp.QPFunction()
+            #     coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            # else:
+            qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
+            coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
             full_coverage_qp_solution = pred_optimal_coverage.clone()
             full_coverage_qp_solution[edge_set] = coverage_qp_solution
