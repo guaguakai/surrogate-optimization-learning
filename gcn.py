@@ -7,8 +7,8 @@ from torch_geometric.nn import GCNConv, GraphConv, SAGEConv, GatedGraphConv
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
 
-aggregation_function_generation = 'add' # either mean or add
-aggregation_function = 'add' # either mean or add
+aggregation_function_generation = 'mean' # either mean or add
+aggregation_function = 'mean' # either mean or add
 
 Conv = GraphConv
 
@@ -19,7 +19,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     to decompress this to features of size feature_size,
     
     """
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[4, 7, 10, 16], nn_hidden_layer_sizes=[32, 16]):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[4, 7, 10, 16], nn_hidden_layer_sizes=[8, 32]):
         super(featureGenerationNet2, self).__init__()
         
         self.r1, self.r2, self.r3, self.r4 = gcn_hidden_layer_sizes       
