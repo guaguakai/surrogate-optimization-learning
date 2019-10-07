@@ -7,8 +7,8 @@ from torch_geometric.nn import GCNConv, GraphConv, SAGEConv, GatedGraphConv
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import add_self_loops, degree
 
-aggregation_function_generation = 'mean' # either mean or add
-aggregation_function = 'mean' # either mean or add
+aggregation_function_generation = 'add' # either mean or add
+aggregation_function = 'add' # either mean or add
 
 Conv = GraphConv
 
