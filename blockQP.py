@@ -260,7 +260,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
             eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
             eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.01))
+            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1))
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
@@ -372,6 +372,7 @@ if __name__=='__main__':
     GRAPH_TYPE = "random_graph" if FIXED_GRAPH == 0 else "fixed_graph"
     SEED = args.seed
     NOISE_LEVEL = args.noise
+    print('noise level: {}'.format(NOISE_LEVEL))
     if SEED == 0:
         SEED = np.random.randint(1, 100000)
 
