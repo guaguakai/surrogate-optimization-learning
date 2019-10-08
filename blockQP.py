@@ -125,7 +125,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         #     new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
                         #     estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
 
-                        # print('dopt_dphi max: {}, estimated max: {}, difference max: {}, difference number: {}'.format(
+                        # print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
                         #     torch.sum(torch.abs(dopt_dphi)),
                         #     torch.sum(torch.abs(estimated_dopt_dphi)),
                         #     torch.sum(torch.abs(dopt_dphi - estimated_dopt_dphi)),
@@ -233,11 +233,14 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge_set = list(range(m))
 
     # full forward path, the decision variables are the entire set of variables
-    initial_coverage_prob = np.random.rand(m)
-    initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
+    initial_coverage_prob = np.zeros(m)
+    # initial_coverage_prob = np.random.rand(m)
+    # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
+    if not pred_optimal_res['success']:
+        print('optimization fails...')
     # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol)) # Frank Wolfe version
 
     # ========================== QP part ===========================
@@ -245,31 +248,30 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
-    if training_mode:
+    if training_mode and pred_optimal_res['success']:
         try:
-            solver_option = 'gurobi' # don't use default anymore...
-            # if solver_option == 'default':
-            #     qp_solver = qpthnew.qp.QPFunction()
-            # else:
-            qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
+            solver_option = 'default'
+            # I seriously don't know wherether to use 'default' or 'gurobi' now...
+            # Gurobi performs well when there is no noise but default performs well when there is noise
+            # But theoretically they should perform roughly the same...
 
             Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
             Q_sym = (Q + Q.t()) / 2
     
             eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
             eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1))
+            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.01))
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
             p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
     
-            # if solver_option == 'default':
-            #     qp_solver = qpthnew.qp.QPFunction()
-            #     coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-            # else:
-            qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
-            coverage_qp_solution = qp_solver(0.5 * Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            if solver_option == 'default':
+                qp_solver = qpthnew.qp.QPFunction()
+                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            else:
+                qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
+                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
             full_coverage_qp_solution = pred_optimal_coverage.clone()
             full_coverage_qp_solution[edge_set] = coverage_qp_solution

@@ -21,7 +21,7 @@ MEAN_REG = 0.00
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    adj_phi = adj * phi - (1 - adj) * 1000 # adding -1000 to all the non-adjacent entries
+    adj_phi = adj * phi - (1 - adj) * 100 # adding -100 to all the non-adjacent entries
     unbiased_probs = torch.nn.Softmax(dim=1)(adj_phi)
     unbiased_probs = unbiased_probs * adj
 
@@ -41,7 +41,7 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
 
     # GENERATE EDGE PROBABILITIES 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    adj_phi = adj * phi - omega * coverage_prob_matrix - (1 - adj) * 1000 # adding -1000 to all the non-adjacent entries
+    adj_phi = adj * phi - omega * coverage_prob_matrix - (1 - adj) * 100 # adding -100 to all the non-adjacent entries
     transition_probs = torch.nn.Softmax(dim=1)(adj_phi)
     transition_probs = transition_probs * adj
 
@@ -110,8 +110,7 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
 
     # Randomly initialize coverage probability distribution
     if initial_coverage_prob is None:
-        initial_coverage_prob=np.random.rand(m)
-        initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+        initial_coverage_prob=np.zeros(m)
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for _ in range(m)]
