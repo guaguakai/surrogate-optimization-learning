@@ -113,7 +113,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         # for i in range(len(def_coverage)):
                         #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
                         #     dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
-                        #     step_size = 0.01
+                        #     step_size = 0.1
 
                         # estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
                         # for i in range(len(phi_pred)):
@@ -233,9 +233,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge_set = list(range(m))
 
     # full forward path, the decision variables are the entire set of variables
-    # initial_coverage_prob = np.zeros(m)
-    initial_coverage_prob = np.random.rand(m)
-    initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
+    initial_coverage_prob = np.zeros(m)
+    # initial_coverage_prob = np.random.rand(m)
+    # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
@@ -267,7 +267,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
     
             if solver_option == 'default':
-                qp_solver = qpthnew.qp.QPFunction()
+                qp_solver = qpth.qp.QPFunction()
                 coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
             else:
                 qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)

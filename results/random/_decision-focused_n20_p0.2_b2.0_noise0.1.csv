@@ -268,3 +268,11 @@ training, 45, 2.855858039855957, -1.5301632260662565, 0.0
 Random seed, 3
 mode, epoch, average loss, defender utility, simulated defender utility
 Random seed, 3
+Random seed, 3
+mode, epoch, average loss, defender utility, simulated defender utility
+training, -1, 0.14781688281467983, -0.30173508365239415, 0.0
+validating, -1, 0.15361616611480713, -0.2381040260195732, 0.0
+testing, -1, 0.15116350054740907, -0.22074571112170815, 0.0
+training, 0, 1.7699962275368826, -2.0132669499942235, 0.0
+validating, 0, 1.8448908090591432, -1.8877371072769165, 0.0
+testing, 0, 1.7540203869342803, -1.8735159993171693, 0.0
