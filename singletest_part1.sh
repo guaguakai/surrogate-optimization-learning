@@ -3,7 +3,7 @@
 # NODES=30
 # EPOCHS=101
 # PROB=0.2
-LR=0.002
+LR=0.005
 
 echo $NODES
 echo $VAR

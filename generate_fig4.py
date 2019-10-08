@@ -92,7 +92,7 @@ if __name__=='__main__':
     filename = args.filename
 
     #f="./results/0808normto10_linearphi_dist_tenruns_fullINIT_decision-focused_n20_p0.3_b2.0_global - Copy.csv"
-    file1 = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, 'decision-focused', GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+    file1 = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, 'block-decision-focused', GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     file2 = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, 'two-stage', GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
 
     #to_plot,x,epochs,=return_yaxis(f)
