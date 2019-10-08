@@ -110,7 +110,8 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
 
     # Randomly initialize coverage probability distribution
     if initial_coverage_prob is None:
-        initial_coverage_prob=np.zeros(m)
+        initial_coverage_prob=np.random.rand(m)
+        initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
     
     # Bounds and constraints
     bounds=[(0.0,1.0) for _ in range(m)]
