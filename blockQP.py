@@ -250,7 +250,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     if training_mode and pred_optimal_res['success']:
         try:
-            solver_option = 'default'
+            solver_option = 'gurobi'
             # I seriously don't know wherether to use 'default' or 'gurobi' now...
             # Gurobi performs well when there is no noise but default performs well when there is noise
             # But theoretically they should perform roughly the same...
