@@ -248,7 +248,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
-    if training_mode and pred_optimal_res['success']:
+    if training_mode and pred_optimal_res['success'] and sum(pred_optimal_coverage[edge_set]) > 0.1:
         try:
             solver_option = 'default'
             # I seriously don't know wherether to use 'default' or 'gurobi' now...
