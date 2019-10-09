@@ -73,7 +73,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     
 class GCNPredictionNet2(nn.Module):
 
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[8, 16], nn_hidden_layer_sizes=32):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[8, 16], nn_hidden_layer_sizes=8):
         super(GCNPredictionNet2, self).__init__()
         
         r1, r2 = gcn_hidden_layer_sizes
