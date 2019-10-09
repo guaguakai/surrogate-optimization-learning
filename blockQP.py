@@ -7,7 +7,7 @@ Created on Wed Apr 17 17:49:05 2019
 
 import torch
 import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau as Scheduler
 import time 
 from termcolor import cprint
 from scipy.stats.stats import pearsonr
@@ -34,7 +34,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     elif optimizer=='adamax':
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
-    scheduler = ReduceLROnPlateau(optimizer, 'min')    
+    scheduler = Scheduler(optimizer, 'min')    
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -225,17 +225,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge2index[edge] = idx
         edge2index[(edge[1], edge[0])] = idx
 
-    if training_method == 'block-decision-focused':
-        cut_size = n // 2 # heuristic
-        edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False))
-    else:
-        cut_size = m
-        edge_set = list(range(m))
-
     # full forward path, the decision variables are the entire set of variables
-    initial_coverage_prob = np.zeros(m)
-    # initial_coverage_prob = np.random.rand(m)
-    # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
+    # initial_coverage_prob = np.zeros(m)
+    initial_coverage_prob = np.random.rand(m)
+    initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
@@ -243,12 +236,23 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         print('optimization fails...')
     # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol)) # Frank Wolfe version
 
+    # ======================== edge set choice =====================
+    # sample_distribution = pred_optimal_coverage.detach().numpy() + 0.1
+    # sample_distribution /= sum(sample_distribution)
+    sample_distribution = np.ones(m) / m
+    if training_method == 'block-decision-focused':
+        cut_size = n # heuristic
+        edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
+    else:
+        cut_size = m
+        edge_set = list(range(m))
     # ========================== QP part ===========================
+
     A_matrix, b_matrix = torch.ones(1, cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])
     G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
-    if training_mode and pred_optimal_res['success'] and sum(pred_optimal_coverage[edge_set]) > 0.1:
+    if training_mode and pred_optimal_res['success']:
         try:
             solver_option = 'default'
             # I seriously don't know wherether to use 'default' or 'gurobi' now...
