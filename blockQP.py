@@ -109,29 +109,29 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
 
                         # =============== checking gradient manually ===============
-                        # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
-                        # for i in range(len(def_coverage)):
-                        #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
-                        #     dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
-                        #     step_size = 0.1
+                        dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
+                        for i in range(len(def_coverage)):
+                            grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                            dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
+                            step_size = 0.1
 
-                        # estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
-                        # for i in range(len(phi_pred)):
-                        #     new_phi_pred = phi_pred.clone()
-                        #     new_phi_pred[i] += step_size
+                        estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
+                        for i in range(len(phi_pred)):
+                            new_phi_pred = phi_pred.clone()
+                            new_phi_pred[i] += step_size
         
-                        #     # validating
-                        #     new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
-                        #     new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
-                        #     estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
+                            # validating
+                            new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
+                            new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
+                            estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
 
-                        # print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
-                        #     torch.sum(torch.abs(dopt_dphi)),
-                        #     torch.sum(torch.abs(estimated_dopt_dphi)),
-                        #     torch.sum(torch.abs(dopt_dphi - estimated_dopt_dphi)),
-                        #     torch.sum(torch.abs(torch.sign(dopt_dphi) - torch.sign(estimated_dopt_dphi))/2)))
-                        #     # torch.max(dopt_dphi - estimated_dopt_dphi)))
-                        # print('difference:', dopt_dphi - estimated_dopt_dphi)
+                        print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
+                            torch.sum(torch.abs(dopt_dphi)),
+                            torch.sum(torch.abs(estimated_dopt_dphi)),
+                            torch.sum(torch.abs(dopt_dphi - estimated_dopt_dphi)),
+                            torch.sum(torch.abs(torch.sign(dopt_dphi) - torch.sign(estimated_dopt_dphi))/2)))
+                            # torch.max(dopt_dphi - estimated_dopt_dphi)))
+                        print('difference:', dopt_dphi - estimated_dopt_dphi)
                         # ==========================================================
 
                 def_obj_list.append(def_obj.item())
@@ -260,7 +260,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
             eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
             eigenvalues = [x.real for x in eigenvalues]
-            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1))
+            reg_const = 0.1 # 0.1 * max(eigenvalues)
+            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
             # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
             
             jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
