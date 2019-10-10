@@ -104,7 +104,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 else:
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         # def_obj, simulated_def_obj = torch.Tensor([0]), 0 # for two-stage testing only
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
                     else:
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
 
@@ -113,7 +113,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         # for i in range(len(def_coverage)):
                         #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
                         #     dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
-                        #     step_size = 0.1
+                        #     step_size = 0.01
 
                         # estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
                         # for i in range(len(phi_pred)):
@@ -241,7 +241,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # sample_distribution /= sum(sample_distribution)
     sample_distribution = np.ones(m) / m
     if training_method == 'block-decision-focused':
-        cut_size = n // 2 # heuristic
+        cut_size = n // 3 # heuristic
         edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
     else:
         cut_size = m
@@ -252,7 +252,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
-    if training_mode and pred_optimal_res['success'] and sum(pred_optimal_coverage[edge_set]) > 0.1:
+    if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
         try:
             solver_option = 'default'
             # I seriously don't know wherether to use 'default' or 'gurobi' now...
