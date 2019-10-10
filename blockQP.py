@@ -7,7 +7,7 @@ Created on Wed Apr 17 17:49:05 2019
 
 import torch
 import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau as Scheduler
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import time 
 from termcolor import cprint
 from scipy.stats.stats import pearsonr
@@ -34,7 +34,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     elif optimizer=='adamax':
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
-    scheduler = Scheduler(optimizer, 'min')    
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.9, min_lr=0.0001)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -241,7 +241,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # sample_distribution /= sum(sample_distribution)
     sample_distribution = np.ones(m) / m
     if training_method == 'block-decision-focused':
-        cut_size = n // 3 # heuristic
+        cut_size = n // 2 # heuristic
         edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
     else:
         cut_size = m
