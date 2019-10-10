@@ -15,7 +15,7 @@ import torch
 import autograd
 from gurobipy import *
 
-REG = 0.00
+REG = 0.01
 MEAN_REG = 0.00
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later

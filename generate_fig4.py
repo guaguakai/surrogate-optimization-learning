@@ -12,7 +12,7 @@ import argparse
 
 def return_yaxis(filename):
     f = open(filename, 'r')
-    max_epochs = 200
+    max_epochs = 100
     to_plot={'tr_loss':[[] for _ in range(max_epochs+1)],
             'te_loss':[[] for _ in range(max_epochs+1)],
             'tr_defu':[[] for _ in range(max_epochs+1)],
