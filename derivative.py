@@ -54,8 +54,10 @@ def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be norma
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
+    adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
     unbiased_probs = biased_probs * torch.exp(coverage_prob_matrix * omega) + MEAN_REG # removing the effect of coverage
     unbiased_probs = unbiased_probs / (torch.sum(unbiased_probs, keepdim=True, dim=1))
+    # unbiased_probs = unbiased_prob * adj
     unbiased_probs[torch.isnan(unbiased_probs)] = 0
 
     return unbiased_probs
@@ -78,6 +80,7 @@ def marginal_rewards(coverage_probs, G, unbiased_probs, U, initial_distribution,
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
     exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs * adj + MEAN_REG
     marginal_prob = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
+    # marginal_prob = marginal_prob * adj
     marginal_prob[torch.isnan(marginal_prob)] = 0
 
     state_prob = marginal_prob * (1 - coverage_prob_matrix)
@@ -167,6 +170,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
     exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs * adj + MEAN_REG
     marginal_prob = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
+    # marginal_prob = marginal_prob * adj
     marginal_prob[torch.isnan(marginal_prob)] = 0
 
     state_prob = marginal_prob * (1 - coverage_prob_matrix)
@@ -203,6 +207,7 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
     exponential_term = torch.exp(-omega * coverage_prob_matrix) * unbiased_probs * adj + MEAN_REG
     marginal_prob = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
+    # marginal_prob = marginal_prob * adj
     marginal_prob[torch.isnan(marginal_prob)] = 0
 
     state_prob = marginal_prob * (1 - coverage_prob_matrix)
