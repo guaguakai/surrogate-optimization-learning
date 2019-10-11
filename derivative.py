@@ -16,7 +16,7 @@ import autograd
 from gurobipy import *
 
 REG = 0.01
-MEAN_REG = 0.0
+MEAN_REG = 0.01
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
@@ -27,8 +27,6 @@ def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normal
 
     # unbiased_probs = adj * torch.exp(phi)
     # unbiased_probs = unbiased_probs / torch.sum(unbiased_probs, keepdim=True, dim=1)
-    # unbiased_probs[torch.isnan(unbiased_probs)] = 0
-
     return unbiased_probs
 
 def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):

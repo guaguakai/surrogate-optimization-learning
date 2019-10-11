@@ -79,7 +79,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
                 edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
                 phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
-                # phi_pred.require_grad = True
+                phi_pred.require_grad = True
 
                 unbiased_probs_pred = phi2prob(G, phi_pred)
                 biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
@@ -157,12 +157,12 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
                     try:
-                    	batch_loss.backward()
-                    	torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
-                    	# print(torch.norm(net2.gcn1.weight.grad))
-                    	# print(torch.norm(net2.gcn2.weight.grad))
-                    	# print(torch.norm(net2.fc1.weight.grad))
-                    	optimizer.step()
+                        batch_loss.backward()
+                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                        # print(torch.norm(net2.gcn1.weight.grad))
+                        # print(torch.norm(net2.gcn2.weight.grad))
+                        # print(torch.norm(net2.fc1.weight.grad))
+                        optimizer.step()
                     except:
                         print("no grad is backpropagated...")
                     batch_loss = 0
@@ -255,24 +255,25 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
     if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
-        try:
-            solver_option = 'default'
-            # I seriously don't know wherether to use 'default' or 'gurobi' now...
-            # Gurobi performs well when there is no noise but default performs well when there is noise
-            # But theoretically they should perform roughly the same...
+        
+        solver_option = 'default'
+        # I seriously don't know wherether to use 'default' or 'gurobi' now...
+        # Gurobi performs well when there is no noise but default performs well when there is noise
+        # But theoretically they should perform roughly the same...
 
-            Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
-            Q_sym = (Q + Q.t()) / 2
+        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+        Q_sym = (Q + Q.t()) / 2
     
-            eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
-            eigenvalues = [x.real for x in eigenvalues]
-            reg_const = 0.1 # 0.1 * max(eigenvalues)
-            Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
-            # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
-            
-            jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
-            p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
-    
+        eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
+        eigenvalues = [x.real for x in eigenvalues]
+        reg_const = 0.1 # 0.1 * max(eigenvalues)
+        Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
+        # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
+        
+        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
+        p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
+  
+        try:
             if solver_option == 'default':
                 qp_solver = qpthnew.qp.QPFunction()
                 coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
@@ -297,7 +298,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         full_coverage_qp_solution = torch.Tensor(initial_coverage_prob)
 
     # ========================= Error message =========================
-    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.01): # or 0.01 for GUROBI, 0.1 for qpth
+    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
         print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(pred_optimal_coverage)
