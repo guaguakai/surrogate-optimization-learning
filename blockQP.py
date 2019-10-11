@@ -79,13 +79,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
                 edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
                 phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
-                phi_pred.require_grad = True
+                # phi_pred.require_grad = True
 
                 unbiased_probs_pred = phi2prob(G, phi_pred)
                 biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
                 
                 ################################### Compute loss
-                loss = torch.norm(unbiased_probs_true - unbiased_probs_pred)
+                loss = torch.norm((unbiased_probs_true - unbiased_probs_pred) * torch.Tensor(nx.adjacency_matrix(G).toarray()))
                 # log_prob_pred = torch.zeros(1)
                 # for path in path_list:
                 #     for e in path: 
@@ -354,7 +354,6 @@ if __name__=='__main__':
     training_mode = args.method
     method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused'}
     training_method = method_dict[training_mode]
-    print('training method:', training_method)
 
     feature_size = args.feature_size
     OMEGA = args.omega
@@ -379,7 +378,6 @@ if __name__=='__main__':
     GRAPH_TYPE = "random_graph" if FIXED_GRAPH == 0 else "fixed_graph"
     SEED = args.seed
     NOISE_LEVEL = args.noise
-    print('noise level: {}'.format(NOISE_LEVEL))
     if SEED == 0:
         SEED = np.random.randint(1, 100000)
 
@@ -417,8 +415,12 @@ if __name__=='__main__':
 
     np.random.shuffle(train_data)
 
-    print ("Training method: {}".format(training_method))
-    print ("Data length train/test:", len(train_data), len(test_data))
+    print("Training method: {}".format(training_method))
+    print('Noise level: {}'.format(NOISE_LEVEL))
+    print('Node size: {}, p={}, budget: {}'.format(GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET))
+    print('Sample graph size: {}, sample size: {}'.format(NUMBER_OF_GRAPHS, SAMPLES_PER_GRAPH))
+    print('omega: {}'.format(OMEGA))
+    print("Data length train/test:", len(train_data), len(test_data))
 
     ############################## Training the ML models:    
     time3=time.time()
