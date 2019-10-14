@@ -13,7 +13,7 @@ import copy
 import matplotlib.pyplot as plt
 
 from gcn import *
-from coverageProbability import prob2unbiased, phi2prob, generate_EdgeProbs_from_Attractiveness
+from derivative import prob2unbiased, phi2prob, generate_EdgeProbs_from_Attractiveness
 
 # Random Seed Initialization
 # SEED = 1289 #  random.randint(0,10000)
@@ -530,6 +530,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
             empirical_transition_probs = empirical_transition_probs / torch.sum(empirical_transition_probs, dim=1, keepdim=True)
             empirical_transition_probs[row_sum == 0] = 0
+            # empirical_transition_probs[torch.isnan(empirical_transition_probs)] = 0
             # empirical_transition_probs = empirical_transition_probs * adj
             # print('biased:', empirical_transition_probs)
             empirical_unbiased_probs = prob2unbiased(G, private_coverage_prob, empirical_transition_probs, omega)

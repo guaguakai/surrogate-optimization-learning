@@ -108,6 +108,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
                     else:
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        
+                        # print('phi predict:', phi_pred)
 
                         # =============== checking gradient manually ===============
                         # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
@@ -235,6 +237,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
     if not pred_optimal_res['success']:
+        print(pred_optimal_res)
         print('optimization fails...')
     # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol)) # Frank Wolfe version
 
