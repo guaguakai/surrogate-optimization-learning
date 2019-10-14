@@ -85,13 +85,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
                 
                 ################################### Compute loss
-                loss = torch.norm((unbiased_probs_true - unbiased_probs_pred) * torch.Tensor(nx.adjacency_matrix(G).toarray()))
-                # log_prob_pred = torch.zeros(1)
-                # for path in path_list:
-                #     for e in path: 
-                #         log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
-                # log_prob_pred /= len(path_list)
-                # loss = log_prob_pred - log_prob
+                # loss = torch.norm((unbiased_probs_true - unbiased_probs_pred) * torch.Tensor(nx.adjacency_matrix(G).toarray()))
+                log_prob_pred = torch.zeros(1)
+                for path in path_list:
+                    for e in path: 
+                        log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
+                log_prob_pred /= len(path_list)
+                loss = log_prob_pred - log_prob
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
