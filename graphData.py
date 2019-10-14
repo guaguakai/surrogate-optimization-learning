@@ -504,6 +504,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             # Randomly generate attractiveness
             # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
             phi = generatePhi(G, fixed_phi=fixed_graph)
+            phi = phi - np.mean(phi)
             phi_noise = phi + np.random.normal(size=phi.shape) * noise_level
             phi = torch.as_tensor(phi, dtype=torch.float)
             phi_noise = torch.as_tensor(phi_noise, dtype=torch.float)

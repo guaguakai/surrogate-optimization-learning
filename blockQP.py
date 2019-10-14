@@ -23,7 +23,7 @@ from derivative import *
 import qpthnew
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.01):
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
@@ -230,9 +230,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge2index[(edge[1], edge[0])] = idx
 
     # full forward path, the decision variables are the entire set of variables
-    initial_coverage_prob = np.zeros(m)
-    # initial_coverage_prob = np.random.rand(m)
-    # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
+    # initial_coverage_prob = np.zeros(m)
+    initial_coverage_prob = np.random.rand(m)
+    initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
@@ -247,7 +247,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     sample_distribution = np.ones(m) / m
     if training_method == 'block-decision-focused':
         cut_size = n // 2 # heuristic
-        edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
+        while True:
+            edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
+            if sum(pred_optimal_coverage[edge_set]) > 0.1:
+                break
     else:
         cut_size = m
         edge_set = list(range(m))
@@ -271,8 +274,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        reg_const = 0.1 # 0.1 * max(eigenvalues)
-        Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
+        reg_const = max(0, -min(eigenvalues) + 1)
+        Q_regularized = (Q_sym + torch.eye(len(edge_set)) * reg_const)
+        # Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized

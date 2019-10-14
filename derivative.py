@@ -15,15 +15,19 @@ import torch
 import autograd
 from gurobipy import *
 
-REG = 0.0
+REG = 0.01
 MEAN_REG = 0.0
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    adj_phi = adj * phi - (1 - adj) * 100 # adding -100 to all the non-adjacent entries
-    unbiased_probs = torch.nn.Softmax(dim=1)(adj_phi)
-    unbiased_probs = unbiased_probs * adj
+    exponential_term = torch.exp(adj * phi) * adj
+    row_sum = torch.sum(exponential_term, dim=1)
+    unbiased_probs = torch.zeros_like(exponential_term)
+    unbiased_probs[row_sum != 0] = exponential_term[row_sum != 0] / torch.sum(exponential_term, keepdim=True, dim=1)[row_sum != 0]
+    # adj_phi = adj * phi - (1 - adj) * 100 # adding -100 to all the non-adjacent entries
+    # unbiased_probs = torch.nn.Softmax(dim=1)(adj_phi)
+    # unbiased_probs = unbiased_probs * adj
 
     # unbiased_probs = adj * torch.exp(phi)
     # unbiased_probs = unbiased_probs / torch.sum(unbiased_probs, keepdim=True, dim=1)
@@ -39,9 +43,13 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
 
     # GENERATE EDGE PROBABILITIES 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    adj_phi = adj * phi - omega * coverage_prob_matrix - (1 - adj) * 100 # adding -100 to all the non-adjacent entries
-    transition_probs = torch.nn.Softmax(dim=1)(adj_phi)
-    # transition_probs = transition_probs * adj
+    exponential_term = torch.exp(adj * phi - omega * coverage_prob_matrix) * adj
+    row_sum = torch.sum(exponential_term, dim=1)
+    transition_probs = torch.zeros_like(exponential_term)
+    transition_probs[row_sum != 0] = exponential_term[row_sum != 0] / torch.sum(exponential_term, keepdim=True, dim=1)[row_sum != 0]
+
+    # adj_phi = adj * phi - omega * coverage_prob_matrix - (1 - adj) * 100 # adding -100 to all the non-adjacent entries
+    # transition_probs = torch.nn.Softmax(dim=1)(adj_phi)
 
     return transition_probs
 
