@@ -526,11 +526,11 @@ def generateSyntheticData(node_feature_size, omega=4,
                 for e in path:
                     empirical_transition_probs[e[0]][e[1]]+=1
 
-            row_sum = torch.sum(empirical_transition_probs, dim=1)
+            # row_sum = torch.sum(empirical_transition_probs, dim=1)
             adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
             empirical_transition_probs = empirical_transition_probs / torch.sum(empirical_transition_probs, dim=1, keepdim=True)
-            empirical_transition_probs[row_sum == 0] = 0
-            # empirical_transition_probs[torch.isnan(empirical_transition_probs)] = 0
+            # empirical_transition_probs[row_sum == 0] = 0
+            empirical_transition_probs[torch.isnan(empirical_transition_probs)] = 0
             # empirical_transition_probs = empirical_transition_probs * adj
             # print('biased:', empirical_transition_probs)
             empirical_unbiased_probs = prob2unbiased(G, private_coverage_prob, empirical_transition_probs, omega)

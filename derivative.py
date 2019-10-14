@@ -16,14 +16,14 @@ import autograd
 from gurobipy import *
 
 REG = 0.0
-MEAN_REG = 0.001
+MEAN_REG = 0.0
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
     adj_phi = adj * phi - (1 - adj) * 100 # adding -100 to all the non-adjacent entries
     unbiased_probs = torch.nn.Softmax(dim=1)(adj_phi)
-    # unbiased_probs = unbiased_probs * adj
+    unbiased_probs = unbiased_probs * adj
 
     # unbiased_probs = adj * torch.exp(phi)
     # unbiased_probs = unbiased_probs / torch.sum(unbiased_probs, keepdim=True, dim=1)
@@ -58,10 +58,10 @@ def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be norma
     unbiased_probs_sum = torch.sum(unbiased_probs, keepdim=True, dim=1) # + MEAN_REG
     # unbiased_probs[unbiased_probs_sum != 0] /= unbiased_probs_sum[unbiased_probs_sum != 0]
     unbiased_probs /= unbiased_probs_sum
-    unbiased_probs[row_sum == 0] = 0
+    # unbiased_probs[row_sum == 0] = 0
     # unbiased_probs = unbiased_probs / (torch.sum(unbiased_probs, keepdim=True, dim=1))
     # unbiased_probs = unbiased_prob * adj
-    # unbiased_probs[torch.isnan(unbiased_probs)] = 0
+    unbiased_probs[torch.isnan(unbiased_probs)] = 0
 
     return unbiased_probs
 
@@ -131,12 +131,13 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs + MEAN_REG
+    exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
     row_sum = torch.sum(exponential_term, dim=1)
-    marginal_prob = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
+    marginal_prob = torch.zeros_like(exponential_term)
+    marginal_prob[row_sum != 0] = exponential_term[row_sum != 0] / torch.sum(exponential_term, keepdim=True, dim=1)[row_sum != 0]
     # marginal_prob = marginal_prob * adj
     # marginal_prob[torch.isnan(marginal_prob)] = 0
-    marginal_prob[row_sum == 0] = 0
+    # marginal_prob[row_sum == 0] = 0
 
     state_prob = marginal_prob * (1 - coverage_prob_matrix)
     caught_prob = 1 - torch.sum(state_prob, keepdim=True, dim=1)
@@ -172,10 +173,11 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
     exponential_term = torch.exp(-omega * coverage_prob_matrix) * unbiased_probs + MEAN_REG
     row_sum = torch.sum(exponential_term, dim=1)
-    marginal_prob = exponential_term / torch.sum(exponential_term, keepdim=True, dim=1)
+    marginal_prob = torch.zeros_like(exponential_term)
+    marginal_prob[row_sum != 0] = exponential_term[row_sum != 0] / torch.sum(exponential_term, keepdim=True, dim=1)[row_sum != 0]
     # marginal_prob = marginal_prob * adj
     # marginal_prob[torch.isnan(marginal_prob)] = 0
-    marginal_prob[row_sum == 0] = 0
+    # marginal_prob[row_sum == 0] = 0
 
     state_prob = marginal_prob * (1 - coverage_prob_matrix)
     caught_prob = torch.sum(marginal_prob * coverage_prob_matrix, keepdim=True, dim=1)

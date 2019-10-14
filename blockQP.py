@@ -79,7 +79,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
                 edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
                 phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
-                phi_pred.require_grad = True
+                # phi_pred.require_grad = True
 
                 unbiased_probs_pred = phi2prob(G, phi_pred)
                 biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
@@ -158,15 +158,15 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # print(batch_loss)
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
-                    try:
-                        batch_loss.backward()
-                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
-                        # print(torch.norm(net2.gcn1.weight.grad))
-                        # print(torch.norm(net2.gcn2.weight.grad))
-                        # print(torch.norm(net2.fc1.weight.grad))
-                        optimizer.step()
-                    except:
-                        print("no grad is backpropagated...")
+                    # try:
+                    batch_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                    # print(torch.norm(net2.gcn1.weight.grad))
+                    # print(torch.norm(net2.gcn2.weight.grad))
+                    # print(torch.norm(net2.fc1.weight.grad))
+                    optimizer.step()
+                    # except:
+                    #     print("no grad is backpropagated...")
                     batch_loss = 0
 
             if (epoch > 0) and (mode == "validating"):
@@ -265,6 +265,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         # But theoretically they should perform roughly the same...
 
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
+
         Q_sym = (Q + Q.t()) / 2
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
@@ -273,7 +275,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
-        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
   
         try:
