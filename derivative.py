@@ -92,7 +92,7 @@ def get_optimal_coverage_prob(G, unbiased_probs, U, initial_distribution, budget
     bounds=[(0.0,1.0) for _ in range(m)]
 
     eq_fn = lambda x: budget - sum(x)
-    constraints=[{'type': 'eq','fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
+    constraints=[{'type': 'ineq','fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
     edge_set = list(range(m))
     
     # Optimization step

@@ -256,9 +256,12 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge_set = list(range(m))
     # ========================== QP part ===========================
 
-    A_matrix, b_matrix = torch.ones(1, cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])
-    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
-    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
+    A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
+    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size), torch.ones(1, cut_size)))
+    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])))
+    # A_matrix, b_matrix = torch.ones(1, cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])
+    # G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
+    # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
     if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
         
