@@ -230,9 +230,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge2index[(edge[1], edge[0])] = idx
 
     # full forward path, the decision variables are the entire set of variables
-    initial_coverage_prob = np.zeros(m)
-    # initial_coverage_prob = np.random.rand(m)
-    # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
+    # initial_coverage_prob = np.zeros(m)
+    initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
+    initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])

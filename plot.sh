@@ -1,6 +1,6 @@
-FILENAME='1015-half-server'
+FILENAME='1015-perfect-server'
 
-NODES=30
+NODES=20
 NOISE=0.0
 BUDGET=2
 PROB=0.2
