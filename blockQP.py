@@ -160,7 +160,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     optimizer.zero_grad()
                     try:
                         batch_loss.backward()
-                        # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
                         # print(torch.norm(net2.gcn1.weight.grad))
                         # print(torch.norm(net2.gcn2.weight.grad))
                         # print(torch.norm(net2.fc1.weight.grad))
