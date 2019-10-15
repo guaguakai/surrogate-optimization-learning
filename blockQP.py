@@ -447,6 +447,7 @@ if __name__=='__main__':
     cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')
 
     f_save.close()
+    f_summary.close()
 
     ############################# Print the summary:
     #print ("Now running: ", "Large graphs sizes")    
