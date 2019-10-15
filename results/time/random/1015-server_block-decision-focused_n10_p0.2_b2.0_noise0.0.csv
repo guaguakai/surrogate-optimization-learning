@@ -107,3 +107,11 @@ Random seed, 16
 nodes, 10.0, edges, 15.0, epochs, 100, time, 1025.165111064911
 Random seed, 7
 nodes, 10.0, edges, 14.0, epochs, 100, time, 1030.7449300289154
+Random seed, 13
+nodes, 10.0, edges, 16.0, epochs, 100, time, 1127.6815330982208
+Random seed, 10
+nodes, 10.0, edges, 16.0, epochs, 100, time, 1064.8660440444946
+Random seed, 11
+nodes, 10.0, edges, 17.0, epochs, 100, time, 1167.2450182437897
+Random seed, 8
+nodes, 10.0, edges, 19.0, epochs, 100, time, 1226.3887951374054
