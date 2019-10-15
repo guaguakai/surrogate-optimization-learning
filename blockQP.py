@@ -82,26 +82,22 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # phi_pred.require_grad = True
 
                 unbiased_probs_pred = phi2prob(G, phi_pred)
-                # biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+                biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
                 
                 ################################### Compute loss
-                loss = torch.norm((unbiased_probs_true - unbiased_probs_pred) * torch.Tensor(nx.adjacency_matrix(G).toarray()))
-                # log_prob_pred = torch.zeros(1)
-                # for path in path_list:
-                #     for e in path: 
-                #         log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
-                # log_prob_pred /= len(path_list)
-                # loss = log_prob_pred - log_prob
+                # loss = torch.norm((unbiased_probs_true - unbiased_probs_pred) * torch.Tensor(nx.adjacency_matrix(G).toarray()))
+                log_prob_pred = torch.zeros(1)
+                for path in path_list:
+                    for e in path: 
+                        log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
+                log_prob_pred /= len(path_list)
+                loss = log_prob_pred - log_prob
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
                 if mode == 'testing' or mode == "validating": # or training_method == "two-stage" or epoch <= 0:
-                    if training_method == "two-stage":
-                        # def_obj, simulated_def_obj = torch.Tensor([0]), 0 # for two-stage testing only
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
-                    else:
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         # def_obj, simulated_def_obj = torch.Tensor([0]), 0 # for two-stage testing only
@@ -189,22 +185,27 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
             f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
         
+        validation_window = 3
+        if epoch > validation_window*2:
+            if np.max(validating_defender_utility_list[-validation_window:]) < np.min(validating_defender_utility_list[-validation_window*2:-validation_window]):
+                break
+
         time4 = time.time()
         cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
         time3 = time4
 
-        average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
-        average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
+    average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
+    average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
 
     # ============== using results on validation set to choose solution ===============
     if training_method == "two-stage":
-        max_epoch = np.argmax(validating_loss_list) # choosing based on loss
-        final_loss = testing_loss_list[max_epoch]
-        final_defender_utility = testing_defender_utility_list[max_epoch]
+        max_epoch = np.argmax(validating_loss_list[-validation_window*2:-validation_window]) # choosing based on loss
+        final_loss = testing_loss_list[-validation_window*2 + max_epoch]
+        final_defender_utility = testing_defender_utility_list[-validation_window*2 + max_epoch]
     else:
-        max_epoch = np.argmax(validating_defender_utility_list) # choosing based on defender utility
-        final_loss = testing_loss_list[max_epoch]
-        final_defender_utility = testing_defender_utility_list[max_epoch]
+        max_epoch = np.argmax(validating_defender_utility_list[-validation_window*2:-validation_window]) # choosing based on defender utility
+        final_loss = testing_loss_list[-validation_window*2 + max_epoch]
+        final_defender_utility = testing_defender_utility_list[-validation_window*2 + max_epoch]
 
     f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, time.time() - beginning_time))
     f_summary.write("final loss, {}, final defender utility, {}\n".format(final_loss, final_defender_utility))
@@ -231,7 +232,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     # full forward path, the decision variables are the entire set of variables
     # initial_coverage_prob = np.zeros(m)
-    initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
+    # initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
+    initial_coverage_prob = np.ones(m) # somehow this is very influential...
     initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
@@ -256,12 +258,12 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge_set = list(range(m))
     # ========================== QP part ===========================
 
-    A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
-    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size), torch.ones(1, cut_size)))
-    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])))
-    # A_matrix, b_matrix = torch.ones(1, cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])
-    # G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
-    # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
+    # A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
+    # G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size), torch.ones(1, cut_size)))
+    # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])))
+    A_matrix, b_matrix = torch.ones(1, cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])
+    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
+    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
     if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
         
@@ -341,7 +343,7 @@ if __name__=='__main__':
 
     parser.add_argument('--feature-size', type=int, default=5, help='feature size of each node')
     parser.add_argument('--noise', type=float, default=0, help='noise level of the normalized features (in variance)')
-    parser.add_argument('--omega', type=float, default=1, help='risk aversion of the attacker')
+    parser.add_argument('--omega', type=float, default=8, help='risk aversion of the attacker')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
 
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')

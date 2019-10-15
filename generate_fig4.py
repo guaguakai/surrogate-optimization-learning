@@ -16,9 +16,11 @@ def return_yaxis(filename, method):
     to_plot={'tr_loss': [[] for _ in range(max_epochs+1)],
              'val_loss':[[] for _ in range(max_epochs+1)],
              'te_loss': [[] for _ in range(max_epochs+1)],
+             'opt_loss': [[] for _ in range(max_epochs+1)],
              'tr_defu': [[] for _ in range(max_epochs+1)],
              'val_defu':[[] for _ in range(max_epochs+1)],
-             'te_defu': [[] for _ in range(max_epochs+1)]}
+             'te_defu': [[] for _ in range(max_epochs+1)],
+             'opt_defu': [[] for _ in range(max_epochs+1)]}
     
     #d={'lol':[[] for i in range(max_epochs+1)]}
     
