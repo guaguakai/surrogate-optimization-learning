@@ -10,13 +10,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
-def return_yaxis(filename):
+def return_yaxis(filename, method):
     f = open(filename, 'r')
     max_epochs = 100
-    to_plot={'tr_loss':[[] for _ in range(max_epochs+1)],
-            'te_loss':[[] for _ in range(max_epochs+1)],
-            'tr_defu':[[] for _ in range(max_epochs+1)],
-            'te_defu':[[] for _ in range(max_epochs+1)]}
+    to_plot={'tr_loss': [[] for _ in range(max_epochs+1)],
+             'val_loss':[[] for _ in range(max_epochs+1)],
+             'te_loss': [[] for _ in range(max_epochs+1)],
+             'tr_defu': [[] for _ in range(max_epochs+1)],
+             'val_defu':[[] for _ in range(max_epochs+1)],
+             'te_defu': [[] for _ in range(max_epochs+1)]}
     
     #d={'lol':[[] for i in range(max_epochs+1)]}
     
@@ -33,9 +35,37 @@ def return_yaxis(filename):
                     to_plot['tr_loss'][epoch].append(float(item[2]))
                     to_plot['tr_defu'][epoch].append(float(item[3]))
                 
+                elif item[0]=='validating':
+                    to_plot['val_loss'][epoch].append(float(item[2]))
+                    to_plot['val_defu'][epoch].append(float(item[3]))
+
                 elif item[0]=='testing':
                     to_plot['te_loss'][epoch].append(float(item[2]))
                     to_plot['te_defu'][epoch].append(float(item[3]))
+
+    for key in to_plot:
+        to_plot[key] = np.array(to_plot[key])
+    _, num_samples = to_plot['tr_loss'].shape
+
+    final_loss_list = []
+    final_defu_list = []
+    if method == 'two-stage':
+        for i in range(num_samples):
+            tmp_idx = np.argmin(to_plot['val_loss'][:,i])
+            tmp_loss = to_plot['te_loss'][tmp_idx,i]
+            tmp_defu = to_plot['te_defu'][tmp_idx,i]
+            final_loss_list.append(tmp_loss)
+            final_defu_list.append(tmp_defu)
+    elif method == 'decision-focused':
+        for i in range(num_samples):
+            tmp_idx = np.argmax(to_plot['val_defu'][:,i])
+            tmp_loss = to_plot['te_loss'][tmp_idx,i]
+            tmp_defu = to_plot['te_defu'][tmp_idx,i]
+            final_loss_list.append(tmp_loss)
+            final_defu_list.append(tmp_defu)
+
+    final_loss = np.mean(final_loss_list)
+    final_defu = np.mean(final_defu_list)
         
     tr_loss=[np.average(to_plot['tr_loss'][i]) for i in range(max_epochs+1)]
     te_loss=[np.average(to_plot['te_loss'][i]) for i in range(max_epochs+1)]
@@ -44,11 +74,11 @@ def return_yaxis(filename):
     x=range(max_epochs+1)
     
     #return (to_plot,x,max_epochs+1)
-    return (tr_loss, te_loss, tr_defu, te_defu, x)
+    return (tr_loss, te_loss, tr_defu, te_defu, final_loss, final_defu, x)
 
-def generatePlot(xy_list, filename):
+def generatePlot(xy_list, bar_list, filename):
     
-    fig, axs = plt.subplots(1, len(xy_list))
+    fig, axs = plt.subplots(1, len(xy_list) + len(bar_list))
 
     #ax1 = fig.add_subplot(221)
     #ax2 = fig.add_subplot(222)
@@ -64,8 +94,14 @@ def generatePlot(xy_list, filename):
         # axs[i].xlabel('Epochs')
         # axs[i].ylabel(ytitle)
 
+    for i in range(len(bar_list)):
+        data_df, label_df, data_2s, label_2s = bar_list[i]
+        axs[len(xy_list) + i].bar(np.arange(2), [data_df, data_2s])
+        # axs[len(xy_list) + i].yticks(np.arange(2), (label_df, label_2d))
+
     #epochs = len(train_loss) - 1
     #x=range(-1, epochs)
+    plt.autoscale()
     plt.savefig("./results/excel/comparison/"+filename)
     plt.show()
 
@@ -96,8 +132,8 @@ if __name__=='__main__':
     file2 = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, 'two-stage', GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
 
     #to_plot,x,epochs,=return_yaxis(f)
-    tr_loss1, te_loss1, tr_defu1, te_defu1, x1=return_yaxis(file1)
-    tr_loss2, te_loss2, tr_defu2, te_defu2, x2=return_yaxis(file2)
+    tr_loss1, te_loss1, tr_defu1, te_defu1, final_loss1, final_defu1, x1 = return_yaxis(file1, 'decision-focused')
+    tr_loss2, te_loss2, tr_defu2, te_defu2, final_loss2, final_defu2, x2 = return_yaxis(file2, 'two-stage')
     
     # generatePlot(x1,tr_loss1,l[0],tr_loss2,l[1],tr_loss3,l[2],tr_loss4,l[3], title="Training Loss", ytitle='KL Divergence')
     # generatePlot(x1,te_loss1,l[0],te_loss2,l[1],te_loss3,l[2],te_loss4,l[3], title="Testing Loss", ytitle='KL Divergence')
@@ -109,9 +145,13 @@ if __name__=='__main__':
     xy_list.append((x1, te_loss1, l[0], te_loss2, l[1], "Testing Loss",  'KL Divergence'))
     xy_list.append((x1, tr_defu1, l[0], tr_defu2, l[1], "Training Defender Utility", 'Defender utility'))
     xy_list.append((x1, te_defu1, l[0], te_defu2, l[1], "Testing Defender Utility",  'Defender utility'))
+
+    bar_list = [(final_loss1, l[0], final_loss2, l[1]), (final_defu1, l[0], final_defu2, l[1])]
+    print('loss:', bar_list[0])
+    print('defu:', bar_list[1])
     
     save_filename = "{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
-    generatePlot(xy_list, save_filename)
+    generatePlot(xy_list, bar_list, save_filename)
     
 
     

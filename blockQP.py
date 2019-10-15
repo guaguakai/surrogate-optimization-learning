@@ -82,7 +82,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # phi_pred.require_grad = True
 
                 unbiased_probs_pred = phi2prob(G, phi_pred)
-                biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+                # biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
                 
                 ################################### Compute loss
                 loss = torch.norm((unbiased_probs_true - unbiased_probs_pred) * torch.Tensor(nx.adjacency_matrix(G).toarray()))
@@ -160,7 +160,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     optimizer.zero_grad()
                     try:
                         batch_loss.backward()
-                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                        # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
                         # print(torch.norm(net2.gcn1.weight.grad))
                         # print(torch.norm(net2.gcn2.weight.grad))
                         # print(torch.norm(net2.fc1.weight.grad))
@@ -230,9 +230,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         edge2index[(edge[1], edge[0])] = idx
 
     # full forward path, the decision variables are the entire set of variables
-    # initial_coverage_prob = np.zeros(m)
-    initial_coverage_prob = np.random.rand(m)
-    initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
+    initial_coverage_prob = np.zeros(m)
+    # initial_coverage_prob = np.random.rand(m)
+    # initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
@@ -297,13 +297,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             
     else:
         full_coverage_qp_solution = pred_optimal_coverage.clone()
-    full_coverage_qp_solution.require_grad = True
-
-    pred_obj_value = objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)
-    if pred_obj_value < -0.1: # unknown ERROR # TODO
-        print("unknown behavior happened...")
-        print("objective value (SLSQP): {}".format(pred_obj_value))
-        full_coverage_qp_solution = torch.Tensor(initial_coverage_prob)
+    # full_coverage_qp_solution.require_grad = True
 
     # ========================= Error message =========================
     if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.01): # or 0.01 for GUROBI, 0.1 for qpth
@@ -317,6 +311,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # ================== Evaluation on the ground truth ===============
     # ======================= Defender Utility ========================
     pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
+    if pred_defender_utility > 0.1: # unknown ERROR # TODO
+        print("unknown behavior happened...")
+        print("objective value (SLSQP): {}".format(pred_obj_value))
+        full_coverage_qp_solution = torch.Tensor(initial_coverage_prob)
     
     # ==================== Actual Defender Utility ====================
     # Running simulations to check the actual defender utility

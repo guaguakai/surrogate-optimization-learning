@@ -505,12 +505,10 @@ def generateSyntheticData(node_feature_size, omega=4,
             # phi is the attractiveness function, phi(v,f) for each of the N nodes, v
             phi = generatePhi(G, fixed_phi=fixed_graph)
             phi = phi - np.mean(phi)
-            phi_noise = phi + np.random.normal(size=phi.shape) * noise_level
             phi = torch.as_tensor(phi, dtype=torch.float)
-            phi_noise = torch.as_tensor(phi_noise, dtype=torch.float)
 
             # Generate features from phi values
-            Fv_torch = net3.forward(phi_noise.view(-1,1), edge_index)
+            Fv_torch = net3.forward(phi.view(-1,1), edge_index)
             Fv = Fv_torch.detach().numpy()
             Fv = Fv[:,random_feature_indices]
             
@@ -572,10 +570,9 @@ def generateSyntheticData(node_feature_size, omega=4,
     Fv_training_features = np.concatenate(Fv_training_list, axis=0) # concatenate all the features
     Fv_training_mean = np.mean(Fv_training_features)
     Fv_training_std  = np.std(Fv_training_features)
-    # noise_level = 0.1 # in terms of variance. at most with norm 1
 
     for i in range(len(data)): # normalizing based on the training set
-        data[i][1] = (data[i][1] - Fv_training_mean) / Fv_training_std
+        data[i][1] = (data[i][1] - Fv_training_mean) / Fv_training_std * (1 - noise_level) + np.random.normal(size=data[i][1].shape) * noise_level
     
     training_data, validate_data, testing_data = data[:train_size], data[train_size:train_size+validate_size], data[train_size+validate_size:]
 
