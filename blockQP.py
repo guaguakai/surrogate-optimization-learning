@@ -246,7 +246,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # sample_distribution /= sum(sample_distribution)
     sample_distribution = np.ones(m) / m
     if training_method == 'block-decision-focused':
-        cut_size = n # heuristic
+        cut_size = n // 2 # heuristic
         while True:
             edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
             if sum(pred_optimal_coverage[edge_set]) > 0.1:

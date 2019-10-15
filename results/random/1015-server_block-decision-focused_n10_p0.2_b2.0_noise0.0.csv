@@ -1,5 +1,3 @@
-Random seed, 5
-mode, epoch, average loss, defender utility, simulated defender utility
 Random seed, 2
 mode, epoch, average loss, defender utility, simulated defender utility
 training, -1, 1.3157100694520132, -1.5129712888172695, 0.0
