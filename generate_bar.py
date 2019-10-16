@@ -16,6 +16,10 @@ def read_file(filename, method):
     
     #d={'lol':[[] for i in range(max_epochs+1)]}
     
+    final_loss_list = []
+    final_defu_list = []
+    opt_defu_list = []
+    opt_loss_list = []
     while True:
         item = f.readline()
         if not item: break
@@ -37,19 +41,19 @@ def read_file(filename, method):
                 elif item[0]=='testing':
                     opt_te_loss = float(item[2])
                     opt_te_defu = float(item[3])
+                    opt_defu_list.append(opt_te_defu)
+                    opt_loss_list.append(opt_te_loss)
             else:
                 if item[0]=='training':
-                    data[seed]['tr_loss'].append(float(item[2]) - opt_tr_loss)
-                    data[seed]['tr_defu'].append(float(item[3]) - opt_tr_defu)
+                    data[seed]['tr_loss'].append(float(item[2]))
+                    data[seed]['tr_defu'].append(float(item[3]))
                 elif item[0]=='validating':
-                    data[seed]['val_loss'].append(float(item[2]) - opt_val_loss)
-                    data[seed]['val_defu'].append(float(item[3]) - opt_val_defu)
+                    data[seed]['val_loss'].append(float(item[2]))
+                    data[seed]['val_defu'].append(float(item[3]))
                 elif item[0]=='testing':
-                    data[seed]['te_loss'].append(float(item[2]) - opt_te_loss)
-                    data[seed]['te_defu'].append(float(item[3]) - opt_te_defu)
+                    data[seed]['te_loss'].append(float(item[2]))
+                    data[seed]['te_defu'].append(float(item[3]))
 
-    final_loss_list = []
-    final_defu_list = []
     for key in data:
         if method == 'two-stage':
             tmp_idx = np.argmin(data[key]['val_loss'])
@@ -69,16 +73,20 @@ def read_file(filename, method):
 
     final_loss = np.mean(final_loss_list)
     final_defu = np.mean(final_defu_list)
+    opt_loss = np.mean(opt_loss_list)
+    opt_defu = np.mean(opt_defu_list)
+    init_loss = np.mean([data[key]['te_loss'][0] for key in data])
+    init_defu = np.mean([data[key]['te_defu'][0] for key in data])
         
-    return final_loss, final_defu
+    return final_loss, final_defu, opt_loss, opt_defu, init_loss, init_defu
 
-def generatePlot(bar_list, filename):
+def generatePlot(bar_list, labels, filename):
     
     fig, axs = plt.subplots(1, len(bar_list))
 
     for i in range(len(bar_list)):
-        data_df, label_df, data_2s, label_2s = bar_list[i]
-        axs[i].bar(np.arange(2), [data_df, data_2s])
+        data_opt, data_df, data_2s, data_init = bar_list[i]
+        axs[i].bar(labels, [data_opt, data_df, data_2s, data_init])
         # axs[len(xy_list) + i].yticks(np.arange(2), (label_df, label_2d))
 
     #epochs = len(train_loss) - 1
@@ -89,7 +97,8 @@ def generatePlot(bar_list, filename):
 
 if __name__=='__main__':
     
-    l=['DF-block','2S']
+    labels = ['OPT', 'DF-block', '2S', 'Initial']
+    print(labels)
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')
     parser.add_argument('--filename', type=str, help='filename under folder results')
@@ -114,15 +123,15 @@ if __name__=='__main__':
     file2 = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, 'two-stage', GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
 
     #to_plot,x,epochs,=return_yaxis(f)
-    df_loss, df_defu = read_file(file1, 'decision-focused')
-    ts_loss, ts_defu = read_file(file2, 'two-stage')
+    df_loss, df_defu, opt_loss, opt_defu, init_loss, init_defu = read_file(file1, 'decision-focused')
+    ts_loss, ts_defu, _, _, _, _ = read_file(file2, 'two-stage')
     
-    bar_list = [(df_loss, l[0], ts_loss, l[1]), (df_defu, l[0], ts_defu, l[1])]
+    bar_list = [(opt_loss, df_loss, ts_loss, init_loss), (opt_defu, df_defu, ts_defu, init_defu)]
     print('loss:', bar_list[0])
     print('defu:', bar_list[1])
     
     save_filename = "{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
-    generatePlot(bar_list, save_filename)
+    generatePlot(bar_list, labels, save_filename)
     
 
     
