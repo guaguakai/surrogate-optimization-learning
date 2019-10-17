@@ -34,8 +34,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     elif optimizer=='adamax':
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
-    scheduler = ReduceLROnPlateau(optimizer, 'min')
-    # scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
+    # scheduler = ReduceLROnPlateau(optimizer, 'min')
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -203,17 +203,16 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
 
     # ============== using results on validation set to choose solution ===============
-    if training_method == "two-stage":
-        max_epoch = np.argmax(validating_loss_list[-validation_window*2:-validation_window]) # choosing based on loss
-        final_loss = testing_loss_list[-validation_window*2 + max_epoch]
-        final_defender_utility = testing_defender_utility_list[-validation_window*2 + max_epoch]
-    else:
-        max_epoch = np.argmax(validating_defender_utility_list[-validation_window*2:-validation_window]) # choosing based on defender utility
-        final_loss = testing_loss_list[-validation_window*2 + max_epoch]
-        final_defender_utility = testing_defender_utility_list[-validation_window*2 + max_epoch]
+    # if training_method == "two-stage":
+    #     max_epoch = np.argmax(validating_loss_list[-validation_window*2:-validation_window]) # choosing based on loss
+    #     final_loss = testing_loss_list[-validation_window*2 + max_epoch]
+    #     final_defender_utility = testing_defender_utility_list[-validation_window*2 + max_epoch]
+    # else:
+    #     max_epoch = np.argmax(validating_defender_utility_list[-validation_window*2:-validation_window]) # choosing based on defender utility
+    #     final_loss = testing_loss_list[-validation_window*2 + max_epoch]
+    #     final_defender_utility = testing_defender_utility_list[-validation_window*2 + max_epoch]
 
     f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, time.time() - beginning_time))
-    f_summary.write("final loss, {}, final defender utility, {}\n".format(final_loss, final_defender_utility))
             
     return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
     
@@ -452,6 +451,7 @@ if __name__=='__main__':
     cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')
 
     f_save.close()
+    f_time.close()
     f_summary.close()
 
     ############################# Print the summary:
