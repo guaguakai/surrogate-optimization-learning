@@ -56,11 +56,11 @@ def read_file(filename, method):
 
     for key in data:
         if method == 'two-stage':
-            tmp_idx = np.argmin(data[key]['val_loss'])
+            tmp_idx = -2 # np.argmin(data[key]['val_loss'])
             tmp_loss = data[key]['te_loss'][tmp_idx]
             tmp_defu = data[key]['te_defu'][tmp_idx]
         elif method == 'decision-focused':
-            tmp_idx = np.argmax(data[key]['val_defu'])
+            tmp_idx = -2 # np.argmax(data[key]['val_defu'])
             tmp_loss = data[key]['te_loss'][tmp_idx]
             tmp_defu = data[key]['te_defu'][tmp_idx]
         else:

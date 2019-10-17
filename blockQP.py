@@ -34,7 +34,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     elif optimizer=='adamax':
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
+    scheduler = ReduceLROnPlateau(optimizer, 'min')
+    # scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -186,12 +187,12 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
             f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
         
         validation_window = 3
-        if epoch > validation_window*2:
+        if epoch % 5 == 0 and epoch > 0:
             if training_method == 'two-stage':
-                if np.min(validating_loss_list[-validation_window:]) > np.max(validating_loss_list[-validation_window*2:-validation_window]):
+                if validating_loss_list[-1] > validating_loss_list[-6]:
                     break
-            elif training_method == 'decision-focused':
-                if np.max(validating_defender_utility_list[-validation_window:]) < np.min(validating_defender_utility_list[-validation_window*2:-validation_window]):
+            elif training_method == 'decision-focused' or training_method == 'block-decision-focused':
+                if validating_defender_utility_list[-1] < validating_defender_utility_list[-6]:
                     break
 
         time4 = time.time()
