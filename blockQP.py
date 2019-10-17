@@ -186,14 +186,14 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
             f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
         
-        validation_window = 3
-        if epoch % 5 == 0 and epoch > 0:
-            if training_method == 'two-stage':
-                if validating_loss_list[-1] > validating_loss_list[-6]:
-                    break
-            elif training_method == 'decision-focused' or training_method == 'block-decision-focused':
-                if validating_defender_utility_list[-1] < validating_defender_utility_list[-6]:
-                    break
+        # validation_window = 3
+        # if epoch % 5 == 0 and epoch > 0:
+        #     if training_method == 'two-stage':
+        #         if validating_loss_list[-1] > validating_loss_list[-6]:
+        #             break
+        #     elif training_method == 'decision-focused' or training_method == 'block-decision-focused':
+        #         if validating_defender_utility_list[-1] < validating_defender_utility_list[-6]:
+        #             break
 
         time4 = time.time()
         cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
