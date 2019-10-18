@@ -34,8 +34,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     elif optimizer=='adamax':
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
-    scheduler = ReduceLROnPlateau(optimizer, 'min')
-    # scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
+    # scheduler = ReduceLROnPlateau(optimizer, 'min')
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -283,7 +283,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        reg_const = max(0, -min(eigenvalues) + 0.1)
+        reg_const = max(0, -min(eigenvalues) + 10)
         Q_regularized = (Q_sym + torch.eye(len(edge_set)) * reg_const)
         # Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
@@ -347,7 +347,7 @@ if __name__=='__main__':
 
     parser.add_argument('--feature-size', type=int, default=5, help='feature size of each node')
     parser.add_argument('--noise', type=float, default=0, help='noise level of the normalized features (in variance)')
-    parser.add_argument('--omega', type=float, default=8, help='risk aversion of the attacker')
+    parser.add_argument('--omega', type=float, default=4, help='risk aversion of the attacker')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
 
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')

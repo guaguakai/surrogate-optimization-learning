@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
-def read_file(filename, method):
+def read_file(filename, method, key_list=None):
     f = open(filename, 'r')
     data = {}
     
@@ -54,6 +54,8 @@ def read_file(filename, method):
                     data[seed]['te_loss'].append(float(item[2]))
                     data[seed]['te_defu'].append(float(item[3]))
 
+    if key_list is None:
+        key_list = data.keys()
     for key in data:
         if method == 'two-stage':
             tmp_idx = np.argmin(data[key]['val_loss'])
@@ -69,7 +71,7 @@ def read_file(filename, method):
         final_defu_list.append(tmp_defu)
 
     print(method, len(data.keys()))
-    print(sorted(data.keys()))
+    print(key_list)
 
     final_loss_list = np.array(final_loss_list)
     final_defu_list = np.array(final_defu_list)
@@ -128,9 +130,12 @@ if __name__=='__main__':
     file2 = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, 'two-stage', GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
 
     #to_plot,x,epochs,=return_yaxis(f)
-    df_loss_list, df_defu_list, df_opt_loss_list, df_opt_defu_list, df_init_loss_list, df_init_defu_list = read_file(file1, 'decision-focused')
-    ts_loss_list, ts_defu_list, ts_opt_loss_list, ts_opt_defu_list, ts_init_loss_list, ts_init_defu_list = read_file(file2, 'two-stage')
+    # key_list = [4, 6, 7, 8, 1, 5]
+    key_list = None
+    df_loss_list, df_defu_list, df_opt_loss_list, df_opt_defu_list, df_init_loss_list, df_init_defu_list = read_file(file1, 'decision-focused', key_list)
+    ts_loss_list, ts_defu_list, ts_opt_loss_list, ts_opt_defu_list, ts_init_loss_list, ts_init_defu_list = read_file(file2, 'two-stage', key_list)
 
+    print('Opt mean:', np.mean(df_opt_loss_list), np.mean(df_opt_defu_list))
     df_loss_median = np.median(df_loss_list - df_opt_loss_list)
     df_defu_median = np.median(df_defu_list - df_opt_defu_list)
     init_loss_median = np.median(df_init_loss_list - df_opt_loss_list)

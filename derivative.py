@@ -109,6 +109,7 @@ def get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs, U, initial_distribu
         initial_coverage_prob = np.zeros(m)
 
     x = initial_coverage_prob
+    edge_set = list(range(m))
     for k in range(num_iterations):
         gamma = 2 / (k + 2)
         dx = dobj_dx_matrix_form(x, G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega, np)
