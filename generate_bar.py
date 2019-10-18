@@ -155,7 +155,7 @@ if __name__=='__main__':
     print('loss:', bar_list[0])
     print('defu:', bar_list[1])
     
-    save_filename = "{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+    save_filename = "barchart_{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     generatePlot(bar_list, labels, save_filename)
     
 
