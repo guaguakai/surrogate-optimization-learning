@@ -23,7 +23,7 @@ from derivative import *
 import qpthnew
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=1):
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
@@ -236,8 +236,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     # full forward path, the decision variables are the entire set of variables
     # initial_coverage_prob = np.zeros(m)
-    # initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
-    initial_coverage_prob = np.ones(m) # somehow this is very influential...
+    initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
+    # initial_coverage_prob = np.ones(m) # somehow this is very influential...
     initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
@@ -283,7 +283,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        reg_const = max(0, -min(eigenvalues) + 10)
+        reg_const = max(0, -min(eigenvalues) + 0.1)
         Q_regularized = (Q_sym + torch.eye(len(edge_set)) * reg_const)
         # Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
