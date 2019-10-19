@@ -134,7 +134,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         # print('difference:', dopt_dphi - estimated_dopt_dphi)
                         # ==========================================================
 
-                def_obj_list.append(def_obj.item())
+                U = torch.Tensor(G.graph['U'])
+                initial_distribution = torch.Tensor(G.graph['initial_distribution'])
+                new_def_obj  = -(objective_function_matrix_form(def_coverage, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+                def_obj_list.append(new_def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
 
                 loss_list.append(loss.item())
@@ -254,7 +257,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     if training_method == 'block-decision-focused':
         cut_size = n // 2 # heuristic
         while True:
-            edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
+            edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
             if sum(pred_optimal_coverage[edge_set]) > 0.1:
                 break
     else:
@@ -271,7 +274,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
         
-        solver_option = 'default'
         # I seriously don't know wherether to use 'default' or 'gurobi' now...
         # Gurobi performs well when there is no noise but default performs well when there is noise
         # But theoretically they should perform roughly the same...
@@ -284,29 +286,64 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
         reg_const = max(0, -min(eigenvalues) + 1)
-        # Q_regularized = torch.eye(len(edge_set)) * 1
-        Q_regularized = Q_sym + torch.eye(len(edge_set)) * reg_const
+        Q_regularized = (Q_sym + torch.eye(len(edge_set)) * reg_const)
         # Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
         # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
         
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
   
-        try:
-            if solver_option == 'default':
-                qp_solver = qpthnew.qp.QPFunction()
-                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-            else:
-                qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
-                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        # try:
+        qp_solver = qpthnew.qp.QPFunction()
+        coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
-            full_coverage_qp_solution = pred_optimal_coverage.clone()
-            full_coverage_qp_solution[edge_set] = coverage_qp_solution
-        except:
-            full_coverage_qp_solution = pred_optimal_coverage.clone()
-            print("qpth error! Not back-propagating this instance!")
+        full_coverage_qp_solution = pred_optimal_coverage.clone()
+        full_coverage_qp_solution[edge_set] = coverage_qp_solution
+        old_pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+
+        # computing the correction terms
+        indices = np.arange(cut_size)
+        np.random.shuffle(indices)
+        indices1, indices2 = np.array_split(indices, 2)
+        edge_set1, edge_set2 = edge_set[indices1], edge_set[indices2]
+        Q1, Q2 = Q_regularized[indices1][:,indices1], Q_regularized[indices2][:,indices2]
+        p1 = jac[indices1].view(1,-1) - pred_optimal_coverage[edge_set1] @ Q1
+        p2 = jac[indices2].view(1,-1) - pred_optimal_coverage[edge_set2] @ Q2
+        cut_size1, cut_size2 = len(indices1), len(indices2)
+
+        # Q1 part
+        A_matrix1, b_matrix1 = torch.ones(1, cut_size1), torch.Tensor([sum(pred_optimal_coverage[edge_set1])])
+        G_matrix1 = torch.cat((-torch.eye(cut_size1), torch.eye(cut_size1)))
+        h_matrix1 = torch.cat((torch.zeros(cut_size1), torch.ones(cut_size1)))
+        qp_solver1 = qpthnew.qp.QPFunction()
+        coverage_qp_solution1 = qp_solver(Q1, p1, G_matrix1, h_matrix1, A_matrix1, b_matrix1)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        full_coverage_qp_solution1 = pred_optimal_coverage.clone()
+        full_coverage_qp_solution1[edge_set1] = coverage_qp_solution1
+
+        pred_defender_utility1  = -(objective_function_matrix_form(full_coverage_qp_solution1, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+
+        # Q2 part
+        A_matrix2, b_matrix2 = torch.ones(1, cut_size2), torch.Tensor([sum(pred_optimal_coverage[edge_set2])])
+        G_matrix2 = torch.cat((-torch.eye(cut_size2), torch.eye(cut_size2)))
+        h_matrix2 = torch.cat((torch.zeros(cut_size2), torch.ones(cut_size2)))
+        qp_solver2 = qpthnew.qp.QPFunction()
+        coverage_qp_solution2 = qp_solver(Q2, p2, G_matrix2, h_matrix2, A_matrix2, b_matrix2)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        full_coverage_qp_solution2 = pred_optimal_coverage.clone()
+        full_coverage_qp_solution2[edge_set2] = coverage_qp_solution2
+
+        pred_defender_utility2  = -(objective_function_matrix_form(full_coverage_qp_solution2, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+
+        # correction ratio
+        c = (m - cut_size) / ((m - cut_size/2))
+        pred_defender_utility = old_pred_defender_utility / (1-c) - c/(1-c) * (pred_defender_utility1 + pred_defender_utility2)
+
+        # full_coverage_qp_solution = pred_optimal_coverage.clone()
+        # print("qpth error! Not back-propagating this instance!")
+
+        # pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
             
     else:
         full_coverage_qp_solution = pred_optimal_coverage.clone()
+        pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
     # full_coverage_qp_solution.require_grad = True
 
     # ========================= Error message =========================
@@ -317,21 +354,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         print("objective value (QP): {}".format(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(full_coverage_qp_solution)
         full_coverage_qp_solution = pred_optimal_coverage.clone()
+        pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
-    # ================== Evaluation on the ground truth ===============
-    # ======================= Defender Utility ========================
-    pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
-    if pred_defender_utility > 0.1: # unknown ERROR # TODO
-        print("unknown behavior happened...")
-        print("objective value (SLSQP): {}".format(pred_obj_value))
-        full_coverage_qp_solution = torch.Tensor(initial_coverage_prob)
-    
-    # ==================== Actual Defender Utility ====================
-    # Running simulations to check the actual defender utility
-    # _, simulated_defender_utility = attackerOracle(G, full_optimal_coverage, phi_true, omega=omega, num_paths=100)
-    simulated_defender_utility = 0
-
-    return pred_defender_utility, full_coverage_qp_solution, simulated_defender_utility
+    return pred_defender_utility, full_coverage_qp_solution, 0
 
 if __name__=='__main__':
     # ==================== Parser setting ==========================

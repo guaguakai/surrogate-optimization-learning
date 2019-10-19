@@ -29,11 +29,11 @@ def forward_single_np_gurobi(Q, p, G, h, A, b):
     model.update()   # integrate new variables
 
     # minimize
-    #     x.T * Q * x + p * x
+    #    0.5 * x.T * Q * x + p * x
     obj = gp.QuadExpr()
     rows, cols = Q.nonzero()
     for i, j in zip(rows, cols):
-        obj += x[i] * Q[i, j] * x[j]
+        obj += 0.5 * x[i] * Q[i, j] * x[j]
     for i in range(n):
         obj += p[i] * x[i]
     model.setObjective(obj, gp.GRB.MINIMIZE)
@@ -102,7 +102,7 @@ def make_gurobi_model(G, h, A, b, Q):
     if Q is not None:
         rows, cols = Q.nonzero()
         for i, j in zip(rows, cols):
-            obj += x[i] * Q[i, j] * x[j]
+            obj += 0.5 * x[i] * Q[i, j] * x[j]
 
     return model, x, inequality_constraints, equality_constraints, obj
 
