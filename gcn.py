@@ -19,7 +19,7 @@ class featureGenerationNet2(nn.Module): # message passing version
     to decompress this to features of size feature_size,
     
     """
-    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[4, 7, 10, 16], nn_hidden_layer_sizes=[64, 32]):
+    def __init__(self, raw_feature_size, gcn_hidden_layer_sizes=[4, 8, 8, 4], nn_hidden_layer_sizes=[8, 32]):
         super(featureGenerationNet2, self).__init__()
         
         self.r1, self.r2, self.r3, self.r4 = gcn_hidden_layer_sizes       
@@ -28,8 +28,8 @@ class featureGenerationNet2(nn.Module): # message passing version
         #Define the layers of NN to predict the compressed feature vector for every node
         self.fc1 = nn.Linear(self.r4, self.r5)
         self.fc2 = nn.Linear(self.r5, self.r6)
+        # self.fc3 = nn.Linear(self.r6, self.r7)
         self.fc3 = nn.Linear(self.r6, raw_feature_size)
-        # self.fc4 = nn.Linear(r7, raw_feature_size)
         
         # Define the layers of gcn 
         self.gcn1 = Conv(1,       self.r1, aggr=aggregation_function_generation)
@@ -63,8 +63,8 @@ class featureGenerationNet2(nn.Module): # message passing version
 
         x = self.activation(self.fc1(x)) # + self.noise_std * torch.randn(self.r5) 
         x = self.activation(self.fc2(x)) # + self.noise_std * torch.randn(self.r6)
+        # x = self.activation(self.fc3(x)) # + self.noise_std * torch.randn(self.r6)
         x = self.fc3(x)
-        x = x # + self.noise_std * torch.randn(x.shape)
 
 
         # Now, x is a nXr tensor consisting of features for each of the n nodes v.
