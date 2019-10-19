@@ -150,7 +150,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         print(unbiased_probs_pred)
                         print(biased_probs_pred)
                         raise ValueError('loss is nan!')
-                elif training_method == "decision-focused" or training_method == "block-decision-focused":
+                elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'new-block-decision-focused':
                     batch_loss += (-def_obj)
                 else:
                     raise TypeError("Not Implemented Method")
@@ -172,7 +172,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage" or epoch <= pretrain_epochs:
                     scheduler.step(np.mean(loss_list))
-                elif training_method == "decision-focused" or training_method == "block-decision-focused":
+                elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'new-block-decision-focused':
                     scheduler.step(-np.mean(def_obj_list))
                 else:
                     raise TypeError("Not Implemented Method")
@@ -254,7 +254,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # sample_distribution = pred_optimal_coverage.detach().numpy() + 0.1
     # sample_distribution /= sum(sample_distribution)
     sample_distribution = np.ones(m) / m
-    if training_method == 'block-decision-focused':
+    if training_method == 'block-decision-focused' or training_method == 'new-block-decision-focused':
         cut_size = n // 2 # heuristic
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
@@ -394,7 +394,7 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
 
     training_mode = args.method
-    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused'}
+    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', 3: 'new-block-decision-focused'}
     training_method = method_dict[training_mode]
 
     feature_size = args.feature_size
