@@ -35,7 +35,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -46,7 +46,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
 
-    pretrain_epochs = 0
+    pretrain_epochs = 20
     for epoch in range(-1, n_epochs):
         for mode in ["training", "validating", "testing"]:
             if mode == "training":
