@@ -241,8 +241,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             p=np.random.uniform(low=e_low, high=e_high)             # Randomly pick Edges probability
             # Generate random graph
             # G = nx.gnp_random_graph(N,p)
-            # G = nx.random_geometric_graph(N,p)
-            G = nx.connected_watts_strogatz_graph(N,4,p) 
+            G = nx.random_geometric_graph(N,p)
+            # G = nx.connected_watts_strogatz_graph(N,4,p) 
 
             sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
             sources=sources_targets[:n_sources]

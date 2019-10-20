@@ -23,7 +23,7 @@ from derivative import *
 import qpthnew
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=1):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1):
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
@@ -46,8 +46,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
 
-    pretrain_epochs = 20
+    pretrain_epochs = 50
     for epoch in range(-1, n_epochs):
+        df_weight = np.clip((epoch-1) / pretrain_epochs, 0, 1)
+        ts_weight = 1 - df_weight
         for mode in ["training", "validating", "testing"]:
             if mode == "training":
                 dataset = train_data
@@ -73,6 +75,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
             loss_list, def_obj_list, simulated_def_obj_list = [], [], [] 
             batch_loss = 0
             for iter_n in tqdm.trange(len(dataset)):
+                random_value = np.random.random()
                 ################################### Gather data based on learning model
                 G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
                 
@@ -100,7 +103,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 if mode == 'testing' or mode == "validating": # or training_method == "two-stage" or epoch <= 0:
                     def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
-                    if training_method == "two-stage" or epoch <= pretrain_epochs:
+                    if training_method == "two-stage":
                         # def_obj, simulated_def_obj = torch.Tensor([0]), 0 # for two-stage testing only
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
                     else:
@@ -140,15 +143,15 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 loss_list.append(loss.item())
 
                 # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
-                if training_method == "two-stage" or epoch <= pretrain_epochs:
-                    batch_loss += loss
+                if training_method == "two-stage":
+                    batch_loss += loss[0]
                     if torch.isnan(loss):
                         print(phi_pred)
                         print(unbiased_probs_pred)
                         print(biased_probs_pred)
                         raise ValueError('loss is nan!')
                 elif training_method == "decision-focused" or training_method == "block-decision-focused":
-                    batch_loss += (-def_obj)
+                    batch_loss += ((-def_obj) * df_weight + loss[0] * ts_weight)
                 else:
                     raise TypeError("Not Implemented Method")
 
@@ -167,10 +170,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     batch_loss = 0
 
             if (epoch > 0) and (mode == "validating"):
-                if training_method == "two-stage" or epoch <= pretrain_epochs:
+                if training_method == "two-stage":
                     scheduler.step(np.mean(loss_list))
                 elif training_method == "decision-focused" or training_method == "block-decision-focused":
-                    scheduler.step(-np.mean(def_obj_list))
+                    scheduler.step(-np.mean(def_obj_list) * df_weight + np.mean(loss_list) * ts_weight)
                 else:
                     raise TypeError("Not Implemented Method")
 
