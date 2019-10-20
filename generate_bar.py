@@ -152,8 +152,8 @@ if __name__=='__main__':
     
     bar_list = [(df_defu_mean,   ts_defu_mean,   init_defu_mean),
                 (df_defu_median, ts_defu_median, init_defu_median)]
-    print('loss:', bar_list[0])
-    print('defu:', bar_list[1])
+    print('mean (df, ts, init):', bar_list[0])
+    print('median (df, ts, init):', bar_list[1])
     
     save_filename = "barchart_{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     generatePlot(bar_list, labels, save_filename)

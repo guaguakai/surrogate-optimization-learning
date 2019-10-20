@@ -88,8 +88,8 @@ def generatePlot(xy_list, bar_list, filename):
     #ax4 = fig.add_subplot(224)
     for i in range(len(xy_list)):
         x, y1, label1, y2, label2, title, ytitle = xy_list[i]
-        axs[i].plot(x, y1,'bo-' ,label=label1)
-        axs[i].plot(x, y2, 'gs-' ,label=label2)
+        axs[i].plot(x, y1,'bo-' ,label=label1, markersize=1)
+        axs[i].plot(x, y2, 'gs-' ,label=label2, markersize=1)
         
         axs[i].legend()
         # axs[i].title(title)

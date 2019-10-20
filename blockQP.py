@@ -151,6 +151,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         print(biased_probs_pred)
                         raise ValueError('loss is nan!')
                 elif training_method == "decision-focused" or training_method == "block-decision-focused":
+                    batch_loss += (-def_obj)
+                elif training_method == "hybrid":
                     batch_loss += ((-def_obj) * df_weight + loss[0] * ts_weight)
                 else:
                     raise TypeError("Not Implemented Method")
@@ -173,6 +175,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 if training_method == "two-stage":
                     scheduler.step(np.mean(loss_list))
                 elif training_method == "decision-focused" or training_method == "block-decision-focused":
+                    scheduler.step(-np.mean(def_obj_list))
+                elif training_method == 'hybrid':
                     scheduler.step(-np.mean(def_obj_list) * df_weight + np.mean(loss_list) * ts_weight)
                 else:
                     raise TypeError("Not Implemented Method")
@@ -189,15 +193,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
             f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
         
-        # validation_window = 3
-        # if epoch % 5 == 0 and epoch > 0:
-        #     if training_method == 'two-stage':
-        #         if validating_loss_list[-1] > validating_loss_list[-6]:
-        #             break
-        #     elif training_method == 'decision-focused' or training_method == 'block-decision-focused':
-        #         if validating_defender_utility_list[-1] < validating_defender_utility_list[-6]:
-        #             break
-
         time4 = time.time()
         cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
         time3 = time4
@@ -254,7 +249,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # sample_distribution = pred_optimal_coverage.detach().numpy() + 0.1
     # sample_distribution /= sum(sample_distribution)
     sample_distribution = np.ones(m) / m
-    if training_method == 'block-decision-focused':
+    if training_method == 'block-decision-focused' or training_method == 'hybrid':
         cut_size = n // 2 # heuristic
         while True:
             edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
@@ -372,7 +367,7 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
 
     training_mode = args.method
-    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused'}
+    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', '4': 'hybrid'} # 3 is reserved for new-block-df
     training_method = method_dict[training_mode]
 
     feature_size = args.feature_size
