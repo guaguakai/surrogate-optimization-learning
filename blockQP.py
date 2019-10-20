@@ -367,7 +367,7 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
 
     training_mode = args.method
-    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', '4': 'hybrid'} # 3 is reserved for new-block-df
+    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', 4: 'hybrid'} # 3 is reserved for new-block-df
     training_method = method_dict[training_mode]
 
     feature_size = args.feature_size
