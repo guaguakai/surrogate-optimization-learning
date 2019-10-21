@@ -61,7 +61,7 @@ def read_file(filename, method, key_list=None):
             tmp_idx = np.argmin(data[key]['val_loss'])
             tmp_loss = data[key]['te_loss'][tmp_idx]
             tmp_defu = data[key]['te_defu'][tmp_idx]
-        elif method == 'decision-focused':
+        elif method == 'decision-focused' or method == 'hybrid':
             tmp_idx = np.argmax(data[key]['val_defu'])
             tmp_loss = data[key]['te_loss'][tmp_idx]
             tmp_defu = data[key]['te_defu'][tmp_idx]
@@ -135,7 +135,7 @@ if __name__=='__main__':
     key_list = None
     df_loss_list, df_defu_list, df_opt_loss_list, df_opt_defu_list, df_init_loss_list, df_init_defu_list = read_file(file1, 'decision-focused', key_list)
     ts_loss_list, ts_defu_list, ts_opt_loss_list, ts_opt_defu_list, ts_init_loss_list, ts_init_defu_list = read_file(file2, 'two-stage', key_list)
-    hb_loss_list, hb_defu_list, hb_opt_loss_list, hb_opt_defu_list, hb_init_loss_list, hb_init_defu_list = read_file(file3, 'two-stage', key_list)
+    hb_loss_list, hb_defu_list, hb_opt_loss_list, hb_opt_defu_list, hb_init_loss_list, hb_init_defu_list = read_file(file3, 'hybrid', key_list)
 
     print('Opt mean:', np.mean(df_opt_loss_list), np.mean(df_opt_defu_list))
     df_loss_median = np.median(df_loss_list - df_opt_loss_list)

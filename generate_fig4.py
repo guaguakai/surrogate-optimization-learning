@@ -58,7 +58,7 @@ def return_yaxis(filename, method):
             tmp_defu = to_plot['te_defu'][tmp_idx,i]
             final_loss_list.append(tmp_loss)
             final_defu_list.append(tmp_defu)
-    elif method == 'decision-focused':
+    elif method == 'decision-focused' or method == 'hybrid':
         for i in range(num_samples):
             tmp_idx = np.argmax(to_plot['val_defu'][:,i])
             tmp_loss = to_plot['te_loss'][tmp_idx,i]
