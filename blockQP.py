@@ -99,7 +99,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
 
-                if mode == 'testing' or mode == "validating": # or training_method == "two-stage" or epoch <= 0:
+                if mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
                     def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
                     if training_method == "two-stage":
@@ -280,7 +280,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        reg_const = max(0, -min(eigenvalues) + 1)
+        reg_const = max(0, -min(eigenvalues) + 0.1)
         # Q_regularized = torch.eye(len(edge_set)) * 1
         Q_regularized = Q_sym + torch.eye(len(edge_set)) * reg_const
         # Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
