@@ -290,12 +290,11 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
   
         try:
-            if solver_option == 'default':
-                qp_solver = qpthnew.qp.QPFunction()
-                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-            else:
-                qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
-                coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            qp_solver = qpth.qp.QPFunction()
+            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            # else:
+            #     qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
+            #     coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
             full_coverage_qp_solution = pred_optimal_coverage.clone()
             full_coverage_qp_solution[edge_set] = coverage_qp_solution
