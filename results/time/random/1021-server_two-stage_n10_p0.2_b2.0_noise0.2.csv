@@ -20,3 +20,23 @@ Random seed, 10
 nodes, 10.0, edges, 16.0, epochs, 100, time, 1654.317999124527
 Random seed, 8
 nodes, 10.0, edges, 19.0, epochs, 100, time, 1708.8656377792358
+Random seed, 3
+nodes, 10.0, edges, 16.0, epochs, 100, time, 397.13803791999817
+Random seed, 5
+nodes, 10.0, edges, 9.0, epochs, 100, time, 640.238115310669
+Random seed, 1
+nodes, 10.0, edges, 12.0, epochs, 100, time, 713.4942107200623
+Random seed, 4
+nodes, 10.0, edges, 10.0, epochs, 100, time, 783.9806513786316
+Random seed, 2
+nodes, 10.0, edges, 10.0, epochs, 100, time, 933.1178781986237
+Random seed, 9
+nodes, 10.0, edges, 13.0, epochs, 100, time, 1105.4307718276978
+Random seed, 7
+nodes, 10.0, edges, 14.0, epochs, 100, time, 1350.7093014717102
+Random seed, 6
+nodes, 10.0, edges, 14.0, epochs, 100, time, 1416.4407875537872
+Random seed, 10
+nodes, 10.0, edges, 16.0, epochs, 100, time, 1765.8271126747131
+Random seed, 8
+nodes, 10.0, edges, 19.0, epochs, 100, time, 1795.8932008743286
