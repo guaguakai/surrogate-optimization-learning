@@ -9,5 +9,5 @@ echo $NODES
 echo $VAR
 SEED=$VAR
 METHOD=1
-python3 blockQP.py --epochs=$EPOCHS --fixed-graph=0 --method=$METHOD --seed=$SEED --filename=$FILENAME --budget=$BUDGET --distribution=1 --number-nodes=$NODES --number-graphs=1 --number-samples=$SAMPLES --learning-rate=$LR --prob=$PROB --feature-size=8 --number-sources=5 --number-targets=2 --noise=$NOISE
+python3 blockQP.py --epochs=$EPOCHS --fixed-graph=0 --method=$METHOD --seed=$SEED --filename=$FILENAME --budget=$BUDGET --distribution=1 --number-nodes=$NODES --number-graphs=1 --number-samples=$SAMPLES --learning-rate=$LR --prob=$PROB --feature-size=8 --number-sources=5 --number-targets=5 --noise=$NOISE
 

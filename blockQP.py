@@ -34,7 +34,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.7)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -241,11 +241,23 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # sample_distribution = pred_optimal_coverage.detach().numpy() + 0.1
     # sample_distribution /= sum(sample_distribution)
     sample_distribution = np.ones(m) / m
-    if training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
+    if training_method == 'block-decision-focused':
         cut_size = n // 2 # heuristic
+        min_sum = 0.01
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
-            if sum(pred_optimal_coverage[edge_set]) > 0:
+            if sum(pred_optimal_coverage[edge_set]) > min_sum:
+                break
+    elif training_method == 'corrected-block-decision-focused' or training_method == 'hybrid':
+        cut_size = n // 2 # heuristic
+        min_sum = 1e-5
+        while True:
+            edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
+            indices = np.arange(cut_size)
+            np.random.shuffle(indices)
+            indices1, indices2 = np.array_split(indices, 2)
+            edge_set1, edge_set2 = edge_set[indices1], edge_set[indices2]
+            if sum(pred_optimal_coverage[edge_set1]) > min_sum / 10 and sum(pred_optimal_coverage[edge_set2]) > min_sum / 10:
                 break
     else:
         cut_size = m
@@ -290,10 +302,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
         if training_method == 'corrected-block-decision-focused':
             # computing the correction terms
-            indices = np.arange(cut_size)
-            np.random.shuffle(indices)
-            indices1, indices2 = np.array_split(indices, 2)
-            edge_set1, edge_set2 = edge_set[indices1], edge_set[indices2]
             Q1, Q2 = Q_regularized[indices1][:,indices1], Q_regularized[indices2][:,indices2]
             p1 = jac[indices1].view(1,-1) - pred_optimal_coverage[edge_set1] @ Q1
             p2 = jac[indices2].view(1,-1) - pred_optimal_coverage[edge_set2] @ Q2
@@ -304,7 +312,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             G_matrix1 = torch.cat((-torch.eye(cut_size1), torch.eye(cut_size1)))
             h_matrix1 = torch.cat((torch.zeros(cut_size1), torch.ones(cut_size1)))
             qp_solver1 = qpth.qp.QPFunction()
-            coverage_qp_solution1 = qp_solver(Q1, p1, G_matrix1, h_matrix1, A_matrix1, b_matrix1)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            coverage_qp_solution1 = qp_solver1(Q1, p1, G_matrix1, h_matrix1, A_matrix1, b_matrix1)[0]
             full_coverage_qp_solution1 = pred_optimal_coverage.clone()
             full_coverage_qp_solution1[edge_set1] = coverage_qp_solution1
 
@@ -315,7 +323,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             G_matrix2 = torch.cat((-torch.eye(cut_size2), torch.eye(cut_size2)))
             h_matrix2 = torch.cat((torch.zeros(cut_size2), torch.ones(cut_size2)))
             qp_solver2 = qpth.qp.QPFunction()
-            coverage_qp_solution2 = qp_solver(Q2, p2, G_matrix2, h_matrix2, A_matrix2, b_matrix2)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            coverage_qp_solution2 = qp_solver2(Q2, p2, G_matrix2, h_matrix2, A_matrix2, b_matrix2)[0]
             full_coverage_qp_solution2 = pred_optimal_coverage.clone()
             full_coverage_qp_solution2[edge_set2] = coverage_qp_solution2
 

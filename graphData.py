@@ -49,7 +49,6 @@ def getMarkovianWalk(G, edge_probs):
     while (not(current_node in targets)):
         neighbors = list(G[current_node]) # works for directed graph
         transition_probs=np.array([(edge_probs[current_node][n]).detach().numpy() for n in neighbors])
-        transition_probs/=(transition_probs).sum()
         next_node=np.random.choice(neighbors, p=transition_probs)
         edge_list.append((current_node, next_node))
         current_node=next_node
@@ -109,12 +108,13 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
         for node in list(G.nodes()):
             # Compute distance from the target: 
             dist_target=min([nx.shortest_path_length(G, source=node, target=target) for target in targets])
-            dist_src_trg=0
-            for s in sources: 
-                dist_src_trg=max(dist_src_trg,min([nx.shortest_path_length(G, source=s, target=target) for target in targets]))
+            # dist_src_trg=0
+            # for s in sources: 
+            #     dist_src_trg=max(dist_src_trg,min([nx.shortest_path_length(G, source=s, target=target) for target in targets]))
             
             # TODO: Use a better feature computation for a given node
-            node_phi = -dist_target + np.random.uniform(low=-1,high=1)
+            node_phi = -dist_target + np.random.normal()
+            # node_phi = -dist_target + np.random.uniform(low=-1,high=1)
             G.node[node]['node_phi']=node_phi
     
     phi=np.zeros(N)
@@ -241,8 +241,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             p=np.random.uniform(low=e_low, high=e_high)             # Randomly pick Edges probability
             # Generate random graph
             # G = nx.gnp_random_graph(N,p)
-            # G = nx.random_geometric_graph(N,p)
-            G = nx.connected_watts_strogatz_graph(N,4,p) 
+            G = nx.random_geometric_graph(N,p)
+            # G = nx.connected_watts_strogatz_graph(N,4,p) 
 
             sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
             sources=sources_targets[:n_sources]
@@ -419,47 +419,29 @@ def generateSyntheticData(node_feature_size, omega=4,
 
             print('cut:', cut)
 
-            # ==============================================================
-            # # checking multiple min-cuts
-            # dummyG.add_node('tmp')
-            # edge = list(edges)[cut[0]]
-            # dummyG.add_edge(edge[0], 'tmp')
-            # dummyG.add_edge(edge[1], 'tmp')
-            # new_value, new_partition = nx.minimum_cut(dummyG, 'ds', 'dt')
-            # print('new cut size:', new_value)
-            # partition0, partition1 = set(partition[0]), set(partition[1])
-            # new_cut = []
-            # for idx, edge in enumerate(G.edges()):
-            #     if edge[0] in partition0 and edge[1] in partition1:
-            #         new_cut.append(idx)
-            #     elif edge[0] in partition1 and edge[1] in partition0:
-            #         new_cut.append(idx)
-            # print('new cut:', new_cut)
-            # ==============================================================
-
             if value > budget:
                 break
 
         # COMPUTE ADJACENCY MATRIX
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
-        N=nx.number_of_nodes(G) 
+        N = nx.number_of_nodes(G) 
 
-        pos = nx.spring_layout(G)
+        # pos = nx.spring_layout(G)
 
-        print('sources', G.graph['sources'], 'targets', G.graph['targets'])
-        # nx.draw_networkx_nodes(G, pos, nodelist=G.nodes())
-        nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='b')
-        nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='g')
+        # print('sources', G.graph['sources'], 'targets', G.graph['targets'])
+        # # nx.draw_networkx_nodes(G, pos, nodelist=G.nodes())
+        # nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='b')
+        # nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='g')
 
-        nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
-        nx.draw_networkx_edges(G, pos,
-                       edgelist=[list(edges)[idx] for idx in cut],
-                       width=8, alpha=0.5, edge_color='r')
-        edge_labels = []
-        for i in range(m):
-            edge_labels.append(str(i))
-        # edge_labels = nx.draw_networkx_edge_labels(G, pos, edge_labels)
-        nx.draw(G)
+        # nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
+        # nx.draw_networkx_edges(G, pos,
+        #                edgelist=[list(edges)[idx] for idx in cut],
+        #                width=8, alpha=0.5, edge_color='r')
+        # edge_labels = []
+        # for i in range(m):
+        #     edge_labels.append(str(i))
+        # # edge_labels = nx.draw_networkx_edge_labels(G, pos, edge_labels)
+        # nx.draw(G)
         # plt.show()
 
 
