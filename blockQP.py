@@ -34,7 +34,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.7)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -149,16 +149,16 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
                             (-def_obj).backward()
                         elif training_method == "hybrid":
-                            loss[0].backward(retain_graph=True)
-                            ts_grad = [parameter.grad.clone() for parameter in net2.parameters()]
-                            optimizer.zero_grad()
-                            (-def_obj).backward()
-                            df_grad = [parameter.grad for parameter in net2.parameters()]
-                            cos = nn.CosineSimilarity(dim=0)
-                            for (ts_grad_i, df_grad_i) in zip(ts_grad, df_grad):
-                                cosine_similarity = cos(ts_grad_i.reshape(-1), df_grad_i.reshape(-1))
-                                df_grad_i = df_grad_i * df_weight + ts_grad_i * ts_weight
-                                # df_grad_i = df_grad_i + ts_grad_i * max(0, cosine_similarity) # cosine similarity method
+                            ((-def_obj) * df_weight + loss[0] * ts_weight).backward()
+                            # loss[0].backward(retain_graph=True)
+                            # ts_grad = [parameter.grad.clone() for parameter in net2.parameters()]
+                            # optimizer.zero_grad()
+                            # (-def_obj).backward()
+                            # df_grad = [parameter.grad for parameter in net2.parameters()]
+                            # cos = nn.CosineSimilarity(dim=0)
+                            # for (ts_grad_i, df_grad_i) in zip(ts_grad, df_grad):
+                            #     cosine_similarity = cos(ts_grad_i.reshape(-1), df_grad_i.reshape(-1))
+                            #     df_grad_i = df_grad_i + ts_grad_i * max(0, cosine_similarity) # cosine similarity method
                         else:
                             raise TypeError("Not Implemented Method")
                         torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
