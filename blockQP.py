@@ -107,29 +107,30 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
                         
                         # =============== checking gradient manually ===============
-                        dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
-                        for i in range(len(def_coverage)):
-                            grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
-                            dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
-                            step_size = 0.01
+                        # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
+                        # for i in range(len(def_coverage)):
+                        #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        #     dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
+                        #     step_size = 0.01
 
-                        estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
-                        for i in range(len(phi_pred)):
-                            new_phi_pred = phi_pred.clone()
-                            new_phi_pred[i] += step_size
+                        # estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
+                        # for i in range(len(phi_pred)):
+                        #     new_phi_pred = phi_pred.clone()
+                        #     new_phi_pred[i] += step_size
         
-                            # validating
-                            new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
-                            new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
-                            estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
+                        #     # validating
+                        #     new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
+                        #     _, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
+                        #     estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
 
-                        print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
-                            torch.sum(torch.abs(dopt_dphi)),
-                            torch.sum(torch.abs(estimated_dopt_dphi)),
-                            torch.sum(torch.abs(dopt_dphi - estimated_dopt_dphi)),
-                            torch.sum(torch.abs(torch.sign(dopt_dphi) - torch.sign(estimated_dopt_dphi))/2)))
-                            # torch.max(dopt_dphi - estimated_dopt_dphi)))
-                        print('difference:', dopt_dphi - estimated_dopt_dphi)
+                        # print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
+                        #     torch.sum(torch.abs(dopt_dphi)),
+                        #     torch.sum(torch.abs(estimated_dopt_dphi)),
+                        #     torch.sum(torch.abs(dopt_dphi - estimated_dopt_dphi)),
+                        #     torch.sum(torch.abs(torch.sign(dopt_dphi) - torch.sign(estimated_dopt_dphi))/2)))
+                        #     # torch.max(dopt_dphi - estimated_dopt_dphi)))
+                        # cos = nn.CosineSimilarity(dim=0)
+                        # print('cosine similarity:', cos(dopt_dphi.reshape(-1), estimated_dopt_dphi.reshape(-1)))
                         # ==========================================================
 
                 U = torch.Tensor(G.graph['U'])
@@ -241,19 +242,19 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol)) # Frank Wolfe version
 
     # ======================== edge set choice =====================
-    # sample_distribution = pred_optimal_coverage.detach().numpy() + 0.1
-    # sample_distribution /= sum(sample_distribution)
-    sample_distribution = np.ones(m) / m
+    sample_distribution = pred_optimal_coverage.detach().numpy() + 0.01
+    sample_distribution /= sum(sample_distribution)
+    # sample_distribution = np.ones(m) / m
     if training_method == 'block-decision-focused':
         cut_size = n // 2 # heuristic
-        min_sum = 1e-5
+        min_sum = 1e-2
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
             if sum(pred_optimal_coverage[edge_set]) > min_sum:
                 break
     elif training_method == 'corrected-block-decision-focused' or training_method == 'hybrid':
         cut_size = n // 2 # heuristic
-        min_sum = 1e-5
+        min_sum = 1e-2
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
             indices = np.arange(cut_size)
@@ -286,17 +287,21 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
         Q_sym = (Q + Q.t()) / 2
     
-        # ------------------ eigen regularization -----------------------
-        eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
-        eigenvalues = [x.real for x in eigenvalues]
-        reg_const = max(0, -min(eigenvalues) + 1)
-        Q_regularized = Q_sym + torch.eye(len(edge_set)) * reg_const
+        # ------------------ regularization -----------------------
+        Q_regularized = Q_sym.clone()
+        reg_const = 1
+        while True:
+            eigenvalues, eigenvectors = np.linalg.eig(Q_regularized)
+            eigenvalues = [x.real for x in eigenvalues]
+            if min(eigenvalues) > 0:
+                break
+            else:
+                # ------------------ eigen regularization -----------------------
+                # Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.1)
+                # ----------------- diagonal regularization ---------------------
+                reg_const *= 1.5
+                Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
 
-        # ----------------- diagonal regularization ---------------------
-        # diagonal_minimum = reg_const
-        # Q_regularized = Q_sym.clone()
-        # Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=diagonal_minimum)
-        
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
   
         qp_solver = qpth.qp.QPFunction()
@@ -347,7 +352,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
     # ========================= Error message =========================
-    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.01): # or 0.01 for GUROBI, 0.1 for qpth
+    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
         print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(pred_optimal_coverage)
