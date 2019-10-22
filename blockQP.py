@@ -34,7 +34,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -280,7 +280,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     
         eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
         eigenvalues = [x.real for x in eigenvalues]
-        reg_const = max(0, -min(eigenvalues) + 0.1)
+        reg_const = max(0, -min(eigenvalues) + 1)
         # Q_regularized = torch.eye(len(edge_set)) * 1
         Q_regularized = Q_sym + torch.eye(len(edge_set)) * reg_const
         # Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
