@@ -47,6 +47,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     pretrain_epochs = n_epochs
     for epoch in range(-1, n_epochs):
+        df_weight = (epoch - 1) / pretrain_epochs
+        ts_weight = 1 - df_weight
         for mode in ["training", "validating", "testing"]:
             if mode == "training":
                 dataset = train_data
@@ -105,29 +107,29 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
                         
                         # =============== checking gradient manually ===============
-                        # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
-                        # for i in range(len(def_coverage)):
-                        #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
-                        #     dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
-                        #     step_size = 0.01
+                        dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
+                        for i in range(len(def_coverage)):
+                            grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                            dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
+                            step_size = 0.01
 
-                        # estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
-                        # for i in range(len(phi_pred)):
-                        #     new_phi_pred = phi_pred.clone()
-                        #     new_phi_pred[i] += step_size
+                        estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
+                        for i in range(len(phi_pred)):
+                            new_phi_pred = phi_pred.clone()
+                            new_phi_pred[i] += step_size
         
-                        #     # validating
-                        #     new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
-                        #     new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
-                        #     estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
+                            # validating
+                            new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
+                            new_def_obj, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
+                            estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
 
-                        # print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
-                        #     torch.sum(torch.abs(dopt_dphi)),
-                        #     torch.sum(torch.abs(estimated_dopt_dphi)),
-                        #     torch.sum(torch.abs(dopt_dphi - estimated_dopt_dphi)),
-                        #     torch.sum(torch.abs(torch.sign(dopt_dphi) - torch.sign(estimated_dopt_dphi))/2)))
-                        #     # torch.max(dopt_dphi - estimated_dopt_dphi)))
-                        # print('difference:', dopt_dphi - estimated_dopt_dphi)
+                        print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
+                            torch.sum(torch.abs(dopt_dphi)),
+                            torch.sum(torch.abs(estimated_dopt_dphi)),
+                            torch.sum(torch.abs(dopt_dphi - estimated_dopt_dphi)),
+                            torch.sum(torch.abs(torch.sign(dopt_dphi) - torch.sign(estimated_dopt_dphi))/2)))
+                            # torch.max(dopt_dphi - estimated_dopt_dphi)))
+                        print('difference:', dopt_dphi - estimated_dopt_dphi)
                         # ==========================================================
 
                 U = torch.Tensor(G.graph['U'])
@@ -154,7 +156,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                             cos = nn.CosineSimilarity(dim=0)
                             for (ts_grad_i, df_grad_i) in zip(ts_grad, df_grad):
                                 cosine_similarity = cos(ts_grad_i.reshape(-1), df_grad_i.reshape(-1))
-                                df_grad_i = df_grad_i + ts_grad_i * max(0, cosine_similarity)
+                                df_grad_i = df_grad_i * df_weight + ts_grad_i * ts_weight
+                                # df_grad_i = df_grad_i + ts_grad_i * max(0, cosine_similarity) # cosine similarity method
                         else:
                             raise TypeError("Not Implemented Method")
                         torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
@@ -243,7 +246,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     sample_distribution = np.ones(m) / m
     if training_method == 'block-decision-focused':
         cut_size = n // 2 # heuristic
-        min_sum = 0.01
+        min_sum = 1e-5
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
             if sum(pred_optimal_coverage[edge_set]) > min_sum:
@@ -283,13 +286,16 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
         Q_sym = (Q + Q.t()) / 2
     
-        eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
-        eigenvalues = [x.real for x in eigenvalues]
-        reg_const = max(0, -min(eigenvalues) + 1)
-        # Q_regularized = torch.eye(len(edge_set)) * 1
-        Q_regularized = Q_sym + torch.eye(len(edge_set)) * reg_const
-        # Q_regularized = (Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const))
-        # new_eigenvalues, new_eigenvectors = np.linalg.eig(Q_regularized)
+        # ------------------ eigen regularization -----------------------
+        # eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
+        # eigenvalues = [x.real for x in eigenvalues]
+        # reg_const = max(0, -min(eigenvalues) + 1)
+        # Q_regularized = Q_sym + torch.eye(len(edge_set)) * reg_const
+
+        # ----------------- diagonal regularization ---------------------
+        diagonal_minimum = 0.1
+        Q_regularized = Q_sym.clone()
+        Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=diagonal_minimum)
         
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
   
