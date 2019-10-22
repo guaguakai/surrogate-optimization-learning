@@ -14,3 +14,7 @@ Random seed, 1
 nodes, 15.0, edges, 20.0, epochs, 100, time, 2692.007805109024
 Random seed, 9
 nodes, 15.0, edges, 22.0, epochs, 100, time, 2679.7833507061005
+Random seed, 7
+nodes, 15.0, edges, 20.0, epochs, 100, time, 3220.8521444797516
+Random seed, 8
+nodes, 15.0, edges, 33.0, epochs, 100, time, 3840.4245522022247
