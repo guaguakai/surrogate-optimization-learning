@@ -134,6 +134,7 @@ if __name__=='__main__':
     # key_list = [4, 6, 7, 8, 1, 5]
     key_list = None
     df_loss_list, df_defu_list, df_opt_loss_list, df_opt_defu_list, df_init_loss_list, df_init_defu_list = read_file(file1, 'decision-focused', key_list)
+    # ts_loss_list, ts_defu_list, ts_opt_loss_list, ts_opt_defu_list, ts_init_loss_list, ts_init_defu_list = read_file(file2, 'decision-focused', key_list)
     ts_loss_list, ts_defu_list, ts_opt_loss_list, ts_opt_defu_list, ts_init_loss_list, ts_init_defu_list = read_file(file2, 'two-stage', key_list)
     hb_loss_list, hb_defu_list, hb_opt_loss_list, hb_opt_defu_list, hb_init_loss_list, hb_init_defu_list = read_file(file3, 'hybrid', key_list)
 

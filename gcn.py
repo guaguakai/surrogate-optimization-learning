@@ -88,7 +88,6 @@ class GCNPredictionNet2(nn.Module):
         
         #Define the layers of NN to predict the attractiveness function for every node
         # self.fc1 = nn.Linear(r2, 1)
-        self.dropout = nn.Dropout()
         self.fc1 = nn.Linear(r2, n1)
         self.fc2 = nn.Linear(n1, 1)
         # self.fc3 = nn.Linear(n2, 1)

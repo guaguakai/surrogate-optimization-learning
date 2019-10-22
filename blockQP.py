@@ -34,7 +34,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -45,10 +45,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
 
-    pretrain_epochs = n_epochs // 2
+    pretrain_epochs = n_epochs
     for epoch in range(-1, n_epochs):
-        df_weight = np.clip((epoch-1) / pretrain_epochs, 0, 1)
-        ts_weight = 1 - df_weight
         for mode in ["training", "validating", "testing"]:
             if mode == "training":
                 dataset = train_data
@@ -72,7 +70,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 raise TypeError("Not valid mode: {}".format(mode))
 
             loss_list, def_obj_list, simulated_def_obj_list = [], [], [] 
-            batch_loss = 0
             for iter_n in tqdm.trange(len(dataset)):
                 random_value = np.random.random()
                 ################################### Gather data based on learning model
@@ -103,13 +100,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
                     if training_method == "two-stage":
-                        # def_obj, simulated_def_obj = torch.Tensor([0]), 0 # for two-stage testing only
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
                     else:
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
                         
-                        # print('phi predict:', phi_pred)
-
                         # =============== checking gradient manually ===============
                         # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
                         # for i in range(len(def_coverage)):
@@ -136,31 +130,33 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         # print('difference:', dopt_dphi - estimated_dopt_dphi)
                         # ==========================================================
 
-                def_obj_list.append(def_obj.item())
+                U = torch.Tensor(G.graph['U'])
+                initial_distribution = torch.Tensor(G.graph['initial_distribution'])
+                new_def_obj  = -(objective_function_matrix_form(def_coverage, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+                def_obj_list.append(new_def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
 
                 loss_list.append(loss.item())
 
-                # backpropagate using loss when training two-stage and using -defender utility when training end-to-end
-                if training_method == "two-stage":
-                    batch_loss += loss[0]
-                    if torch.isnan(loss):
-                        print(phi_pred)
-                        print(unbiased_probs_pred)
-                        print(biased_probs_pred)
-                        raise ValueError('loss is nan!')
-                elif training_method == "decision-focused" or training_method == "block-decision-focused":
-                    batch_loss += (-def_obj)
-                elif training_method == "hybrid":
-                    batch_loss += ((-def_obj) * df_weight + loss[0] * ts_weight)
-                else:
-                    raise TypeError("Not Implemented Method")
-
-                # print(batch_loss)
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
                     try:
-                        batch_loss.backward()
+                        if training_method == "two-stage":
+                            loss[0].backward()
+                        elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
+                            (-def_obj).backward()
+                        elif training_method == "hybrid":
+                            loss[0].backward(retain_graph=True)
+                            ts_grad = [parameter.grad.clone() for parameter in net2.parameters()]
+                            optimizer.zero_grad()
+                            (-def_obj).backward()
+                            df_grad = [parameter.grad for parameter in net2.parameters()]
+                            cos = nn.CosineSimilarity(dim=0)
+                            for (ts_grad_i, df_grad_i) in zip(ts_grad, df_grad):
+                                cosine_similarity = cos(ts_grad_i.reshape(-1), df_grad_i.reshape(-1))
+                                df_grad_i = df_grad_i + ts_grad_i * max(0, cosine_similarity)
+                        else:
+                            raise TypeError("Not Implemented Method")
                         torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
                         # print(torch.norm(net2.gcn1.weight.grad))
                         # print(torch.norm(net2.gcn2.weight.grad))
@@ -168,15 +164,12 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         optimizer.step()
                     except:
                         print("no grad is backpropagated...")
-                    batch_loss = 0
 
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage":
                     scheduler.step(np.mean(loss_list))
-                elif training_method == "decision-focused" or training_method == "block-decision-focused":
+                elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused' or training_method == 'hybrid':
                     scheduler.step(-np.mean(def_obj_list))
-                elif training_method == 'hybrid':
-                    scheduler.step(-np.mean(def_obj_list) * df_weight + np.mean(loss_list) * ts_weight)
                 else:
                     raise TypeError("Not Implemented Method")
 
@@ -233,8 +226,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     # full forward path, the decision variables are the entire set of variables
     # initial_coverage_prob = np.zeros(m)
-    # initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
-    initial_coverage_prob = np.ones(m) # somehow this is very influential...
+    initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
+    # initial_coverage_prob = np.ones(m) # somehow this is very influential...
     initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
@@ -248,11 +241,11 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # sample_distribution = pred_optimal_coverage.detach().numpy() + 0.1
     # sample_distribution /= sum(sample_distribution)
     sample_distribution = np.ones(m) / m
-    if training_method == 'block-decision-focused' or training_method == 'hybrid':
+    if training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
         cut_size = n // 2 # heuristic
         while True:
-            edge_set = sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution))
-            if sum(pred_optimal_coverage[edge_set]) > 0.1:
+            edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
+            if sum(pred_optimal_coverage[edge_set]) > 0:
                 break
     else:
         cut_size = m
@@ -288,22 +281,56 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
   
-        try:
-            qp_solver = qpth.qp.QPFunction()
-            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-            # else:
-            #     qp_solver = qpthnew.qp.QPFunction(verbose=verbose, solver=qpthnew.qp.QPSolvers.GUROBI)
-            #     coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0] # GUROBI version takes x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+        qp_solver = qpth.qp.QPFunction()
+        coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
 
-            full_coverage_qp_solution = pred_optimal_coverage.clone()
-            full_coverage_qp_solution[edge_set] = coverage_qp_solution
-        except:
-            full_coverage_qp_solution = pred_optimal_coverage.clone()
-            print("qpth error! Not back-propagating this instance!")
-            
+        full_coverage_qp_solution = pred_optimal_coverage.clone()
+        full_coverage_qp_solution[edge_set] = coverage_qp_solution
+        old_pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+
+        if training_method == 'corrected-block-decision-focused':
+            # computing the correction terms
+            indices = np.arange(cut_size)
+            np.random.shuffle(indices)
+            indices1, indices2 = np.array_split(indices, 2)
+            edge_set1, edge_set2 = edge_set[indices1], edge_set[indices2]
+            Q1, Q2 = Q_regularized[indices1][:,indices1], Q_regularized[indices2][:,indices2]
+            p1 = jac[indices1].view(1,-1) - pred_optimal_coverage[edge_set1] @ Q1
+            p2 = jac[indices2].view(1,-1) - pred_optimal_coverage[edge_set2] @ Q2
+            cut_size1, cut_size2 = len(indices1), len(indices2)
+
+            # Q1 part
+            A_matrix1, b_matrix1 = torch.ones(1, cut_size1), torch.Tensor([sum(pred_optimal_coverage[edge_set1])])
+            G_matrix1 = torch.cat((-torch.eye(cut_size1), torch.eye(cut_size1)))
+            h_matrix1 = torch.cat((torch.zeros(cut_size1), torch.ones(cut_size1)))
+            qp_solver1 = qpth.qp.QPFunction()
+            coverage_qp_solution1 = qp_solver(Q1, p1, G_matrix1, h_matrix1, A_matrix1, b_matrix1)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            full_coverage_qp_solution1 = pred_optimal_coverage.clone()
+            full_coverage_qp_solution1[edge_set1] = coverage_qp_solution1
+
+            pred_defender_utility1  = -(objective_function_matrix_form(full_coverage_qp_solution1, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+
+            # Q2 part
+            A_matrix2, b_matrix2 = torch.ones(1, cut_size2), torch.Tensor([sum(pred_optimal_coverage[edge_set2])])
+            G_matrix2 = torch.cat((-torch.eye(cut_size2), torch.eye(cut_size2)))
+            h_matrix2 = torch.cat((torch.zeros(cut_size2), torch.ones(cut_size2)))
+            qp_solver2 = qpth.qp.QPFunction()
+            coverage_qp_solution2 = qp_solver(Q2, p2, G_matrix2, h_matrix2, A_matrix2, b_matrix2)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            full_coverage_qp_solution2 = pred_optimal_coverage.clone()
+            full_coverage_qp_solution2[edge_set2] = coverage_qp_solution2
+
+            pred_defender_utility2  = -(objective_function_matrix_form(full_coverage_qp_solution2, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+
+            # correction ratio
+            c = (m - cut_size) / ((m - cut_size/2))
+            pred_defender_utility = old_pred_defender_utility / (1-c) - c/(1-c) * (pred_defender_utility1 + pred_defender_utility2)
+        else:
+            pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
+
+
     else:
         full_coverage_qp_solution = pred_optimal_coverage.clone()
-    # full_coverage_qp_solution.require_grad = True
+        pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
     # ========================= Error message =========================
     if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.01): # or 0.01 for GUROBI, 0.1 for qpth
@@ -314,14 +341,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         print(full_coverage_qp_solution)
         full_coverage_qp_solution = pred_optimal_coverage.clone()
 
-    # ================== Evaluation on the ground truth ===============
-    # ======================= Defender Utility ========================
-    pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
-    if pred_defender_utility > 0.1: # unknown ERROR # TODO
-        print("unknown behavior happened...")
-        print("objective value (SLSQP): {}".format(pred_obj_value))
-        full_coverage_qp_solution = torch.Tensor(initial_coverage_prob)
-    
     # ==================== Actual Defender Utility ====================
     # Running simulations to check the actual defender utility
     # _, simulated_defender_utility = attackerOracle(G, full_optimal_coverage, phi_true, omega=omega, num_paths=100)
@@ -354,7 +373,7 @@ if __name__=='__main__':
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
 
     parser.add_argument('--distribution', type=int, default=1, help='0 -> random walk distribution, 1 -> empirical distribution')
-    parser.add_argument('--method', type=int, default=0, help='0 -> two-stage, 1 -> decision-focused')
+    parser.add_argument('--method', type=int, default=0, help='0 -> two-stage, 1 -> decision-focused, 2 -> block df, 3 -> corrected df, 4 -> hybrid')
     
     args = parser.parse_args()
 
@@ -365,7 +384,7 @@ if __name__=='__main__':
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
 
     training_mode = args.method
-    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', 4: 'hybrid'} # 3 is reserved for new-block-df
+    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', 3: 'corrected-block-decision-focused', 4: 'hybrid'} # 3 is reserved for new-block-df
     training_method = method_dict[training_mode]
 
     feature_size = args.feature_size

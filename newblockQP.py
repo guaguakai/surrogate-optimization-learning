@@ -258,7 +258,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         cut_size = n // 2 # heuristic
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
-            if sum(pred_optimal_coverage[edge_set]) > 0.1:
+            if sum(pred_optimal_coverage[edge_set]) > 0:
                 break
     else:
         cut_size = m
