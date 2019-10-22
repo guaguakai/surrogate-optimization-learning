@@ -229,8 +229,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
     # full forward path, the decision variables are the entire set of variables
     # initial_coverage_prob = np.zeros(m)
-    initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
-    # initial_coverage_prob = np.ones(m) # somehow this is very influential...
+    # initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
+    initial_coverage_prob = np.ones(m) # somehow this is very influential...
     initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
@@ -287,15 +287,15 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
         Q_sym = (Q + Q.t()) / 2
     
         # ------------------ eigen regularization -----------------------
-        # eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
-        # eigenvalues = [x.real for x in eigenvalues]
-        # reg_const = max(0, -min(eigenvalues) + 1)
-        # Q_regularized = Q_sym + torch.eye(len(edge_set)) * reg_const
+        eigenvalues, eigenvectors = np.linalg.eig(Q_sym)
+        eigenvalues = [x.real for x in eigenvalues]
+        reg_const = max(0, -min(eigenvalues) + 1)
+        Q_regularized = Q_sym + torch.eye(len(edge_set)) * reg_const
 
         # ----------------- diagonal regularization ---------------------
-        diagonal_minimum = 0.1
-        Q_regularized = Q_sym.clone()
-        Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=diagonal_minimum)
+        # diagonal_minimum = reg_const
+        # Q_regularized = Q_sym.clone()
+        # Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=diagonal_minimum)
         
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
   
@@ -304,7 +304,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
 
         full_coverage_qp_solution = pred_optimal_coverage.clone()
         full_coverage_qp_solution[edge_set] = coverage_qp_solution
-        old_pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
 
         if training_method == 'corrected-block-decision-focused':
             # computing the correction terms
@@ -333,6 +332,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             full_coverage_qp_solution2 = pred_optimal_coverage.clone()
             full_coverage_qp_solution2[edge_set2] = coverage_qp_solution2
 
+            old_pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
             pred_defender_utility2  = -(objective_function_matrix_form(full_coverage_qp_solution2, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
 
             # correction ratio
