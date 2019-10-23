@@ -126,6 +126,7 @@ if __name__=='__main__':
     tr_defu, te_defu = [[]] * len(labels), [[]] * len(labels)
     for i, label in enumerate(labels):
         filepath = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+        print(label)
         tr_loss[i], te_loss[i], tr_defu[i], te_defu[i], _, _, x1 = return_yaxis(filepath, 'decision-focused')
     
     xy_list = []

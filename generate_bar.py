@@ -136,21 +136,21 @@ if __name__=='__main__':
 
         print('Opt mean:', np.mean(opt_loss_list), np.mean(opt_defu_list))
         loss_median = np.median(loss_list - opt_loss_list)
-        defu_median = np.median(defu_list - opt_defu_list)
+        defu_median = np.median(opt_defu_list - defu_list)
 
         loss_mean   = np.mean(loss_list - opt_loss_list)
-        defu_mean   = np.mean(defu_list - opt_defu_list)
+        defu_mean   = np.mean(opt_defu_list - defu_list)
         
         bar_list[0,i] = defu_mean
         bar_list[1,i] = defu_median
 
-    # init_defu_median = np.median(init_defu_list - opt_defu_list)
-    # init_defu_mean   = np.mean(init_defu_list - opt_defu_list)
+    init_defu_median = np.median(opt_defu_list - init_defu_list)
+    init_defu_mean   = np.mean(opt_defu_list - init_defu_list)
     # bar_list[0,-1] = init_defu_mean
     # bar_list[1,-1] = init_defu_median
 
-    print('mean (ts, bdf, cbdf, hb):', bar_list[0])
-    print('median (ts, bdf, cbdf, hb):', bar_list[1])
+    print('mean (ts, bdf, cbdf, hb, init):', bar_list[0], init_defu_mean)
+    print('median (ts, bdf, cbdf, hb, init):', bar_list[1], init_defu_median)
     
     save_filename = "barchart_{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     generatePlot(bar_list, labels, save_filename)

@@ -34,7 +34,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.8)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -76,6 +76,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 random_value = np.random.random()
                 ################################### Gather data based on learning model
                 G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
+                n, m = G.number_of_nodes(), G.number_of_edges()
                 
                 ################################### Compute edge probabilities
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
@@ -99,17 +100,26 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 single_data = dataset[iter_n]
 
                 if mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
+                    cut_size = m
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
                     if training_method == "two-stage":
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
+                        cut_size = m
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
                     else:
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        if training_method == 'decision-focused':
+                            cut_size = m
+                        elif training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
+                            cut_size = n // 2
+                        else:
+                            raise TypeError('Not defined method')
+
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
                         
                         # =============== checking gradient manually ===============
                         # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
                         # for i in range(len(def_coverage)):
-                        #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
                         #     dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
                         #     step_size = 0.01
 
@@ -120,7 +130,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         
                         #     # validating
                         #     new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
-                        #     _, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
+                        #     _, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
                         #     estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
 
                         # print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
@@ -147,9 +157,9 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         if training_method == "two-stage":
                             loss[0].backward()
                         elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
-                            (-def_obj).backward()
+                            (-def_obj * m / cut_size).backward()
                         elif training_method == "hybrid":
-                            ((-def_obj) * df_weight + loss[0] * ts_weight).backward()
+                            ((-def_obj * m / cut_size) * df_weight + loss[0] * ts_weight).backward()
                             # loss[0].backward(retain_graph=True)
                             # ts_grad = [parameter.grad.clone() for parameter in net2.parameters()]
                             # optimizer.zero_grad()
@@ -211,7 +221,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
     
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage'):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage'):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
     
     n, m = G.number_of_nodes(), G.number_of_edges()
@@ -223,10 +233,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     method = "SLSQP"
 
     edges = G.edges()
-    edge2index = {}
-    for idx, edge in enumerate(edges):
-        edge2index[edge] = idx
-        edge2index[(edge[1], edge[0])] = idx
 
     # full forward path, the decision variables are the entire set of variables
     # initial_coverage_prob = np.zeros(m)
@@ -242,18 +248,16 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
     # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol)) # Frank Wolfe version
 
     # ======================== edge set choice =====================
-    sample_distribution = pred_optimal_coverage.detach().numpy() + 0.01
+    sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-2
     sample_distribution /= sum(sample_distribution)
     # sample_distribution = np.ones(m) / m
-    if training_method == 'block-decision-focused':
-        cut_size = n // 2 # heuristic
+    if training_method == 'block-decision-focused' or training_method == 'hybrid':
         min_sum = 1e-2
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
             if sum(pred_optimal_coverage[edge_set]) > min_sum:
                 break
-    elif training_method == 'corrected-block-decision-focused' or training_method == 'hybrid':
-        cut_size = n // 2 # heuristic
+    elif training_method == 'corrected-block-decision-focused':
         min_sum = 1e-2
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
@@ -264,7 +268,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
             if sum(pred_optimal_coverage[edge_set1]) > min_sum / 10 and sum(pred_optimal_coverage[edge_set2]) > min_sum / 10:
                 break
     else:
-        cut_size = m
         edge_set = list(range(m))
     # ========================== QP part ===========================
 
@@ -297,10 +300,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, omega=4, verbose
                 break
             else:
                 # ------------------ eigen regularization -----------------------
-                # Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.1)
+                Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.1)
                 # ----------------- diagonal regularization ---------------------
-                reg_const *= 1.5
-                Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
+                # reg_const *= 1.5
+                # Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
 
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
   
