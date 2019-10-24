@@ -300,7 +300,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
                 break
             else:
                 # ------------------ eigen regularization -----------------------
-                Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 0.1)
+                Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1)
                 # ----------------- diagonal regularization ---------------------
                 # reg_const *= 1.5
                 # Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
@@ -330,6 +330,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
             full_coverage_qp_solution1[edge_set1] = coverage_qp_solution1
 
             pred_defender_utility1  = -(objective_function_matrix_form(full_coverage_qp_solution1, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+            if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution1) > 0.01):
+                pred_defender_utility1  = -(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
 
             # Q2 part
             A_matrix2, b_matrix2 = torch.ones(1, cut_size2), torch.Tensor([sum(pred_optimal_coverage[edge_set2])])
@@ -342,6 +344,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
 
             old_pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
             pred_defender_utility2  = -(objective_function_matrix_form(full_coverage_qp_solution2, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+            if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution2) > 0.01):
+                pred_defender_utility2  = -(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
 
             # correction ratio
             c = (m - cut_size) / ((m - cut_size/2))
@@ -355,13 +359,14 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
     # ========================= Error message =========================
-    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
+    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.01): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
         print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(pred_optimal_coverage)
         print("objective value (QP): {}".format(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(full_coverage_qp_solution)
         full_coverage_qp_solution = pred_optimal_coverage.clone()
+        pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
     # ==================== Actual Defender Utility ====================
     # Running simulations to check the actual defender utility

@@ -141,7 +141,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
         coverage_prob_matrix[e[1]][e[0]] = coverage_probs[i] # for undirected graph only
 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs + MEAN_REG
+    exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
     row_sum = torch.sum(exponential_term, dim=1)
     marginal_prob = torch.zeros_like(exponential_term)
     marginal_prob[row_sum != 0] = exponential_term[row_sum != 0] / torch.sum(exponential_term, keepdim=True, dim=1)[row_sum != 0]
@@ -181,7 +181,7 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
     adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
-    exponential_term = torch.exp(-omega * coverage_prob_matrix) * unbiased_probs + MEAN_REG
+    exponential_term = torch.exp(-omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
     row_sum = torch.sum(exponential_term, dim=1)
     marginal_prob = torch.zeros_like(exponential_term)
     marginal_prob[row_sum != 0] = exponential_term[row_sum != 0] / torch.sum(exponential_term, keepdim=True, dim=1)[row_sum != 0]

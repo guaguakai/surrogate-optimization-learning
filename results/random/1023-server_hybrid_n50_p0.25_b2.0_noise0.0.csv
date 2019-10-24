@@ -1,11 +1,3 @@
-Random seed, 2
-mode, epoch, average loss, defender utility, simulated defender utility
-training, -1, 1.4648492949349539, -6.38749201638358, 0.0
-validating, -1, 1.5131143569946288, -6.254437255859375, 0.0
-testing, -1, 1.4515090465545655, -6.326218366622925, 0.0
-training, 0, 10.423966639382499, -7.855428041730608, 0.0
-validating, 0, 11.133928680419922, -7.67819185256958, 0.0
-testing, 0, 10.274719190597533, -7.830607986450195, 0.0
 Random seed, 5
 mode, epoch, average loss, defender utility, simulated defender utility
 training, -1, 1.1123000553676061, -4.665736484527588, 0.0
