@@ -306,12 +306,15 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
                 # Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
 
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
-  
-        qp_solver = qpth.qp.QPFunction()
-        coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-
-        full_coverage_qp_solution = pred_optimal_coverage.clone()
-        full_coverage_qp_solution[edge_set] = coverage_qp_solution
+ 
+        try:
+            qp_solver = qpth.qp.QPFunction()
+            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            full_coverage_qp_solution = pred_optimal_coverage.clone()
+            full_coverage_qp_solution[edge_set] = coverage_qp_solution
+        except:
+            print("QP solver fails... Usually because Q is not PSD")
+            full_coverage_qp_solution = pred_optimal_coverage.clone()
 
         if training_method == 'corrected-block-decision-focused':
             # computing the correction terms
@@ -325,9 +328,13 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
             G_matrix1 = torch.cat((-torch.eye(cut_size1), torch.eye(cut_size1)))
             h_matrix1 = torch.cat((torch.zeros(cut_size1), torch.ones(cut_size1)))
             qp_solver1 = qpth.qp.QPFunction()
-            coverage_qp_solution1 = qp_solver1(Q1, p1, G_matrix1, h_matrix1, A_matrix1, b_matrix1)[0]
-            full_coverage_qp_solution1 = pred_optimal_coverage.clone()
-            full_coverage_qp_solution1[edge_set1] = coverage_qp_solution1
+            try:
+                coverage_qp_solution1 = qp_solver1(Q1, p1, G_matrix1, h_matrix1, A_matrix1, b_matrix1)[0]
+                full_coverage_qp_solution1 = pred_optimal_coverage.clone()
+                full_coverage_qp_solution1[edge_set1] = coverage_qp_solution1
+            except:
+                print("QP solver 1 fails... Usually because Q is not PSD")
+                full_coverage_qp_solution1 = pred_optimal_coverage.clone()
 
             pred_defender_utility1  = -(objective_function_matrix_form(full_coverage_qp_solution1, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
             if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution1) > 0.01):
@@ -337,10 +344,14 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
             A_matrix2, b_matrix2 = torch.ones(1, cut_size2), torch.Tensor([sum(pred_optimal_coverage[edge_set2])])
             G_matrix2 = torch.cat((-torch.eye(cut_size2), torch.eye(cut_size2)))
             h_matrix2 = torch.cat((torch.zeros(cut_size2), torch.ones(cut_size2)))
-            qp_solver2 = qpth.qp.QPFunction()
-            coverage_qp_solution2 = qp_solver2(Q2, p2, G_matrix2, h_matrix2, A_matrix2, b_matrix2)[0]
-            full_coverage_qp_solution2 = pred_optimal_coverage.clone()
-            full_coverage_qp_solution2[edge_set2] = coverage_qp_solution2
+            try:
+                qp_solver2 = qpth.qp.QPFunction()
+                coverage_qp_solution2 = qp_solver2(Q2, p2, G_matrix2, h_matrix2, A_matrix2, b_matrix2)[0]
+                full_coverage_qp_solution2 = pred_optimal_coverage.clone()
+                full_coverage_qp_solution2[edge_set2] = coverage_qp_solution2
+            except:
+                print("QP solver 2 fails... Usually because Q is not PSD")
+                full_coverage_qp_solution2 = pred_optimal_coverage.clone()
 
             old_pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
             pred_defender_utility2  = -(objective_function_matrix_form(full_coverage_qp_solution2, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
