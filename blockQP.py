@@ -292,18 +292,18 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
     
         # ------------------ regularization -----------------------
         Q_regularized = Q_sym.clone()
-        reg_const = 1
+        reg_const = 0.1
         while True:
-            eigenvalues, eigenvectors = np.linalg.eig(Q_regularized)
-            eigenvalues = [x.real for x in eigenvalues]
-            if min(eigenvalues) > 0:
+            # ------------------ eigen regularization -----------------------
+            # Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const)
+            # ----------------- diagonal regularization ---------------------
+            Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
+            try:
+                L = torch.cholesky(Q_regularized)
                 break
-            else:
-                # ------------------ eigen regularization -----------------------
-                Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + 1)
-                # ----------------- diagonal regularization ---------------------
-                # reg_const *= 1.5
-                # Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
+            except:
+                print("Cholesky decomposition fails... Q not PSD")
+                reg_const *= 2
 
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
  
