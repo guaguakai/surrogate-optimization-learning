@@ -13,3 +13,5 @@ Random seed, 5
 nodes, 60.0, edges, 240.0, epochs, 100, time, 27310.591131687164
 Random seed, 1
 nodes, 60.0, edges, 280.0, epochs, 100, time, 29318.44672226906
+Random seed, 8
+nodes, 60.0, edges, 303.0, epochs, 100, time, 44181.321019649506
