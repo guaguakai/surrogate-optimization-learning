@@ -463,8 +463,8 @@ if __name__=='__main__':
     ###############################
     filename = args.filename
     if FIXED_GRAPH == 0:
-        filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
-        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+        filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
+        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
     else:
         filepath_data    = "results/fixed/{}_{}_test.csv"               .format(filename, training_method)
         filepath_time    = "results/time/fixed/{}_{}_b{}.csv"           .format(filename, training_method, DEFENDER_BUDGET)
