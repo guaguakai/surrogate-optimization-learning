@@ -21,7 +21,7 @@ from graphData import *
 from derivative import *
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 
-def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
+def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
     
     net2= GCNPredictionNet2(feature_size)
@@ -464,22 +464,16 @@ if __name__=='__main__':
     filename = args.filename
     if FIXED_GRAPH == 0:
         filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
-        filepath_figure  =      "figures/random/{}_{}_n{}_p{}_b{}_noise{}.png".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
         filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
-        filepath_summary =     "results/summary/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     else:
         filepath_data    = "results/fixed/{}_{}_test.csv"               .format(filename, training_method)
-        filepath_figure  = "figures/fixed/{}_{}_test.png"               .format(filename, training_method)
         filepath_time    = "results/time/fixed/{}_{}_b{}.csv"           .format(filename, training_method, DEFENDER_BUDGET)
-        filepath_summary = "results/summary/fixed/{}_{}_n{}_p{}_b{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET)
 
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')
-    f_summary = open(filepath_summary, 'a')
 
     f_save.write('Random seed, {}\n'.format(SEED))
     f_time.write('Random seed, {}\n'.format(SEED))
-    f_summary.write('Random seed, {}\n'.format(SEED))
       
     ############################### Data genaration:
     train_data, validate_data, test_data = generateSyntheticData(feature_size, path_type=learning_model_type,
@@ -506,7 +500,7 @@ if __name__=='__main__':
     time3=time.time()
     # Learn the neural networks:
     net2, train_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
-                                train_data, validate_data, test_data, f_save, f_time, f_summary,
+                                train_data, validate_data, test_data, f_save, f_time,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                 optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, block_cut_size=CUT_SIZE)
@@ -516,7 +510,6 @@ if __name__=='__main__':
 
     f_save.close()
     f_time.close()
-    f_summary.close()
 
     ############################# Print the summary:
     #print ("Now running: ", "Large graphs sizes")    
