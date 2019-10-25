@@ -302,7 +302,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
                 L = torch.cholesky(Q_regularized)
                 break
             except:
-                print("Cholesky decomposition fails... Q not PSD")
                 reg_const *= 2
 
         p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
