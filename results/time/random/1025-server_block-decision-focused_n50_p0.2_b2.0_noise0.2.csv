@@ -1,2 +1,4 @@
 Random seed, 10
 nodes, 50.0, edges, 109.0, epochs, 100, time, 7012.897929430008
+Random seed, 42
+nodes, 50.0, edges, 100.0, epochs, 100, time, 7890.52757191658
