@@ -22,7 +22,7 @@ from derivative import *
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, f_summary, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1):
+                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
@@ -110,7 +110,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         if training_method == 'decision-focused':
                             cut_size = m
                         elif training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
-                            cut_size = n // 2
+                            if block_cut_size <= 1:
+                                cut_size = int(m * block_cut_size)
+                            else:
+                                cut_size = block_cut_size
                         else:
                             raise TypeError('Not defined method')
 
@@ -157,13 +160,16 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         if training_method == "two-stage":
                             loss[0].backward()
                         elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
+                            # (-def_obj).backward()
                             (-def_obj * m / cut_size).backward()
                         elif training_method == "hybrid":
+                            # ((-def_obj) * df_weight + loss[0] * ts_weight).backward()
                             ((-def_obj * m / cut_size) * df_weight + loss[0] * ts_weight).backward()
+
                             # loss[0].backward(retain_graph=True)
-                            # ts_grad = [parameter.grad.clone() for parameter in net2.parameters()]
+                            # rs_grad = [parameter.grad.clone() for parameter in net2.parameters()]
                             # optimizer.zero_grad()
-                            # (-def_obj).backward()
+                            # (-def_obj * m / cut_size).backward()
                             # df_grad = [parameter.grad for parameter in net2.parameters()]
                             # cos = nn.CosineSimilarity(dim=0)
                             # for (ts_grad_i, df_grad_i) in zip(ts_grad, df_grad):
@@ -248,9 +254,11 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
     # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol)) # Frank Wolfe version
 
     # ======================== edge set choice =====================
-    sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-2
+    first_order_derivative = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, np.arange(m), omega=omega, lib=torch)
+    sample_distribution = np.abs(first_order_derivative.detach().numpy()) + 1e-3
+    # sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-3
+    # sample_distribution = np.ones(m)
     sample_distribution /= sum(sample_distribution)
-    # sample_distribution = np.ones(m) / m
     if training_method == 'block-decision-focused' or training_method == 'hybrid':
         min_sum = 1e-2
         while True:
@@ -402,6 +410,7 @@ if __name__=='__main__':
     parser.add_argument('--noise', type=float, default=0, help='noise level of the normalized features (in variance)')
     parser.add_argument('--omega', type=float, default=4, help='risk aversion of the attacker')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
+    parser.add_argument('--cut-size', type=float, default=0.5, help='number of the defender budget')
 
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
     parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')
@@ -444,6 +453,7 @@ if __name__=='__main__':
     OPTIMIZER = 'adam'
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     FIXED_GRAPH = args.fixed_graph
+    CUT_SIZE = args.cut_size
     GRAPH_TYPE = "random_graph" if FIXED_GRAPH == 0 else "fixed_graph"
     SEED = args.seed
     NOISE_LEVEL = args.noise
@@ -487,6 +497,7 @@ if __name__=='__main__':
     print("Training method: {}".format(training_method))
     print('Noise level: {}'.format(NOISE_LEVEL))
     print('Node size: {}, p={}, budget: {}'.format(GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET))
+    print('Block size: {}'.format(CUT_SIZE))
     print('Sample graph size: {}, sample size: {}'.format(NUMBER_OF_GRAPHS, SAMPLES_PER_GRAPH))
     print('omega: {}'.format(OMEGA))
     print("Data length train/test:", len(train_data), len(test_data))
@@ -498,7 +509,7 @@ if __name__=='__main__':
                                 train_data, validate_data, test_data, f_save, f_time, f_summary,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
-                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method)
+                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, block_cut_size=CUT_SIZE)
 
     time4=time.time()
     cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')

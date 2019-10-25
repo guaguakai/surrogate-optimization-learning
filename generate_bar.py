@@ -149,8 +149,8 @@ if __name__=='__main__':
     # bar_list[0,-1] = init_defu_mean
     # bar_list[1,-1] = init_defu_median
 
-    print('mean (ts, bdf, cbdf, hb, init):', bar_list[0], init_defu_mean)
-    print('median (ts, bdf, cbdf, hb, init):', bar_list[1], init_defu_median)
+    print('mean (ts, bdf, cbdf, hb, init):',   ','.join([str(x) for x in bar_list[0]]) + ',' + str(init_defu_mean))
+    print('median (ts, bdf, cbdf, hb, init):', ','.join([str(x) for x in bar_list[1]]) + ',' + str(init_defu_median))
     
     save_filename = "barchart_{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     generatePlot(bar_list, labels, save_filename)
