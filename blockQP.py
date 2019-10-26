@@ -255,8 +255,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
 
     # ======================== edge set choice =====================
     first_order_derivative = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, np.arange(m), omega=omega, lib=torch)
-    sample_distribution = np.abs(first_order_derivative.detach().numpy()) + 1e-3
-    # sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-3
+    # sample_distribution = np.abs(first_order_derivative.detach().numpy()) + 1e-3
+    sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-3
     # sample_distribution = np.ones(m)
     sample_distribution /= sum(sample_distribution)
     if training_method == 'block-decision-focused' or training_method == 'hybrid':
