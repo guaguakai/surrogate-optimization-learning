@@ -110,7 +110,9 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         if training_method == 'decision-focused':
                             cut_size = m
                         elif training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
-                            if block_cut_size <= 1:
+                            if type(block_cut_size) == str and block_cut_size[-1] == 'n':
+                                cut_size = int(n * float(block_cut_size[:-1]))
+                            elif block_cut_size <= 1:
                                 cut_size = int(m * block_cut_size)
                             else:
                                 cut_size = block_cut_size
@@ -410,7 +412,7 @@ if __name__=='__main__':
     parser.add_argument('--noise', type=float, default=0, help='noise level of the normalized features (in variance)')
     parser.add_argument('--omega', type=float, default=4, help='risk aversion of the attacker')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
-    parser.add_argument('--cut-size', type=float, default=0.5, help='number of the defender budget')
+    parser.add_argument('--cut-size', type=str, default='n/2', help='number of the defender budget')
 
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
     parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')
@@ -454,6 +456,8 @@ if __name__=='__main__':
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     FIXED_GRAPH = args.fixed_graph
     CUT_SIZE = args.cut_size
+    if CUT_SIZE[-1] != 'n':
+        CUT_SIZE = float(CUT_SIZE)
     GRAPH_TYPE = "random_graph" if FIXED_GRAPH == 0 else "fixed_graph"
     SEED = args.seed
     NOISE_LEVEL = args.noise
