@@ -83,22 +83,21 @@ def read_file(filename, method, key_list=None):
         
     return final_loss_list, final_defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list
 
-def generatePlot(bar_list, labels, filename):
+def generateBarChart(bar_list, labels, filename):
     
     fig, axs = plt.subplots(1, len(bar_list))
 
     for i in range(len(bar_list)):
-        axs[i].bar(labels, bar_list[i])
+        axs[i].bar(labels, bar_list[i], width=0.15)
         # axs[len(xy_list) + i].yticks(np.arange(2), (label_df, label_2d))
 
     axs[0].title.set_text('Mean Regret')
     axs[1].title.set_text('Median Regret')
 
-
     #epochs = len(train_loss) - 1
     #x=range(-1, epochs)
     plt.autoscale()
-    plt.savefig("./results/excel/comparison/"+filename)
+    plt.savefig(filename)
     plt.show()
 
 if __name__=='__main__':
@@ -112,6 +111,7 @@ if __name__=='__main__':
     parser.add_argument('--prob', type=float, default=0.2, help='input the probability used as input of random graph generator')
     parser.add_argument('--noise', type=float, default=0, help='noise level of the normalized features (in variance)')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
+    parser.add_argument('--cut-size', type=float, default=0.5, help='block size')
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
 
     args = parser.parse_args()
@@ -122,12 +122,13 @@ if __name__=='__main__':
 
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     NOISE_LEVEL = args.noise
+    CUT_SIZE = args.cut_size
     ###############################
     filename = args.filename
 
     bar_list = np.zeros((2, len(labels)))
     for i, label in enumerate(labels):
-        filepath = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+        filepath = "results/random/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
         key_list = None
         if label == 'two-stage':
             loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'two-stage', key_list)
@@ -152,8 +153,8 @@ if __name__=='__main__':
     print('mean (ts, bdf, cbdf, hb, init):',   ','.join([str(x) for x in bar_list[0]]) + ',' + str(init_defu_mean))
     print('median (ts, bdf, cbdf, hb, init):', ','.join([str(x) for x in bar_list[1]]) + ',' + str(init_defu_median))
     
-    save_filename = "barchart_{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
-    generatePlot(bar_list, labels, save_filename)
+    save_filename = "results/excel/comparison/barchart_{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+    generateBarChart(bar_list, labels, save_filename)
     
 
     

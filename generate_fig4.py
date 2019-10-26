@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
-def return_yaxis(filename, method):
+def return_yaxis(filename):
     f = open(filename, 'r')
     max_epochs = 100
     to_plot={'tr_loss': [[] for _ in range(max_epochs+1)],
@@ -49,27 +49,6 @@ def return_yaxis(filename, method):
         to_plot[key] = np.array(to_plot[key])
     _, num_samples = to_plot['tr_loss'].shape
 
-    final_loss_list = []
-    final_defu_list = []
-    if method == 'two-stage':
-        for i in range(num_samples):
-            tmp_idx = np.argmin(to_plot['val_loss'][:,i])
-            tmp_loss = to_plot['te_loss'][tmp_idx,i]
-            tmp_defu = to_plot['te_defu'][tmp_idx,i]
-            final_loss_list.append(tmp_loss)
-            final_defu_list.append(tmp_defu)
-    elif method == 'decision-focused' or method == 'hybrid':
-        for i in range(num_samples):
-            # print([(i, len(tmp_list)) for (i, tmp_list) in enumerate(to_plot['val_defu'])])
-            tmp_idx = np.argmax(to_plot['val_defu'][:,i])
-            tmp_loss = to_plot['te_loss'][tmp_idx,i]
-            tmp_defu = to_plot['te_defu'][tmp_idx,i]
-            final_loss_list.append(tmp_loss)
-            final_defu_list.append(tmp_defu)
-
-    final_loss = np.mean(final_loss_list)
-    final_defu = np.mean(final_defu_list)
-        
     tr_loss=[np.average(to_plot['tr_loss'][i]) for i in range(max_epochs+1)]
     te_loss=[np.average(to_plot['te_loss'][i]) for i in range(max_epochs+1)]
     tr_defu=[np.average(to_plot['tr_defu'][i]) for i in range(max_epochs+1)]
@@ -77,9 +56,9 @@ def return_yaxis(filename, method):
     x=range(max_epochs+1)
     
     #return (to_plot,x,max_epochs+1)
-    return (tr_loss, te_loss, tr_defu, te_defu, final_loss, final_defu, x)
+    return (tr_loss, te_loss, tr_defu, te_defu, x)
 
-def generatePlot(xy_list, filename):
+def generateLineChart(xy_list, filename):
     
     fig, axs = plt.subplots(1, len(xy_list))
 
@@ -90,14 +69,9 @@ def generatePlot(xy_list, filename):
             axs[i].plot(x, y, label=label, markersize=1)
         
         axs[i].legend()
-        # axs[i].title(title)
-        # axs[i].xlabel('Epochs')
-        # axs[i].ylabel(ytitle)
 
-    #epochs = len(train_loss) - 1
-    #x=range(-1, epochs)
     plt.autoscale()
-    plt.savefig("./results/excel/comparison/"+filename)
+    plt.savefig(filename)
     plt.show()
 
 if __name__=='__main__':
@@ -109,6 +83,7 @@ if __name__=='__main__':
     parser.add_argument('--prob', type=float, default=0.2, help='input the probability used as input of random graph generator')
     parser.add_argument('--noise', type=float, default=0, help='noise level of the normalized features (in variance)')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
+    parser.add_argument('--cut-size', type=float, default=0.5, help='cut size')
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
 
     args = parser.parse_args()
@@ -119,6 +94,7 @@ if __name__=='__main__':
 
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
     NOISE_LEVEL = args.noise
+    CUT_SIZE = args.cut_size
     ###############################
     filename = args.filename
 
@@ -126,9 +102,9 @@ if __name__=='__main__':
     tr_loss, te_loss = [[]] * len(labels), [[]] * len(labels)
     tr_defu, te_defu = [[]] * len(labels), [[]] * len(labels)
     for i, label in enumerate(labels):
-        filepath = "results/random/{}_{}_n{}_p{}_b{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
+        filepath = "results/random/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
         print(label)
-        tr_loss[i], te_loss[i], tr_defu[i], te_defu[i], _, _, x1 = return_yaxis(filepath, 'decision-focused')
+        tr_loss[i], te_loss[i], tr_defu[i], te_defu[i], x1 = return_yaxis(filepath)
     
     xy_list = []
     xy_list.append((x1, np.array(tr_loss), labels, "Training Loss", 'KL Divergence'))
@@ -137,7 +113,7 @@ if __name__=='__main__':
     xy_list.append((x1, np.array(te_defu), labels, "Testing Defender Utility",  'Defender utility'))
 
     save_filename = "{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
-    generatePlot(xy_list, save_filename)
+    generateLineChart(xy_list, save_filename)
     
 
     
