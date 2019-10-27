@@ -88,13 +88,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
                 
                 ################################### Compute loss
-                # loss = torch.norm((unbiased_probs_true - unbiased_probs_pred) * torch.Tensor(nx.adjacency_matrix(G).toarray()))
-                log_prob_pred = torch.zeros(1)
-                for path in path_list:
-                    for e in path: 
-                        log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
-                log_prob_pred /= len(path_list)
-                loss = log_prob_pred - log_prob
+                loss = torch.norm((unbiased_probs_true - unbiased_probs_pred)) # * torch.Tensor(nx.adjacency_matrix(G).toarray()))
+                # log_prob_pred = torch.zeros(1)
+                # for path in path_list:
+                #     for e in path: 
+                #         log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
+                # log_prob_pred /= len(path_list)
+                # loss = (log_prob_pred - log_prob)[0]
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
@@ -158,34 +158,34 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     optimizer.zero_grad()
-                    try:
-                        if training_method == "two-stage":
-                            loss[0].backward()
-                        elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
-                            # (-def_obj).backward()
-                            (-def_obj * m / cut_size).backward()
-                        elif training_method == "hybrid":
-                            # ((-def_obj) * df_weight + loss[0] * ts_weight).backward()
-                            ((-def_obj * m / cut_size) * df_weight + loss[0] * ts_weight).backward()
+                    # try:
+                    if training_method == "two-stage":
+                        loss.backward()
+                    elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
+                        # (-def_obj).backward()
+                        (-def_obj * m / cut_size).backward()
+                    elif training_method == "hybrid":
+                        # ((-def_obj) * df_weight + loss[0] * ts_weight).backward()
+                        ((-def_obj * m / cut_size) * df_weight + loss[0] * ts_weight).backward()
 
-                            # loss[0].backward(retain_graph=True)
-                            # rs_grad = [parameter.grad.clone() for parameter in net2.parameters()]
-                            # optimizer.zero_grad()
-                            # (-def_obj * m / cut_size).backward()
-                            # df_grad = [parameter.grad for parameter in net2.parameters()]
-                            # cos = nn.CosineSimilarity(dim=0)
-                            # for (ts_grad_i, df_grad_i) in zip(ts_grad, df_grad):
-                            #     cosine_similarity = cos(ts_grad_i.reshape(-1), df_grad_i.reshape(-1))
-                            #     df_grad_i = df_grad_i + ts_grad_i * max(0, cosine_similarity) # cosine similarity method
-                        else:
-                            raise TypeError("Not Implemented Method")
-                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
-                        # print(torch.norm(net2.gcn1.weight.grad))
-                        # print(torch.norm(net2.gcn2.weight.grad))
-                        # print(torch.norm(net2.fc1.weight.grad))
-                        optimizer.step()
-                    except:
-                        print("no grad is backpropagated...")
+                        # loss[0].backward(retain_graph=True)
+                        # rs_grad = [parameter.grad.clone() for parameter in net2.parameters()]
+                        # optimizer.zero_grad()
+                        # (-def_obj * m / cut_size).backward()
+                        # df_grad = [parameter.grad for parameter in net2.parameters()]
+                        # cos = nn.CosineSimilarity(dim=0)
+                        # for (ts_grad_i, df_grad_i) in zip(ts_grad, df_grad):
+                        #     cosine_similarity = cos(ts_grad_i.reshape(-1), df_grad_i.reshape(-1))
+                        #     df_grad_i = df_grad_i + ts_grad_i * max(0, cosine_similarity) # cosine similarity method
+                    else:
+                        raise TypeError("Not Implemented Method")
+                    torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                    # print(torch.norm(net2.gcn1.weight.grad))
+                    # print(torch.norm(net2.gcn2.weight.grad))
+                    # print(torch.norm(net2.fc1.weight.grad))
+                    optimizer.step()
+                    # except:
+                    #     print("no grad is backpropagated...")
 
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage":
