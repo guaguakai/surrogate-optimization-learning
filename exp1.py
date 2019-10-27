@@ -8,7 +8,8 @@ from generate_fig4 import return_yaxis, generateLineChart
 if __name__=='__main__':
 
     # labels = ['two-stage', 'block-decision-focused']
-    labels = ['two-stage', 'block-decision-focused', 'corrected-block-decision-focused', 'hybrid']
+    labels = ['two-stage', 'block-decision-focused', 'hybrid']
+    # labels = ['two-stage', 'block-decision-focused', 'corrected-block-decision-focused', 'hybrid']
     print(labels)
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')

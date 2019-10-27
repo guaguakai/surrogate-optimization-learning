@@ -1,4 +1,4 @@
-FILENAME='1026-2300-server'
+FILENAME='1027-server'
 
 NODES=25
 NOISE=0.0
