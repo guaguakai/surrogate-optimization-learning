@@ -40,13 +40,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
     
     print ("Training...")
-    beginning_time = time.time()
-    time3 = time.time()
+    training_time = 0
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
 
     pretrain_epochs = n_epochs
     for epoch in range(-1, n_epochs):
+        epoch_training_time = 0
         df_weight = (epoch - 1) / pretrain_epochs
         ts_weight = 1 - df_weight
         for mode in ["training", "validating", "testing"]:
@@ -73,6 +73,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
             loss_list, def_obj_list, simulated_def_obj_list = [], [], [] 
             for iter_n in tqdm.trange(len(dataset)):
+                time1 = time.time()
                 random_value = np.random.random()
                 ################################### Gather data based on learning model
                 G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
@@ -98,6 +99,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
+                epoch_training_time += time.time() - time1
 
                 if mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
                     cut_size = m
@@ -106,7 +108,9 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     if training_method == "two-stage":
                         cut_size = m
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
+                        # ignore the time of computing defender utility
                     else:
+                        time2 = time.time() # including the time of computing defender utility
                         if training_method == 'decision-focused':
                             cut_size = m
                         elif training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
@@ -120,6 +124,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                             raise TypeError('Not defined method')
 
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        epoch_training_time += time.time() - time2
                         
                         # =============== checking gradient manually ===============
                         # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
@@ -157,6 +162,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 loss_list.append(loss.item())
 
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
+                    time3 = time.time()
                     optimizer.zero_grad()
                     try:
                         if training_method == "two-stage":
@@ -186,6 +192,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                         optimizer.step()
                     except:
                         print("no grad is backpropagated...")
+                    epoch_training_time += time.time() - time3
 
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage":
@@ -206,10 +213,9 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                   mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
 
             f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
+        print('Training time for this epoch: {}'.format(epoch_training_time))
+        training_time += epoch_training_time
         
-        time4 = time.time()
-        cprint (("TIME FOR THIS EPOCH:", time4-time3),'red')
-        time3 = time4
 
     average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
     average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
@@ -224,7 +230,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     #     final_loss = testing_loss_list[-validation_window*2 + max_epoch]
     #     final_defender_utility = testing_defender_utility_list[-validation_window*2 + max_epoch]
 
-    f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, time.time() - beginning_time))
+    print('Total training time: {}'.format(training_time))
+    f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, training_time))
             
     return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
     
@@ -427,8 +434,6 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     ############################# Parameters and settings:
-    time1 =time.time()
-    
     learning_mode = args.distribution
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
 
@@ -488,9 +493,6 @@ if __name__=='__main__':
             budget=DEFENDER_BUDGET, n_sources=NUMBER_OF_SOURCES, n_targets=NUMBER_OF_TARGETS,
             random_seed=SEED, noise_level=NOISE_LEVEL)
     
-    time2 = time.time()
-    cprint (("DATA GENERATION: ", time2-time1), 'red')
-
     np.random.shuffle(train_data)
 
     print("Training method: {}".format(training_method))
@@ -502,16 +504,12 @@ if __name__=='__main__':
     print("Data length train/test:", len(train_data), len(test_data))
 
     ############################## Training the ML models:    
-    time3=time.time()
     # Learn the neural networks:
     net2, train_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
                                 train_data, validate_data, test_data, f_save, f_time,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                 optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, block_cut_size=CUT_SIZE)
-
-    time4=time.time()
-    cprint (("TOTAL TRAINING+TESTING TIME: ", time4-time3), 'red')
 
     f_save.close()
     f_time.close()
@@ -528,7 +526,6 @@ if __name__=='__main__':
                 "Graph size (nodes)": (GRAPH_N_LOW, GRAPH_N_HIGH),
                 "Graph edge prob: ": (GRAPH_E_PROB_LOW, GRAPH_E_PROB_HIGH),
                 "Data size (#graphs, #samples)": (NUMBER_OF_GRAPHS, SAMPLES_PER_GRAPH),
-                "Running time": time4-time3, 
                 "Entire graph defender utility:":(testing_graph_def_u[0],testing_graph_def_u[-1]),
                 "Test Loss:": test_loss} 
     
