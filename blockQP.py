@@ -76,7 +76,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 time1 = time.time()
                 random_value = np.random.random()
                 ################################### Gather data based on learning model
-                G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true = dataset[iter_n]
+                G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true, previous_gradient = dataset[iter_n]
                 n, m = G.number_of_nodes(), G.number_of_edges()
                 
                 ################################### Compute edge probabilities
@@ -237,7 +237,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     
 
 def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage'):
-    G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true = single_data
+    G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true, previous_gradient = single_data
     
     n, m = G.number_of_nodes(), G.number_of_edges()
     budget = G.graph['budget']
@@ -281,17 +281,19 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
             indices = np.arange(cut_size)
             np.random.shuffle(indices)
             indices1, indices2 = np.array_split(indices, 2)
+            indices1, indices2 = sorted(indices1), sorted(indices2)
             edge_set1, edge_set2 = edge_set[indices1], edge_set[indices2]
             if sum(pred_optimal_coverage[edge_set1]) > min_sum / 10 and sum(pred_optimal_coverage[edge_set2]) > min_sum / 10:
                 break
     else:
         edge_set = list(range(m))
+    off_edge_set = sorted(list(set(range(m)) - set(edge_set)))
     # ========================== QP part ===========================
 
     # A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
     # G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size), torch.ones(1, cut_size)))
     # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])))
-    scale_constant = cut_size
+    scale_constant = 1 # cut_size
     A_matrix, b_matrix = torch.ones(1, cut_size)/scale_constant, torch.Tensor([sum(pred_optimal_coverage[edge_set])])/scale_constant
     G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size))) / scale_constant
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size))) / scale_constant
@@ -303,7 +305,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         # Gurobi performs well when there is no noise but default performs well when there is noise
         # But theoretically they should perform roughly the same...
 
-        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+        Q_full = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+        Q = Q_full[:,edge_set]
+        Q_bar = Q_full[:,off_edge_set]
+
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
 
         Q_sym = (Q + Q.t()) / 2
@@ -322,9 +327,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
             except:
                 reg_const *= 2
 
-        p = jac.view(1, -1) - pred_optimal_coverage[edge_set] @ Q_regularized
+        p = jac.view(1, -1) - Q_regularized @ pred_optimal_coverage[edge_set] # - Q_bar @ pred_optimal_coverage[off_edge_set]
  
         try:
+            # qp_solver = qpthnew.qp.QPFunction()
             qp_solver = qpth.qp.QPFunction()
             coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
             full_coverage_qp_solution = pred_optimal_coverage.clone()

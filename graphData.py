@@ -425,6 +425,7 @@ def generateSyntheticData(node_feature_size, omega=4,
         # COMPUTE ADJACENCY MATRIX
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
         N = nx.number_of_nodes(G) 
+        m = nx.number_of_edges(G)
 
         # pos = nx.spring_layout(G)
 
@@ -462,7 +463,7 @@ def generateSyntheticData(node_feature_size, omega=4,
         random_feature_indices = np.random.choice(generated_node_feature_size, node_feature_size, replace=False)
         for _ in range(samples_per_graph):
             # Randomly assign coverage probability
-            private_coverage_prob = np.random.rand(nx.number_of_edges(G))
+            private_coverage_prob = np.random.rand(m)
             private_coverage_prob = (private_coverage_prob / sum(private_coverage_prob)) * budget
             coverage_prob_matrix=torch.zeros(N,N)
             for i, e in enumerate(list(G.edges())):
@@ -502,6 +503,7 @@ def generateSyntheticData(node_feature_size, omega=4,
             # print('biased:', empirical_transition_probs)
             empirical_unbiased_probs = prob2unbiased(G, private_coverage_prob, empirical_transition_probs, omega)
             # print('unbiased:', empirical_unbiased_probs)
+            previous_gradient = torch.zeros(m,m)
 
             # DATA POINT
             if path_type=='random_walk_distribution':
@@ -510,7 +512,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     for e in path:
                         log_prob-=torch.log(biased_probs[e[0]][e[1]])
                 log_prob /= len(path_list)
-                data_point = (G, Fv, private_coverage_prob, phi, path_list, cut, log_prob, unbiased_probs)
+                data_point = (G, Fv, private_coverage_prob, phi, path_list, cut, log_prob, unbiased_probs, previous_gradient)
                         
             elif path_type=='empirical_distribution':
                 log_prob=torch.zeros(1)
@@ -518,7 +520,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     for e in path:
                         log_prob-=torch.log(empirical_transition_probs[e[0]][e[1]])
                 log_prob /= len(path_list)
-                data_point = (G, Fv, private_coverage_prob, phi, path_list, cut, log_prob, empirical_unbiased_probs)
+                data_point = (G, Fv, private_coverage_prob, phi, path_list, cut, log_prob, empirical_unbiased_probs, previous_gradient)
 
             else:
                 raise(TypeError)

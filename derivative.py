@@ -237,16 +237,30 @@ def obj_hessian_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distri
     else:
         coverage_probs = torch.Tensor(coverage_probs)
 
-    full_coverage_probs = torch.Tensor(coverage_probs)
-
-    x = torch.autograd.Variable(coverage_probs[list(edge_set)], requires_grad=True)
-    full_coverage_probs[edge_set] = x
+    full_coverage_probs = torch.autograd.Variable(coverage_probs, requires_grad=True)
     dobj_dx = dobj_dx_matrix_form(torch.Tensor(full_coverage_probs), G, unbiased_probs, U, initial_distribution, edge_set, omega=omega, lib=torch)
-    obj_hessian = torch.zeros((len(x),len(x)))
-    for i in range(len(x)):
-        obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
+    obj_hessian = torch.zeros((len(edge_set),len(coverage_probs)))
+    for i in range(len(edge_set)):
+        obj_hessian[i] = torch.autograd.grad(dobj_dx[i], full_coverage_probs, create_graph=False, retain_graph=True)[0]
 
     return obj_hessian
+
+# def obj_hessian_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distribution, edge_set, omega=4, lib=torch):
+#     if type(coverage_probs) == torch.Tensor:
+#         coverage_probs = coverage_probs.detach()
+#     else:
+#         coverage_probs = torch.Tensor(coverage_probs)
+# 
+#     full_coverage_probs = torch.Tensor(coverage_probs)
+# 
+#     x = torch.autograd.Variable(coverage_probs[list(edge_set)], requires_grad=True)
+#     full_coverage_probs[edge_set] = x
+#     dobj_dx = dobj_dx_matrix_form(torch.Tensor(full_coverage_probs), G, unbiased_probs, U, initial_distribution, edge_set, omega=omega, lib=torch)
+#     obj_hessian = torch.zeros((len(x),len(x)))
+#     for i in range(len(x)):
+#         obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
+# 
+#     return obj_hessian
 
 if __name__=='__main__':
     

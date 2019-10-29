@@ -40,11 +40,12 @@ def forward_single_np_gurobi(Q, p, G, h, A, b):
 
     # subject to
     #     G * x <= h
+    regularization = 1e-8 # making sure that the slacks are non-zero
     inequality_constraints = []
     if G is not None:
         for i in range(G.shape[0]):
             row = np.where(G[i] != 0)[0]
-            inequality_constraints.append(model.addConstr(gp.quicksum(G[i, j] * x[j] for j in row) <= h[i]))
+            inequality_constraints.append(model.addConstr(gp.quicksum(G[i, j] * x[j] for j in row) <= h[i] + regularization))
 
     # subject to
     #     A * x == b
@@ -131,7 +132,7 @@ class QPSolvers(Enum):
     CVXPY         = 2
     GUROBI        = 3
 
-def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
+def QPFunction(correction_term, eps=1e-12, verbose=0, notImprovedLim=3,
                  maxIter=20, solver=QPSolvers.PDIPM_BATCHED,
                  check_Q_spd=True, model=None):
     class QPFunctionFn(Function):
