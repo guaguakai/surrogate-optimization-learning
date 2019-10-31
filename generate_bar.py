@@ -20,6 +20,7 @@ def read_file(filename, method, key_list=None):
     final_defu_list = []
     opt_defu_list = []
     opt_loss_list = []
+    print(filename)
     while True:
         item = f.readline()
         if not item: break

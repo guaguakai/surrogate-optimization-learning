@@ -36,7 +36,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
         optimizer=optim.Adamax(net2.parameters(), lr=lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.6)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
