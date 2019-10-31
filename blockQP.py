@@ -46,7 +46,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
 
-    pretrain_epochs = 10
+    pretrain_epochs = 0
     decay_rate = 0.95
     for epoch in range(-1, n_epochs):
         epoch_training_time = 0
