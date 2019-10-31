@@ -88,3 +88,13 @@ Random seed, 33
 nodes, 30.0, edges, 67.0, epochs, 100, time, 2941.7672786712646
 Random seed, 4
 nodes, 30.0, edges, 55.0, epochs, 100, time, 2942.131348133087
+Random seed, 15
+nodes, 30.0, edges, 61.0, epochs, 100, time, 3226.115921974182
+Random seed, 22
+nodes, 30.0, edges, 84.0, epochs, 100, time, 3634.52072429657
+Random seed, 48
+nodes, 30.0, edges, 49.0, epochs, 100, time, 5842.791738510132
+Random seed, 30
+nodes, 30.0, edges, 43.0, epochs, 100, time, 6434.589752435684
+Random seed, 3
+nodes, 30.0, edges, 55.0, epochs, 100, time, 6883.651581048965
