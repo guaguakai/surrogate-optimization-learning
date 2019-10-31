@@ -132,7 +132,7 @@ class QPSolvers(Enum):
     CVXPY         = 2
     GUROBI        = 3
 
-def QPFunction(correction_term, eps=1e-12, verbose=0, notImprovedLim=3,
+def QPFunction(correction_term, gradient, eps=1e-12, verbose=0, notImprovedLim=3,
                  maxIter=20, solver=QPSolvers.PDIPM_BATCHED,
                  check_Q_spd=True, model=None):
     class QPFunctionFn(Function):
@@ -211,6 +211,8 @@ def QPFunction(correction_term, eps=1e-12, verbose=0, notImprovedLim=3,
                 zhats, ctx.nus, ctx.lams, ctx.slacks = pdipm_b.forward(
                     Q, p, G, h, A, b, ctx.Q_LU, ctx.S_LU, ctx.R,
                     eps, verbose, notImprovedLim, maxIter)
+                ctx.gradient = gradient
+                ctx.correction_term = correction_term
             elif solver == QPSolvers.CVXPY:
                 vals = torch.Tensor(nBatch).type_as(Q)
                 zhats = torch.Tensor(nBatch, ctx.nz).type_as(Q)
@@ -288,6 +290,7 @@ def QPFunction(correction_term, eps=1e-12, verbose=0, notImprovedLim=3,
 
             # neq, nineq, nz = ctx.neq, ctx.nineq, ctx.nz
             neq, nineq = ctx.neq, ctx.nineq
+            correction_term, gradient = ctx.correction_term, ctx.gradient
 
             if solver != QPSolvers.PDIPM_BATCHED:
                 ctx.Q_LU, ctx.S_LU, ctx.R = pdipm_b.pre_factor_kkt(Q, G, A)
@@ -303,6 +306,12 @@ def QPFunction(correction_term, eps=1e-12, verbose=0, notImprovedLim=3,
             dx, _, dlam, dnu = pdipm_b.solve_kkt(
                 ctx.Q_LU, d, G, A, ctx.S_LU,
                 dl_dzhat, torch.zeros(nBatch, nineq).type_as(G),
+                torch.zeros(nBatch, nineq).type_as(G),
+                torch.zeros(nBatch, neq).type_as(G) if neq > 0 else torch.Tensor())
+
+            dgrad, _, _, _ = pdipm_b.solve_kkt(
+                ctx.Q_LU, d, G, A, ctx.S_LU,
+                torch.ones_like(dl_dzhat), torch.zeros(nBatch, nineq).type_as(G),
                 torch.zeros(nBatch, nineq).type_as(G),
                 torch.zeros(nBatch, neq).type_as(G) if neq > 0 else torch.Tensor())
 

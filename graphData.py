@@ -337,7 +337,9 @@ def attackerOracle(G, coverage_probs, phi, omega=4, num_paths=100):
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
     # EXACT EDGE PROBS
-    biased_probs = generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=omega)
+    unbiased_probs = phi2prob(G, phi)
+    biased_probs = prob2unbiased(G, -coverage_probs, unbiased_probs, omega=omega) # feeding negative coverage to be biased
+    # biased_probs = generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=omega)
 
     # EMPIRICAL EDGE PROBS
     path_list = []
@@ -482,8 +484,9 @@ def generateSyntheticData(node_feature_size, omega=4,
             Fv = Fv[:,random_feature_indices]
             
             # EXACT EDGE PROBS
-            biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi, omega=omega)
             unbiased_probs = phi2prob(G, phi)
+            biased_probs = prob2unbiased(G, - private_coverage_prob, unbiased_probs, omega=omega) # feeding negative coverage to get biased
+            # biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi, omega=omega)
 
             # Call Attacker Oracle
             path_list, _ = attackerOracle(G, private_coverage_prob, phi, omega=omega, num_paths=empirical_samples_per_instance)

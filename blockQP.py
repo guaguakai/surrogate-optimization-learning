@@ -21,6 +21,8 @@ from graphData import *
 from derivative import *
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 
+import qpthnew
+
 def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
     
@@ -44,11 +46,15 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
 
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
 
-    pretrain_epochs = n_epochs
+    pretrain_epochs = 10
+    decay_rate = 0.95
     for epoch in range(-1, n_epochs):
         epoch_training_time = 0
-        df_weight = (epoch - 1) / pretrain_epochs
-        ts_weight = 1 - df_weight
+        if epoch <= pretrain_epochs:
+            ts_weight = 1
+        else:
+            ts_weight = decay_rate ** (epoch - pretrain_epochs)
+        df_weight = 1 - ts_weight
         for mode in ["training", "validating", "testing"]:
             if mode == "training":
                 dataset = train_data
@@ -85,17 +91,18 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                 phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
                 # phi_pred.require_grad = True
 
-                unbiased_probs_pred = phi2prob(G, phi_pred)
-                biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
+                unbiased_probs_pred = phi2prob(G, phi_pred) if epoch >= 0 else unbiased_probs_true
+                biased_probs_pred = prob2unbiased(G, -coverage_prob,  unbiased_probs_pred, omega=omega) # feeding negative coverage to be biased
+                # biased_probs_pred = generate_EdgeProbs_from_Attractiveness(G, coverage_prob,  phi_pred, omega=omega)
                 
                 ################################### Compute loss
-                loss = torch.norm((unbiased_probs_true - unbiased_probs_pred)) # * torch.Tensor(nx.adjacency_matrix(G).toarray()))
-                # log_prob_pred = torch.zeros(1)
-                # for path in path_list:
-                #     for e in path: 
-                #         log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
-                # log_prob_pred /= len(path_list)
-                # loss = (log_prob_pred - log_prob)[0]
+                # loss = torch.norm((unbiased_probs_true - unbiased_probs_pred)) # * torch.Tensor(nx.adjacency_matrix(G).toarray()))
+                log_prob_pred = torch.zeros(1)
+                for path in path_list:
+                    for e in path: 
+                        log_prob_pred -= torch.log(biased_probs_pred[e[0]][e[1]])
+                log_prob_pred /= len(path_list)
+                loss = (log_prob_pred - log_prob)[0]
 
                 # COMPUTE DEFENDER UTILITY 
                 single_data = dataset[iter_n]
@@ -105,7 +112,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     cut_size = m
                     def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
-                    if training_method == "two-stage":
+                    if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
                         # ignore the time of computing defender utility
@@ -165,7 +172,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     time3 = time.time()
                     optimizer.zero_grad()
                     try:
-                        if training_method == "two-stage":
+                        if training_method == "two-stage" or epoch <= pretrain_epochs:
                             loss.backward()
                         elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
                             # (-def_obj).backward()
@@ -264,8 +271,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
 
     # ======================== edge set choice =====================
     first_order_derivative = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, np.arange(m), omega=omega, lib=torch)
-    # sample_distribution = np.abs(first_order_derivative.detach().numpy()) + 1e-3
-    sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-3
+    sample_distribution = np.abs(first_order_derivative.detach().numpy()) + 1e-3
+    # sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-3
     # sample_distribution = np.ones(m)
     sample_distribution /= sum(sample_distribution)
     if training_method == 'block-decision-focused' or training_method == 'hybrid':
@@ -295,8 +302,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
     # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])))
     scale_constant = 1 # cut_size
     A_matrix, b_matrix = torch.ones(1, cut_size)/scale_constant, torch.Tensor([sum(pred_optimal_coverage[edge_set])])/scale_constant
-    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size))) / scale_constant
-    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size))) / scale_constant
+    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
+    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
     if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
         
@@ -305,9 +312,9 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         # Gurobi performs well when there is no noise but default performs well when there is noise
         # But theoretically they should perform roughly the same...
 
-        Q_full = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
-        Q = Q_full[:,edge_set]
-        Q_bar = Q_full[:,off_edge_set]
+        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
+        # Q = Q_full[:,edge_set]
+        # Q_bar = Q_full[:,off_edge_set]
 
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
 
@@ -327,10 +334,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
             except:
                 reg_const *= 2
 
-        p = jac.view(1, -1) - Q_regularized @ pred_optimal_coverage[edge_set] # - Q_bar @ pred_optimal_coverage[off_edge_set]
+        p = jac.view(1, -1) - Q_regularized @ pred_optimal_coverage[edge_set]
  
         try:
-            # qp_solver = qpthnew.qp.QPFunction()
+            # qp_solver = qpthnew.qp.QPFunction(correction_term, previous_gradient)
             qp_solver = qpth.qp.QPFunction()
             coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
             full_coverage_qp_solution = pred_optimal_coverage.clone()
@@ -393,7 +400,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
     # ========================= Error message =========================
-    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.01): # or 0.01 for GUROBI, 0.1 for qpth
+    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
         print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
         print(pred_optimal_coverage)
