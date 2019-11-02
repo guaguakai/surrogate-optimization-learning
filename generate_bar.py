@@ -27,7 +27,7 @@ def read_file(filename, method, key_list=None):
         item = item[:-1].split(',')
         if item[0] == 'Random seed':
             seed = int(item[1])
-            data[seed] = {'tr_loss': [], 'val_loss':[], 'te_loss': [], 'tr_defu': [], 'val_defu':[], 'te_defu': []}
+            data[seed] = {'tr_loss': [], 'val_loss':[], 'te_loss': [], 'tr_defu': [], 'val_defu':[], 'te_defu': [], 'opt_defu': None, 'opt_loss': None}
         elif item[0] == 'mode':
             continue
         else:
@@ -42,8 +42,8 @@ def read_file(filename, method, key_list=None):
                 elif item[0]=='testing':
                     opt_te_loss = float(item[2])
                     opt_te_defu = float(item[3])
-                    opt_defu_list.append(opt_te_defu)
-                    opt_loss_list.append(opt_te_loss)
+                    data[seed]['opt_loss'] = opt_te_loss
+                    data[seed]['opt_defu'] = opt_te_defu
             else:
                 if item[0]=='training':
                     data[seed]['tr_loss'].append(float(item[2]))
@@ -57,7 +57,9 @@ def read_file(filename, method, key_list=None):
 
     if key_list is None:
         key_list = data.keys()
-    for key in data:
+    for key in key_list:
+        tmp_opt_loss = data[key]['opt_loss']
+        tmp_opt_defu = data[key]['opt_defu']
         if method == 'two-stage':
             tmp_idx = np.argmin(data[key]['val_loss'])
             tmp_loss = data[key]['te_loss'][tmp_idx]
@@ -70,6 +72,8 @@ def read_file(filename, method, key_list=None):
             raise ValueError
         final_loss_list.append(tmp_loss)
         final_defu_list.append(tmp_defu)
+        opt_loss_list.append(tmp_opt_loss)
+        opt_defu_list.append(tmp_opt_defu)
 
     print(method, len(data.keys()))
     print(key_list)
@@ -79,8 +83,9 @@ def read_file(filename, method, key_list=None):
     opt_loss_list = np.array(opt_loss_list)
     opt_defu_list = np.array(opt_defu_list)
 
-    init_loss_list = np.array([data[key]['te_loss'][0] for key in data])
-    init_defu_list = np.array([data[key]['te_defu'][0] for key in data])
+    init_loss_list = np.array([data[key]['te_loss'][0] for key in key_list])
+    init_defu_list = np.array([data[key]['te_defu'][0] for key in key_list])
+    f.close()
         
     return final_loss_list, final_defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list
 
@@ -132,6 +137,7 @@ if __name__=='__main__':
         filepath = "results/random/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
         key_list = None
         if label == 'two-stage':
+            # loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'decision-focused', key_list)
             loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'two-stage', key_list)
         else:
             loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'decision-focused', key_list)

@@ -32,22 +32,30 @@ def return_yaxis(filename):
             continue
         else:
             epoch = int(item[1])
-            if epoch>-1:
+            if epoch == -1:
                 if item[0]=='training':
-                    to_plot['tr_loss'][epoch].append(float(item[2]))
-                    to_plot['tr_defu'][epoch].append(float(item[3]))
-                
+                    opt_tr_loss = float(item[2])
+                    opt_tr_defu = float(item[3])
                 elif item[0]=='validating':
-                    to_plot['val_loss'][epoch].append(float(item[2]))
-                    to_plot['val_defu'][epoch].append(float(item[3]))
-
+                    opt_val_loss = float(item[2])
+                    opt_val_defu = float(item[3])
                 elif item[0]=='testing':
-                    to_plot['te_loss'][epoch].append(float(item[2]))
-                    to_plot['te_defu'][epoch].append(float(item[3]))
+                    opt_te_loss = float(item[2])
+                    opt_te_defu = float(item[3])
+            else:
+                if item[0]=='training':
+                    to_plot['tr_loss'][epoch].append(float(item[2]) - opt_tr_loss)
+                    to_plot['tr_defu'][epoch].append(float(item[3]) - opt_tr_defu)
+                elif item[0]=='validating':
+                    to_plot['val_loss'][epoch].append(float(item[2]) - opt_val_loss)
+                    to_plot['val_defu'][epoch].append(float(item[3]) - opt_val_defu)
+                elif item[0]=='testing':
+                    to_plot['te_loss'][epoch].append(float(item[2]) - opt_te_loss)
+                    to_plot['te_defu'][epoch].append(float(item[3]) - opt_te_defu)
 
     for key in to_plot:
         to_plot[key] = np.array(to_plot[key])
-    _, num_samples = to_plot['tr_loss'].shape
+    # _, num_samples = to_plot['tr_loss'].shape
 
     tr_loss=[np.average(to_plot['tr_loss'][i]) for i in range(max_epochs+1)]
     te_loss=[np.average(to_plot['te_loss'][i]) for i in range(max_epochs+1)]

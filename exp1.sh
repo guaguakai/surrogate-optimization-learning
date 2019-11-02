@@ -1,7 +1,7 @@
-FILENAME='1031-server'
+FILENAME='1101-geometric-server'
 
 NODES=10
-NOISE=0.0
+NOISE=0.5
 BUDGET=2
 PROB=0.2
 CUTSIZE='0.5n'

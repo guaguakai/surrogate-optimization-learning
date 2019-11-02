@@ -23,7 +23,7 @@ from derivative import *
 
 import qpthnew
 
-def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, lr=0.1, learning_model='random_walk_distribution'
+def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution'
                           ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
     
     net2= GCNPredictionNet2(feature_size)
@@ -43,8 +43,6 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     
     print ("Training...")
     training_time = 0
-
-    f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
 
     pretrain_epochs = 0
     decay_rate = 0.95
@@ -210,16 +208,14 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
                     raise TypeError("Not Implemented Method")
 
             # Storing loss and defender utility
-            if epoch >= 0:
-                epoch_loss_list.append(np.mean(loss_list))
-                epoch_def_list.append(np.mean(def_obj_list))
+            epoch_loss_list.append(np.mean(loss_list))
+            epoch_def_list.append(np.mean(def_obj_list))
 
             ################################### Print stuff after every epoch 
             np.random.shuffle(dataset)
             print("Mode: {}/ Epoch number: {}/ Loss: {}/ DefU: {}/ Simulated DefU: {}".format(
                   mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
 
-            f_save.write("{}, {}, {}, {}, {}\n".format(mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
         print('Training time for this epoch: {}'.format(epoch_training_time))
         training_time += epoch_training_time
         
@@ -238,9 +234,8 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, f_save, f_time, 
     #     final_defender_utility = testing_defender_utility_list[-validation_window*2 + max_epoch]
 
     print('Total training time: {}'.format(training_time))
-    f_time.write("nodes, {}, edges, {}, epochs, {}, time, {}\n".format(average_nodes, average_edges, epoch, training_time))
             
-    return net2 ,training_loss_list, testing_loss_list, training_defender_utility_list, testing_defender_utility_list
+    return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, training_time
     
 
 def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage'):
@@ -492,12 +487,6 @@ if __name__=='__main__':
         filepath_data    = "results/fixed/{}_{}_test.csv"               .format(filename, training_method)
         filepath_time    = "results/time/fixed/{}_{}_b{}.csv"           .format(filename, training_method, DEFENDER_BUDGET)
 
-    f_save = open(filepath_data, 'a')
-    f_time = open(filepath_time, 'a')
-
-    f_save.write('Random seed, {}\n'.format(SEED))
-    f_time.write('Random seed, {}\n'.format(SEED))
-      
     ############################### Data genaration:
     train_data, validate_data, test_data = generateSyntheticData(feature_size, path_type=learning_model_type,
             n_graphs=NUMBER_OF_GRAPHS, samples_per_graph=SAMPLES_PER_GRAPH, empirical_samples_per_instance=EMPIRICAL_SAMPLES_PER_INSTANCE,
@@ -518,12 +507,22 @@ if __name__=='__main__':
 
     ############################## Training the ML models:    
     # Learn the neural networks:
-    net2, train_loss, test_loss, training_graph_def_u, testing_graph_def_u=learnEdgeProbs_simple(
-                                train_data, validate_data, test_data, f_save, f_time,
+    net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, training_time = learnEdgeProbs_simple(
+                                train_data, validate_data, test_data,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                 optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, block_cut_size=CUT_SIZE)
 
+    f_save = open(filepath_data, 'a')
+    f_time = open(filepath_time, 'a')
+
+    f_save.write('Random seed, {}\n'.format(SEED))
+    f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
+    f_time.write('Random seed, {}\n'.format(SEED))
+    for epoch in range(-1, N_EPOCHS):
+        f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
+        f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
+        f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
     f_save.close()
     f_time.close()
 
@@ -539,8 +538,8 @@ if __name__=='__main__':
                 "Graph size (nodes)": (GRAPH_N_LOW, GRAPH_N_HIGH),
                 "Graph edge prob: ": (GRAPH_E_PROB_LOW, GRAPH_E_PROB_HIGH),
                 "Data size (#graphs, #samples)": (NUMBER_OF_GRAPHS, SAMPLES_PER_GRAPH),
-                "Entire graph defender utility:":(testing_graph_def_u[0],testing_graph_def_u[-1]),
-                "Test Loss:": test_loss} 
+                "Entire graph defender utility:":(testing_defu[0],testing_defu[-1]),
+                "Test Loss:": testing_loss} 
     
     cprint (all_params, 'green')
         

@@ -31,11 +31,12 @@ if __name__ == '__main__':
     labels = [str(x) for x in cut_size_list]
     
     method_list = ['block-decision-focused', 'hybrid']
+    key_list = list(set(range(1,31)) - set([21, 25]))
     for method in method_list:
         bar_list = np.zeros((2, len(cut_size_list)))
         for i, cut_size in enumerate(cut_size_list):
             filepath = "results/random/exp2/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, cut_size, NOISE_LEVEL)
-            loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'decision-focused', None)
+            loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'decision-focused', key_list)
     
             print('Opt mean:', np.mean(opt_loss_list), np.mean(opt_defu_list))
             loss_median = np.median(loss_list - opt_loss_list)
