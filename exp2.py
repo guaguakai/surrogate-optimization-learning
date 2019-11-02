@@ -31,7 +31,7 @@ if __name__ == '__main__':
     labels = [str(x) for x in cut_size_list]
     
     method_list = ['block-decision-focused', 'hybrid']
-    key_list = list(set(range(1,31)) - set([21, 25]))
+    key_list = None # list(set(range(1,31)) - set([21, 25]))
     for method in method_list:
         bar_list = np.zeros((2, len(cut_size_list)))
         for i, cut_size in enumerate(cut_size_list):

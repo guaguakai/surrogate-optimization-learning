@@ -518,7 +518,7 @@ if __name__=='__main__':
 
     f_save.write('Random seed, {}\n'.format(SEED))
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
-    f_time.write('Random seed, {}\n'.format(SEED))
+    f_time.write('Random seed, {}, training time, {}\n'.format(SEED, training_time))
     for epoch in range(-1, N_EPOCHS):
         f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
         f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
