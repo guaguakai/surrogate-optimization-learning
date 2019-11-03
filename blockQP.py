@@ -23,8 +23,8 @@ from derivative import *
 
 import qpthnew
 
-def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution'
-                          ,n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
+def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='derivative',
+                          n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
@@ -110,12 +110,12 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
 
                 if mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
                     cut_size = m
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
                 else:
                     time2 = time.time() # including the time of computing defender utility
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
                         # ignore the time of computing defender utility
                         epoch_optimizing_time += time.time() - time2
                     else:
@@ -131,7 +131,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
                         else:
                             raise TypeError('Not defined method')
 
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
                         epoch_training_time += time.time() - time2
                         
                         # =============== checking gradient manually ===============
@@ -243,7 +243,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
     return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, training_time, optimizing_time
     
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage'):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='derivative'):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true, previous_gradient = single_data
     
     n, m = G.number_of_nodes(), G.number_of_edges()
@@ -271,9 +271,15 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
 
     # ======================== edge set choice =====================
     first_order_derivative = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, np.arange(m), omega=omega, lib=torch)
-    sample_distribution = np.abs(first_order_derivative.detach().numpy()) + 1e-3
-    # sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-3
-    # sample_distribution = np.ones(m)
+
+    if block_selection == 'derivative':
+        sample_distribution = np.abs(first_order_derivative.detach().numpy()) + 1e-3
+    elif block_selection == 'coverage':
+        sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-3
+    elif block_selection == 'uniform':
+        sample_distribution = np.ones(m)
+    else:
+        raise ValueError('Not Implemented Block Selection')
     sample_distribution /= sum(sample_distribution)
     if training_method == 'block-decision-focused' or training_method == 'hybrid':
         min_sum = 1e-2
@@ -434,6 +440,7 @@ if __name__=='__main__':
     parser.add_argument('--omega', type=float, default=4, help='risk aversion of the attacker')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
     parser.add_argument('--cut-size', type=str, default='n/2', help='number of the defender budget')
+    parser.add_argument('--block-selection', type=str, default='derivative', help='block selection')
 
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
     parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')
@@ -449,6 +456,7 @@ if __name__=='__main__':
     ############################# Parameters and settings:
     learning_mode = args.distribution
     learning_model_type = 'random_walk_distribution' if learning_mode == 0 else 'empirical_distribution'
+    block_selection = args.block_selection
 
     training_mode = args.method
     method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', 3: 'corrected-block-decision-focused', 4: 'hybrid'} # 3 is reserved for new-block-df
@@ -486,8 +494,8 @@ if __name__=='__main__':
     ###############################
     filename = args.filename
     if FIXED_GRAPH == 0:
-        filepath_data    =      "results/random/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
-        filepath_time    = "results/time/random/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
+        filepath_data    =      "results/random/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
+        filepath_time    = "results/time/random/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
     else:
         filepath_data    = "results/fixed/{}_{}_test.csv"               .format(filename, training_method)
         filepath_time    = "results/time/fixed/{}_{}_b{}.csv"           .format(filename, training_method, DEFENDER_BUDGET)
@@ -509,12 +517,13 @@ if __name__=='__main__':
     print('Sample graph size: {}, sample size: {}'.format(NUMBER_OF_GRAPHS, SAMPLES_PER_GRAPH))
     print('omega: {}'.format(OMEGA))
     print("Data length train/test:", len(train_data), len(test_data))
+    print('Block selection:', block_selection)
 
     ############################## Training the ML models:    
     # Learn the neural networks:
     net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, training_time, optimizing_time = learnEdgeProbs_simple(
                                 train_data, validate_data, test_data,
-                                learning_model=learning_model_type,
+                                learning_model=learning_model_type, block_selection=block_selection,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                 optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, block_cut_size=CUT_SIZE)
 

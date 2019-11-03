@@ -8,8 +8,9 @@ from generate_time import load_time
 
 if __name__=='__main__':
 
+    labels = ['two-stage']
     # labels = ['two-stage', 'block-decision-focused']
-    labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid']
+    # labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid']
     # labels = ['two-stage', 'block-decision-focused', 'hybrid']
     print(labels)
     # ==================== Parser setting ==========================

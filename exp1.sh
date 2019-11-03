@@ -1,6 +1,6 @@
 FILENAME='1102-1200-geometric-server'
 
-NODES=20
+NODES=40
 NOISE=0.0
 BUDGET=2
 PROB=0.2
