@@ -4,12 +4,13 @@ import matplotlib.pyplot as plt
 import argparse
 from generate_bar import read_file, generateBarChart
 from generate_fig4 import return_yaxis, generateLineChart
+from generate_time import load_time
 
 if __name__=='__main__':
 
     # labels = ['two-stage', 'block-decision-focused']
-    labels = ['two-stage', 'block-decision-focused', 'hybrid']
-    # labels = ['two-stage', 'block-decision-focused', 'corrected-block-decision-focused', 'hybrid']
+    labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid']
+    # labels = ['two-stage', 'block-decision-focused', 'hybrid']
     print(labels)
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')
@@ -33,7 +34,7 @@ if __name__=='__main__':
     filename = args.filename
 
     # ============================== generate bar chart =====================================
-    bar_list = np.zeros((2, len(labels)))
+    bar_list = np.zeros((4, len(labels)))
     for i, label in enumerate(labels):
         filepath = "results/random/exp1/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
         key_list = None
@@ -43,22 +44,28 @@ if __name__=='__main__':
             loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'decision-focused', key_list)
 
         print('Opt mean:', np.mean(opt_loss_list), np.mean(opt_defu_list))
-        loss_median = np.median(loss_list - opt_loss_list)
-        defu_median = np.median(opt_defu_list - defu_list)
+        loss_median = np.median(-loss_list + opt_loss_list)
+        defu_median = np.median(-defu_list + opt_defu_list)
 
-        loss_mean   = np.mean(loss_list - opt_loss_list)
-        defu_mean   = np.mean(opt_defu_list - defu_list)
+        loss_mean   = np.mean(-loss_list   + opt_loss_list)
+        defu_mean   = np.mean(-defu_list   + opt_defu_list)
 
         bar_list[0,i] = defu_mean
         bar_list[1,i] = defu_median
 
-    init_defu_median = np.median(opt_defu_list - init_defu_list)
-    init_defu_mean   = np.mean(opt_defu_list - init_defu_list)
+        time_filepath = "results/time/random/exp1/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
+        training_time, optimizing_time = load_time(time_filepath)
+        bar_list[2,i] = training_time
+        bar_list[3,i] = optimizing_time
+
+    init_defu_median = np.median(-init_defu_list + opt_defu_list)
+    init_defu_mean   = np.mean(  -init_defu_list + opt_defu_list)
     # bar_list[0,-1] = init_defu_mean
     # bar_list[1,-1] = init_defu_median
 
-    print('mean (ts, bdf, cbdf, hb, init):',   ','.join([str(x) for x in bar_list[0]]) + ',' + str(init_defu_mean))
-    print('median (ts, bdf, cbdf, hb, init):', ','.join([str(x) for x in bar_list[1]]) + ',' + str(init_defu_median))
+    print('mean (ts, df, bdf, hb, init):',   ','.join([str(x) for x in bar_list[0]]) + ',' + str(init_defu_mean))
+    print('training time (ts, df, bdf, hb):', ','.join([str(x) for x in bar_list[2]]))
+    print('optimizing time (ts, df, bdf, hb):', ','.join([str(x) for x in bar_list[3]]))
 
     save_filename = "results/excel/comparison/exp1/barchart_{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     generateBarChart(bar_list, labels, save_filename)

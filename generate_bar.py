@@ -76,7 +76,7 @@ def read_file(filename, method, key_list=None):
         opt_defu_list.append(tmp_opt_defu)
 
     print(method, len(data.keys()))
-    print(key_list)
+    print(list(key_list))
 
     final_loss_list = np.array(final_loss_list)
     final_defu_list = np.array(final_defu_list)

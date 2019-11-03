@@ -43,11 +43,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
     
     print ("Training...")
     training_time = 0
+    optimizing_time = 0
 
     pretrain_epochs = 0
     decay_rate = 0.95
     for epoch in range(-1, n_epochs):
         epoch_training_time = 0
+        epoch_optimizing_time = 0
         if epoch <= pretrain_epochs:
             ts_weight = 1
         else:
@@ -110,12 +112,13 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
                     cut_size = m
                     def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # feed forward only
                 else:
+                    time2 = time.time() # including the time of computing defender utility
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
                         def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method) # most time-consuming part
                         # ignore the time of computing defender utility
+                        epoch_optimizing_time += time.time() - time2
                     else:
-                        time2 = time.time() # including the time of computing defender utility
                         if training_method == 'decision-focused':
                             cut_size = m
                         elif training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
@@ -158,10 +161,10 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
                         # print('cosine similarity:', cos(dopt_dphi.reshape(-1), estimated_dopt_dphi.reshape(-1)))
                         # ==========================================================
 
-                U = torch.Tensor(G.graph['U'])
-                initial_distribution = torch.Tensor(G.graph['initial_distribution'])
-                new_def_obj  = -(objective_function_matrix_form(def_coverage, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
-                def_obj_list.append(new_def_obj.item())
+                # U = torch.Tensor(G.graph['U'])
+                # initial_distribution = torch.Tensor(G.graph['initial_distribution'])
+                # new_def_obj  = -(objective_function_matrix_form(def_coverage, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), None, omega=omega))
+                def_obj_list.append(def_obj.item())
                 simulated_def_obj_list.append(simulated_def_obj)
 
                 loss_list.append(loss.item())
@@ -217,7 +220,9 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
                   mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
 
         print('Training time for this epoch: {}'.format(epoch_training_time))
-        training_time += epoch_training_time
+        print('Optimizing time for this epoch: {}'.format(epoch_optimizing_time))
+        training_time   += epoch_training_time
+        optimizing_time += epoch_optimizing_time
         
 
     average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
@@ -235,7 +240,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
 
     print('Total training time: {}'.format(training_time))
             
-    return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, training_time
+    return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, training_time, optimizing_time
     
 
 def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage'):
@@ -507,7 +512,7 @@ if __name__=='__main__':
 
     ############################## Training the ML models:    
     # Learn the neural networks:
-    net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, training_time = learnEdgeProbs_simple(
+    net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, training_time, optimizing_time = learnEdgeProbs_simple(
                                 train_data, validate_data, test_data,
                                 learning_model=learning_model_type,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
@@ -518,7 +523,7 @@ if __name__=='__main__':
 
     f_save.write('Random seed, {}\n'.format(SEED))
     f_save.write("mode, epoch, average loss, defender utility, simulated defender utility\n")
-    f_time.write('Random seed, {}, training time, {}\n'.format(SEED, training_time))
+    f_time.write('Random seed, {}, training time, {}, optimization time, {}\n'.format(SEED, training_time, optimizing_time))
     for epoch in range(-1, N_EPOCHS):
         f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
         f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))

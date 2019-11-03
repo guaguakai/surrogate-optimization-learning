@@ -5,6 +5,7 @@ import argparse
 
 from generate_bar import read_file, generateBarChart
 from generate_fig4 import return_yaxis, generateLineChart
+from generate_time import load_time
 
 if __name__ == '__main__':
     
@@ -33,6 +34,7 @@ if __name__ == '__main__':
     method_list = ['block-decision-focused', 'hybrid']
     key_list = None # list(set(range(1,31)) - set([21, 25]))
     for method in method_list:
+        testing_defu = np.zeros((len(cut_size_list), 101))
         bar_list = np.zeros((2, len(cut_size_list)))
         for i, cut_size in enumerate(cut_size_list):
             filepath = "results/random/exp2/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, cut_size, NOISE_LEVEL)
@@ -51,9 +53,17 @@ if __name__ == '__main__':
 
         tr_loss, te_loss = [[]] * len(labels), [[]] * len(labels)
         tr_defu, te_defu = [[]] * len(labels), [[]] * len(labels)
+        training_time_list = np.zeros(len(cut_size_list))
+        optimizing_time_list = np.zeros(len(cut_size_list))
         for i, cut_size in enumerate(cut_size_list):
             filepath = "results/random/exp2/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, cut_size, NOISE_LEVEL)
             tr_loss[i], te_loss[i], tr_defu[i], te_defu[i], x1 = return_yaxis(filepath)
+            testing_defu[i] = te_defu[i]
+
+            time_filepath = "results/time/random/exp2/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, cut_size, NOISE_LEVEL)
+            training_time, optimizing_time = load_time(time_filepath)
+            training_time_list[i] = training_time
+            optimizing_time_list[i] = optimizing_time
 
         xy_list = []
         xy_list.append((x1, np.array(tr_loss), labels, "Training Loss", 'KL Divergence'))
@@ -65,7 +75,9 @@ if __name__ == '__main__':
         init_defu_mean   = np.mean(opt_defu_list - init_defu_list)
     
         print('mean  :', ','.join([str(x) for x in bar_list[0]]) + ',' + str(init_defu_mean))
-        print('median:', ','.join([str(x) for x in bar_list[1]]) + ',' + str(init_defu_median))
+        print('training time:', training_time_list)
+        print('optimizing time:', optimizing_time_list)
+        np.savetxt('experiments/exp2_{}.csv'.format(method), testing_defu, delimiter=',')
     
         barchart_save_filename = "results/excel/comparison/exp2/barchart_{}_{}_n{}_p{}_b{}_noise{}.png".format(filename, method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
         linechart_save_filename = "results/excel/comparison/exp2/linechart_{}_{}_n{}_p{}_b{}_noise{}.png".format(filename, method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
