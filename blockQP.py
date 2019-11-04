@@ -278,6 +278,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         sample_distribution = pred_optimal_coverage.detach().numpy() + 1e-3
     elif block_selection == 'uniform':
         sample_distribution = np.ones(m)
+    elif block_selection == 'slack':
+        sample_distribution = np.exp(-np.abs(pred_optimal_coverage.detach().numpy() - 0.5) * 5)
     else:
         raise ValueError('Not Implemented Block Selection')
     sample_distribution /= sum(sample_distribution)

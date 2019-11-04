@@ -57,14 +57,21 @@ def return_yaxis(filename):
         to_plot[key] = np.array(to_plot[key])
     # _, num_samples = to_plot['tr_loss'].shape
 
-    tr_loss=[np.average(to_plot['tr_loss'][i]) for i in range(max_epochs+1)]
-    te_loss=[np.average(to_plot['te_loss'][i]) for i in range(max_epochs+1)]
-    tr_defu=[np.average(to_plot['tr_defu'][i]) for i in range(max_epochs+1)]
-    te_defu=[np.average(to_plot['te_defu'][i]) for i in range(max_epochs+1)]
+    # MEAN
+    tr_loss = [np.average(to_plot['tr_loss'][i]) for i in range(max_epochs+1)]
+    te_loss = [np.average(to_plot['te_loss'][i]) for i in range(max_epochs+1)]
+    tr_defu = [np.average(to_plot['tr_defu'][i]) for i in range(max_epochs+1)]
+    te_defu = [np.average(to_plot['te_defu'][i]) for i in range(max_epochs+1)]
+
+    # STD
+    tr_loss_std = [np.std(to_plot['tr_loss'][i]) for i in range(max_epochs+1)]
+    te_loss_std = [np.std(to_plot['te_loss'][i]) for i in range(max_epochs+1)]
+    tr_defu_std = [np.std(to_plot['tr_defu'][i]) for i in range(max_epochs+1)]
+    te_defu_std = [np.std(to_plot['te_defu'][i]) for i in range(max_epochs+1)]
     x=range(max_epochs+1)
     
     #return (to_plot,x,max_epochs+1)
-    return (tr_loss, te_loss, tr_defu, te_defu, x)
+    return (tr_loss, te_loss, tr_defu, te_defu, x), (tr_loss_std, te_loss_std, tr_defu_std, te_defu_std, x)
 
 def generateLineChart(xy_list, filename):
     
