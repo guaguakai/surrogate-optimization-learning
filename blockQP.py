@@ -287,8 +287,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         # min_sum = 1e-2
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
-            if sum(pred_optimal_coverage[edge_set]) > min_sum:
-                break
+            # if sum(pred_optimal_coverage[edge_set]) > min_sum:
+            break
     elif training_method == 'corrected-block-decision-focused':
         # min_sum = 1e-2
         while True:
@@ -298,8 +298,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
             indices1, indices2 = np.array_split(indices, 2)
             indices1, indices2 = sorted(indices1), sorted(indices2)
             edge_set1, edge_set2 = edge_set[indices1], edge_set[indices2]
-            if sum(pred_optimal_coverage[edge_set1]) > min_sum / 10 and sum(pred_optimal_coverage[edge_set2]) > min_sum / 10:
-                break
+            # if sum(pred_optimal_coverage[edge_set1]) > min_sum / 10 and sum(pred_optimal_coverage[edge_set2]) > min_sum / 10:
+            break
     else:
         edge_set = list(range(m))
     off_edge_set = sorted(list(set(range(m)) - set(edge_set)))
