@@ -57,8 +57,8 @@ if __name__ == '__main__':
         optimizing_time_list = np.zeros(len(cut_size_list))
         for i, cut_size in enumerate(cut_size_list):
             filepath = "results/random/exp2/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, cut_size, NOISE_LEVEL)
-            tr_loss[i], te_loss[i], tr_defu[i], te_defu[i], x1 = return_yaxis(filepath)
-            testing_defu[i] = te_defu[i]
+            (tr_loss[i], te_loss[i], tr_defu[i], te_defu[i], x1), _ = return_yaxis(filepath)
+            testing_defu[i] = - np.array(te_defu[i])
 
             time_filepath = "results/time/random/exp2/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, method, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, cut_size, NOISE_LEVEL)
             training_time, optimizing_time = load_time(time_filepath)

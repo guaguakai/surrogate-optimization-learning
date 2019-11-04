@@ -284,13 +284,13 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         raise ValueError('Not Implemented Block Selection')
     sample_distribution /= sum(sample_distribution)
     if training_method == 'block-decision-focused' or training_method == 'hybrid':
-        min_sum = 1e-2
+        # min_sum = 1e-2
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
             if sum(pred_optimal_coverage[edge_set]) > min_sum:
                 break
     elif training_method == 'corrected-block-decision-focused':
-        min_sum = 1e-2
+        # min_sum = 1e-2
         while True:
             edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
             indices = np.arange(cut_size)

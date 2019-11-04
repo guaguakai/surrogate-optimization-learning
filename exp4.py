@@ -41,7 +41,7 @@ if __name__=='__main__':
             filepath = "results/random/exp4/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, noise)
             key_list = None
             (tr_loss, te_loss, tr_defu, te_defu, x1), (tr_loss_std, te_loss_std, tr_defu_std, te_defu_std, x1) = return_yaxis(filepath)
-            testing_defu[j] = te_defu
+            testing_defu[j] = -np.array(te_defu)
             testing_defu_std[j] = te_defu_std
 
         xy_list = []
