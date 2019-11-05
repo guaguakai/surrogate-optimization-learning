@@ -241,13 +241,13 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             p=np.random.uniform(low=e_low, high=e_high)             # Randomly pick Edges probability
             # Generate random graph
             # G = nx.gnp_random_graph(N,p)
-            G = nx.random_geometric_graph(N,p)
+            # G = nx.random_geometric_graph(N,p)
             # G = nx.connected_watts_strogatz_graph(N,4,p)
             # ============== stochastic block model =================
-            # component_size = N//10
-            # sizes = [10] * component_size
-            # probs = np.ones((component_size))*p/2 + np.eye(component_size)*p*2
-            # G = nx.stochastic_block_model(sizes, probs)
+            component_size = N//10
+            sizes = [10] * component_size
+            probs = np.ones((component_size))*p/2 + np.eye(component_size)*p*2
+            G = nx.stochastic_block_model(sizes, probs)
 
             sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
             sources=sources_targets[:n_sources]
