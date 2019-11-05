@@ -1,6 +1,6 @@
-FILENAME='1102-1200-geometric-server'
+FILENAME='1104-stochastic-server'
 
-NODES=40
+NODES=30
 NOISE=0.0
 BUDGET=2
 PROB=0.2

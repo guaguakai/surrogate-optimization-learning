@@ -23,7 +23,7 @@ from derivative import *
 
 import qpthnew
 
-def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='derivative',
+def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
                           n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
     
     net2= GCNPredictionNet2(feature_size)
@@ -243,7 +243,7 @@ def learnEdgeProbs_simple(train_data, validate_data, test_data, lr=0.1, learning
     return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, training_time, optimizing_time
     
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='derivative'):
+def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='coverage'):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true, previous_gradient = single_data
     
     n, m = G.number_of_nodes(), G.number_of_edges()
@@ -442,7 +442,7 @@ if __name__=='__main__':
     parser.add_argument('--omega', type=float, default=4, help='risk aversion of the attacker')
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
     parser.add_argument('--cut-size', type=str, default='n/2', help='number of the defender budget')
-    parser.add_argument('--block-selection', type=str, default='derivative', help='block selection')
+    parser.add_argument('--block-selection', type=str, default='coverage', help='block selection')
 
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
     parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')

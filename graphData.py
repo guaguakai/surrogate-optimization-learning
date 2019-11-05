@@ -47,7 +47,8 @@ def getMarkovianWalk(G, edge_probs):
     edge_list=[]
     current_node=start_node
     while (not(current_node in targets)):
-        neighbors = list(G[current_node]) # works for directed graph
+        neighbors = list(G.neighbors(current_node)) # list(G[current_node]) # works for directed graph
+        transition_probs_test = edge_probs[current_node][neighbors]
         transition_probs=np.array([(edge_probs[current_node][n]).detach().numpy() for n in neighbors])
         next_node=np.random.choice(neighbors, p=transition_probs)
         edge_list.append((current_node, next_node))
@@ -503,7 +504,7 @@ def generateSyntheticData(node_feature_size, omega=4,
                     empirical_transition_probs[e[0]][e[1]]+=1
 
             # row_sum = torch.sum(empirical_transition_probs, dim=1)
-            adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
+            adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(N)).toarray())
             empirical_transition_probs = empirical_transition_probs / torch.sum(empirical_transition_probs, dim=1, keepdim=True)
             # empirical_transition_probs[row_sum == 0] = 0
             empirical_transition_probs[torch.isnan(empirical_transition_probs)] = 0

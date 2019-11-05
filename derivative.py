@@ -20,7 +20,7 @@ MEAN_REG = 0.0
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
-    adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
+    adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(N)).toarray())
     exponential_term = torch.exp(adj * phi) * adj
     row_sum = torch.sum(exponential_term, dim=1)
     unbiased_probs = torch.zeros_like(exponential_term)
@@ -42,7 +42,7 @@ def generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=4):
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
     # GENERATE EDGE PROBABILITIES 
-    adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
+    adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(N)).toarray())
     exponential_term = torch.exp(adj * phi - omega * coverage_prob_matrix) * adj
     row_sum = torch.sum(exponential_term, dim=1)
     transition_probs = torch.zeros_like(exponential_term)
@@ -60,7 +60,7 @@ def prob2unbiased(G, coverage_probs, biased_probs, omega): # no need to be norma
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
-    adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
+    adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(N)).toarray())
     exponential_term = biased_probs * torch.exp(coverage_prob_matrix * omega) # removing the effect of coverage
     row_sum = torch.sum(exponential_term, dim=1)
     unbiased_probs = torch.zeros_like(exponential_term)
@@ -140,7 +140,7 @@ def objective_function_matrix_form(coverage_probs, G, unbiased_probs, U, initial
         coverage_prob_matrix[e[0]][e[1]] = coverage_probs[i]
         coverage_prob_matrix[e[1]][e[0]] = coverage_probs[i] # for undirected graph only
 
-    adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
+    adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(n)).toarray())
     exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
     row_sum = torch.sum(exponential_term, dim=1)
     marginal_prob = torch.zeros_like(exponential_term)
@@ -180,7 +180,7 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
         coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
         coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
-    adj = torch.Tensor(nx.adjacency_matrix(G).toarray())
+    adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(n)).toarray())
     exponential_term = torch.exp(-omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
     row_sum = torch.sum(exponential_term, dim=1)
     marginal_prob = torch.zeros_like(exponential_term)

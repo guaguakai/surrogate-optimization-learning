@@ -20,6 +20,7 @@ if __name__=='__main__':
     parser.add_argument('--budget', type=float, default=1, help='number of the defender budget')
     parser.add_argument('--cut-size', type=str, default='0.5n', help='block size')
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
+    parser.add_argument('--block-selection', type=str, default='coverage', help='block selection')
 
     args = parser.parse_args()
 

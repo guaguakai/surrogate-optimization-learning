@@ -31,7 +31,7 @@ if __name__=='__main__':
     filename = args.filename
     noise = args.noise
 
-    block_selection_list = ['uniform', 'derivative', 'coverage']
+    block_selection_list = ['uniform', 'derivative', 'coverage', 'slack']
 
     for i, label in enumerate(labels):
         print(label)
