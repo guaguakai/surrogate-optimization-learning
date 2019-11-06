@@ -1,8 +1,8 @@
-FILENAME='1104-stochastic-server'
+FILENAME='1105-stochastic-server'
 
 NODES=30
 NOISE=0.0
-BUDGET=2
+BUDGET=5
 PROB=0.2
 CUTSIZE='0.5n'
 

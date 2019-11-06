@@ -247,7 +247,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             # ============== stochastic block model =================
             component_size = N//10
             sizes = [10] * component_size
-            probs = np.ones((component_size))*p/2 + np.eye(component_size)*p*2
+            probs = np.ones((component_size))*0.05 + np.eye(component_size)*0.4
             G = nx.stochastic_block_model(sizes, probs)
 
             sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
