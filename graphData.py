@@ -247,12 +247,14 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             # ============== stochastic block model =================
             component_size = N//10
             sizes = [10] * component_size
-            probs = np.ones((component_size))*p/2 + np.eye(component_size)*p*2
+            probs = np.ones((component_size))*0.02 + np.eye(component_size)*0.3
             G = nx.stochastic_block_model(sizes, probs)
 
-            sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
-            sources=sources_targets[:n_sources]
-            targets=sources_targets[n_sources:]
+            # sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
+            # sources=sources_targets[:n_sources]
+            # targets=sources_targets[n_sources:]
+            sources = [0,1,2,3,4]
+            targets = [N-1,N-2,N-3,N-4,N-5]
             
             #Check if path exists:
             is_connected = nx.is_connected(G)
