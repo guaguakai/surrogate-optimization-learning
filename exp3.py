@@ -9,8 +9,8 @@ from generate_time import load_time
 if __name__=='__main__':
 
     # labels = ['block-decision-focused', 'hybrid']
-    labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid']
-    # labels = ['two-stage', 'block-decision-focused', 'hybrid']
+    # labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid']
+    labels = ['two-stage', 'block-decision-focused', 'hybrid']
     print(labels)
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')
@@ -32,6 +32,7 @@ if __name__=='__main__':
     CUT_SIZE = args.cut_size
     ###############################
     filename = args.filename
+    block_selection = args.block_selection
 
     noise_list = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
@@ -39,7 +40,7 @@ if __name__=='__main__':
     for i, label in enumerate(labels):
         print(label)
         for j, noise in enumerate(noise_list):
-            filepath = "results/random/exp3/{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, noise)
+            filepath = "results/random/exp3/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, noise)
 
             key_list = None
             if label == 'two-stage':
