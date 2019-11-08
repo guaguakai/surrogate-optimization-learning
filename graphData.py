@@ -253,8 +253,12 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             # sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
             # sources=sources_targets[:n_sources]
             # targets=sources_targets[n_sources:]
-            sources = np.random.choice(np.arange(10), size=n_sources, replace=False)
-            targets = np.random.choice(np.arange(10,N), size=n_targets, replace=False)
+            if N > 10:
+                sources = np.random.choice(np.arange(10), size=n_sources, replace=False)
+                targets = np.random.choice(np.arange(10,N), size=n_targets, replace=False)
+            else:
+                sources = np.random.choice(np.arange(5), size=n_sources, replace=False)
+                targets = np.random.choice(np.arange(5,N), size=n_targets, replace=False)
             
             #Check if path exists:
             is_connected = nx.is_connected(G)
