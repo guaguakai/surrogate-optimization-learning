@@ -247,19 +247,19 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
             # ============== stochastic block model =================
             component_size = N//10
             sizes = [10] * component_size
-            probs = np.ones((component_size))*0.05 + np.eye(component_size)*0.3
+            probs = np.ones((component_size))*p/2 + np.eye(component_size)*p*2
             G = nx.stochastic_block_model(sizes, probs)
 
-            # sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
-            # sources=sources_targets[:n_sources]
-            # targets=sources_targets[n_sources:]
-            if N > 10:
-                sources = np.random.choice(np.arange(10), size=n_sources, replace=False)
-                targets = np.random.choice(np.arange(10,N), size=n_targets, replace=False)
-            else:
-            	sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
-            	sources=sources_targets[:n_sources]
-            	targets=sources_targets[n_sources:]
+            sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
+            sources=sources_targets[:n_sources]
+            targets=sources_targets[n_sources:]
+            # if N > 10:
+            #     sources = np.random.choice(np.arange(10), size=n_sources, replace=False)
+            #     targets = np.random.choice(np.arange(10,N), size=n_targets, replace=False)
+            # else:
+            # 	sources_targets= np.random.choice(list(G.nodes()), size=n_sources+n_targets, replace=False)
+            # 	sources=sources_targets[:n_sources]
+            # 	targets=sources_targets[n_sources:]
             
             #Check if path exists:
             is_connected = nx.is_connected(G)
