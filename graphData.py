@@ -268,6 +268,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
                 #Check if src and TARGET ARE FAR ENOUGH
                 diameter=nx.diameter(G)
                 min_dist_src_target=diameter # Temporary large assignment
+                print('min distance:', diameter)
                 for s in sources:
                     for t in targets:
                         min_dist_src_target=min(min_dist_src_target, nx.shortest_path_length(G, source=s, target=t)) # TODO

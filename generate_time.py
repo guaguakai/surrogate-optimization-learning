@@ -5,6 +5,7 @@ import argparse
 
 def load_time(filename):
     f = open(filename, 'r')
+    print(filename)
     running_time_list = []
     optimizing_time_list = []
     key_list = []
