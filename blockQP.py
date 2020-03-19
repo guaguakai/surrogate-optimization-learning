@@ -109,7 +109,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                         # ignore the time of computing defender utility
                         epoch_optimizing_time += time.time() - time2
                     else:
-                        if training_method == 'decision-focused' or training_model == 'surrogate-decision-focused':
+                        if training_method == 'decision-focused':
                             cut_size = m
                         elif training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
                             if type(block_cut_size) == str and block_cut_size[-1] == 'n':
