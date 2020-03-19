@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Wed Apr 17 17:49:05 2019
+
+@author: Aditya 
+"""
 
 import torch
 import torch.optim as optim
@@ -13,7 +18,7 @@ import qpth
 
 from gcn import GCNPredictionNet2
 from graphData import *
-from derivative import *
+from surrogate_derivative import *
 from utils import phi2prob, prob2unbiased
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 
@@ -22,8 +27,14 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
+
+    sample_graph = train_data[0][0]
+    T = torch.rand(sample_graph.number_of_edges(), sample_graph.number_of_edges()//4, requires_grad=True) # TODO
+    full_T = torch.eye(sample_graph.number_of_edges(), requires_grad=False) # TODO
+
     if optimizer=='adam':
-        optimizer=optim.Adam(net2.parameters(), lr=lr)
+        optimizer=optim.Adam(list(net2.parameters()) + [T], lr=lr)
+        # optimizer=optim.Adam(net2.parameters(), lr=lr)
     elif optimizer=='sgd':
         optimizer=optim.SGD(net2.parameters(), lr=lr)
     elif optimizer=='adamax':
@@ -98,36 +109,32 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 single_data = dataset[iter_n]
                 epoch_training_time += time.time() - time1
 
-                if mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
+                if epoch == -1: # optimal solution
                     cut_size = m
-                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, full_T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                elif mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
+                    cut_size = m
+                    def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
                 else:
                     time2 = time.time() # including the time of computing defender utility
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
                         # ignore the time of computing defender utility
                         epoch_optimizing_time += time.time() - time2
                     else:
                         if training_method == 'decision-focused' or training_model == 'surrogate-decision-focused':
                             cut_size = m
-                        elif training_method == 'block-decision-focused' or training_method == 'hybrid' or training_method == 'corrected-block-decision-focused':
-                            if type(block_cut_size) == str and block_cut_size[-1] == 'n':
-                                cut_size = int(n * float(block_cut_size[:-1]))
-                            elif block_cut_size <= 1:
-                                cut_size = int(m * block_cut_size)
-                            else:
-                                cut_size = block_cut_size
                         else:
                             raise TypeError('Not defined method')
 
-                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
+                        def_obj, def_coverage, simulated_def_obj = getDefUtility(single_data, T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
                         epoch_training_time += time.time() - time2
                         
                         # =============== checking gradient manually ===============
                         # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
                         # for i in range(len(def_coverage)):
-                        #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
+                        #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
                         #     dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
                         #     step_size = 0.01
 
@@ -138,7 +145,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         
                         #     # validating
                         #     new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
-                        #     _, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
+                        #     _, new_def_coverage, _ = getDefUtility(single_data, T, new_unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
                         #     estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
 
                         # print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
@@ -162,12 +169,9 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                     try:
                         if training_method == "two-stage" or epoch <= pretrain_epochs:
                             loss.backward()
-                        elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
+                        elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
                             # (-def_obj).backward()
                             (-def_obj * m / cut_size).backward()
-                        elif training_method == "hybrid":
-                            # ((-def_obj) * df_weight + loss[0] * ts_weight).backward()
-                            ((-def_obj * m / cut_size) * df_weight + loss * ts_weight).backward()
                         else:
                             raise TypeError("Not Implemented Method")
                         torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
@@ -182,7 +186,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage":
                     scheduler.step(np.mean(loss_list))
-                elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused' or training_method == 'hybrid':
+                elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
                     scheduler.step(-np.mean(def_obj_list))
                 else:
                     raise TypeError("Not Implemented Method")
@@ -208,10 +212,10 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, training_time, optimizing_time
     
 
-def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='coverage'):
+def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='coverage'):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true, previous_gradient = single_data
     
-    n, m = G.number_of_nodes(), G.number_of_edges()
+    n, m, variable_size = G.number_of_nodes(), G.number_of_edges(), T.shape[1]
     budget = G.graph['budget']
     U = torch.Tensor(G.graph['U'])
     initial_distribution = torch.Tensor(G.graph['initial_distribution'])
@@ -224,10 +228,10 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
     # full forward path, the decision variables are the entire set of variables
     # initial_coverage_prob = np.zeros(m)
     # initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
-    initial_coverage_prob = np.ones(m) # somehow this is very influential...
+    initial_coverage_prob = np.ones(variable_size) # somehow this is very influential...
     initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
-    pred_optimal_res = get_optimal_coverage_prob(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
+    pred_optimal_res = surrogate_get_optimal_coverage_prob(T, G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
     if not pred_optimal_res['success']:
         print(pred_optimal_res)
@@ -235,7 +239,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
     # pred_optimal_coverage = torch.Tensor(get_optimal_coverage_prob_frank_wolfe(G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, num_iterations=100, initial_coverage_prob=initial_coverage_prob, tol=tol)) # Frank Wolfe version
 
     # ======================== edge set choice =====================
-    first_order_derivative = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, np.arange(m), omega=omega, lib=torch)
+    first_order_derivative = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
 
     if block_selection == 'derivative':
         sample_distribution = np.abs(first_order_derivative.detach().numpy()) + 1e-3
@@ -248,34 +252,14 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
     else:
         raise ValueError('Not Implemented Block Selection')
     sample_distribution /= sum(sample_distribution)
-    if training_method == 'block-decision-focused' or training_method == 'hybrid':
-        # min_sum = 1e-2
-        while True:
-            edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
-            # if sum(pred_optimal_coverage[edge_set]) > min_sum:
-            break
-    elif training_method == 'corrected-block-decision-focused':
-        # min_sum = 1e-2
-        while True:
-            edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False, p=sample_distribution)))
-            indices = np.arange(cut_size)
-            np.random.shuffle(indices)
-            indices1, indices2 = np.array_split(indices, 2)
-            indices1, indices2 = sorted(indices1), sorted(indices2)
-            edge_set1, edge_set2 = edge_set[indices1], edge_set[indices2]
-            # if sum(pred_optimal_coverage[edge_set1]) > min_sum / 10 and sum(pred_optimal_coverage[edge_set2]) > min_sum / 10:
-            break
-    else:
-        edge_set = list(range(m))
-    off_edge_set = sorted(list(set(range(m)) - set(edge_set)))
     # ========================== QP part ===========================
 
     # A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
     # G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size), torch.ones(1, cut_size)))
     # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])))
     scale_constant = 1 # cut_size
-    A_matrix, b_matrix = torch.ones(1, cut_size)/scale_constant, torch.Tensor([sum(pred_optimal_coverage[edge_set])])/scale_constant
-    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
+    A_matrix, b_matrix = torch.ones(1, cut_size)/scale_constant @ T, torch.Tensor([budget]) # torch.Tensor([sum(pred_optimal_coverage[edge_set])])/scale_constant
+    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size))) @ T
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
     if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
@@ -285,8 +269,8 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         # Gurobi performs well when there is no noise but default performs well when there is noise
         # But theoretically they should perform roughly the same...
 
-        Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
-        jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
+        Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega)
+        jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
         Q_sym = (Q + Q.t()) / 2
     
         # ------------------ regularization -----------------------
@@ -296,39 +280,39 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
             # ------------------ eigen regularization -----------------------
             # Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const)
             # ----------------- diagonal regularization ---------------------
-            Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
+            Q_regularized[range(variable_size), range(variable_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
             try:
                 L = torch.cholesky(Q_regularized)
                 break
             except:
                 reg_const *= 2
 
-        p = jac.view(1, -1) - Q_regularized @ pred_optimal_coverage[edge_set]
+        p = jac.view(1, -1) - Q_regularized @ pred_optimal_coverage
  
         try:
             qp_solver = qpth.qp.QPFunction()
             coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
             full_coverage_qp_solution = pred_optimal_coverage.clone()
-            full_coverage_qp_solution[edge_set] = coverage_qp_solution
+            full_coverage_qp_solution = coverage_qp_solution
         except:
             print("QP solver fails... Usually because Q is not PSD")
             full_coverage_qp_solution = pred_optimal_coverage.clone()
 
-        pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
+        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
     else:
         full_coverage_qp_solution = pred_optimal_coverage.clone()
-        pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
+        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
     # ========================= Error message =========================
     if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
-        print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
+        print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
         print(pred_optimal_coverage)
-        print("objective value (QP): {}".format(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
+        print("objective value (QP): {}".format(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
         print(full_coverage_qp_solution)
         full_coverage_qp_solution = pred_optimal_coverage.clone()
-        pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
+        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
     # ==================== Actual Defender Utility ====================
     # Running simulations to check the actual defender utility
@@ -358,7 +342,7 @@ if __name__=='__main__':
     parser.add_argument('--block-selection', type=str, default='coverage', help='block selection')
 
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
-    parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')
+    # parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')
     parser.add_argument('--number-samples', type=int, default=100, help='number of samples per graph')
     parser.add_argument('--number-sources', type=int, default=2, help='number of randomly generated sources')
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
@@ -385,7 +369,7 @@ if __name__=='__main__':
     GRAPH_E_PROB_LOW  = args.prob
     GRAPH_E_PROB_HIGH = GRAPH_E_PROB_LOW
     
-    NUMBER_OF_GRAPHS  = args.number_graphs
+    NUMBER_OF_GRAPHS  = 1 # args.number_graphs
     SAMPLES_PER_GRAPH = args.number_samples
     EMPIRICAL_SAMPLES_PER_INSTANCE = 100
     NUMBER_OF_SOURCES = args.number_sources

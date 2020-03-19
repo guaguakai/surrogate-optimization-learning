@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Apr 17 02:33:57 2019
-
-@author: Aditya
-"""
 import networkx as nx 
 import numpy as np
 import torch
@@ -13,7 +8,7 @@ import copy
 import matplotlib.pyplot as plt
 
 from gcn import *
-from derivative import prob2unbiased, phi2prob, generate_EdgeProbs_from_Attractiveness
+from utils import prob2unbiased, phi2prob
 
 # Random Seed Initialization
 # SEED = 1289 #  random.randint(0,10000)
@@ -353,7 +348,6 @@ def attackerOracle(G, coverage_probs, phi, omega=4, num_paths=100):
     # EXACT EDGE PROBS
     unbiased_probs = phi2prob(G, phi)
     biased_probs = prob2unbiased(G, -coverage_probs, unbiased_probs, omega=omega) # feeding negative coverage to be biased
-    # biased_probs = generate_EdgeProbs_from_Attractiveness(G, coverage_probs, phi, omega=omega)
 
     # EMPIRICAL EDGE PROBS
     path_list = []
@@ -500,7 +494,6 @@ def generateSyntheticData(node_feature_size, omega=4,
             # EXACT EDGE PROBS
             unbiased_probs = phi2prob(G, phi)
             biased_probs = prob2unbiased(G, - private_coverage_prob, unbiased_probs, omega=omega) # feeding negative coverage to get biased
-            # biased_probs = generate_EdgeProbs_from_Attractiveness(G, private_coverage_prob, phi, omega=omega)
 
             # Call Attacker Oracle
             path_list, _ = attackerOracle(G, private_coverage_prob, phi, omega=omega, num_paths=empirical_samples_per_instance)
