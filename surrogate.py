@@ -123,7 +123,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                         # ignore the time of computing defender utility
                         epoch_optimizing_time += time.time() - time2
                     else:
-                        if training_method == 'decision-focused' or training_model == 'surrogate-decision-focused':
+                        if training_method == 'decision-focused' or training_method == 'surrogate-decision-focused':
                             cut_size = m
                         else:
                             raise TypeError('Not defined method')
