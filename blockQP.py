@@ -374,7 +374,7 @@ if __name__=='__main__':
     block_selection = args.block_selection
 
     training_mode = args.method
-    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', 3: 'corrected-block-decision-focused', 4: 'hybrid'} # 3 is reserved for new-block-df
+    method_dict = {0: 'two-stage', 1: 'decision-focused', 2: 'block-decision-focused', 4: 'hybrid'}
     training_method = method_dict[training_mode]
 
     feature_size = args.feature_size
