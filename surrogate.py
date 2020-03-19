@@ -342,7 +342,7 @@ if __name__=='__main__':
     parser.add_argument('--block-selection', type=str, default='coverage', help='block selection')
 
     parser.add_argument('--number-nodes', type=int, default=10, help='input node size for randomly generated graph')
-    # parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')
+    parser.add_argument('--number-graphs', type=int, default=1, help='number of different graphs in the dataset')
     parser.add_argument('--number-samples', type=int, default=100, help='number of samples per graph')
     parser.add_argument('--number-sources', type=int, default=2, help='number of randomly generated sources')
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
