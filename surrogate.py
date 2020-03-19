@@ -358,7 +358,7 @@ if __name__=='__main__':
     block_selection = args.block_selection
 
     training_mode = args.method
-    method_dict = {1: 'decision-focused'} # surrogate decision focused
+    method_dict = {1: 'surrogate-decision-focused'} # surrogate decision focused
     training_method = method_dict[training_mode]
 
     feature_size = args.feature_size
