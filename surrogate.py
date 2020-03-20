@@ -19,7 +19,7 @@ import qpth
 from gcn import GCNPredictionNet2
 from graphData import *
 from surrogate_derivative import *
-from utils import phi2prob, prob2unbiased
+from utils import phi2prob, prob2unbiased, normalize_matrix
 # from coverageProbability import get_optimal_coverage_prob, objective_function_matrix_form, dobj_dx_matrix_form, obj_hessian_matrix_form
 
 def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
@@ -29,16 +29,22 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     net2.train()
 
     sample_graph = train_data[0][0]
-    T = torch.rand(sample_graph.number_of_edges(), sample_graph.number_of_edges()//4, requires_grad=True) # TODO
+    T_size = 10 # sample_graph.number_of_edges() // 4
+    init_T = torch.rand(sample_graph.number_of_edges(), T_size)
+    T = torch.tensor(normalize_matrix(init_T), requires_grad=True)
     full_T = torch.eye(sample_graph.number_of_edges(), requires_grad=False) # TODO
+    T_lr = lr * 10
 
-    if optimizer=='adam':
-        optimizer=optim.Adam(list(net2.parameters()) + [T], lr=lr)
-        # optimizer=optim.Adam(net2.parameters(), lr=lr)
-    elif optimizer=='sgd':
-        optimizer=optim.SGD(net2.parameters(), lr=lr)
-    elif optimizer=='adamax':
-        optimizer=optim.Adamax(net2.parameters(), lr=lr)
+    if optimizer == 'adam':
+        optimizer = optim.Adam(net2.parameters(), lr=lr)
+        T_optimizer = optim.Adam([T], lr=T_lr)
+        # optimizer=optim.Adam(list(net2.parameters()) + [T], lr=lr)
+    elif optimizer == 'sgd':
+        optimizer = optim.SGD(net2.parameters(), lr=lr)
+        T_optimizer = optim.SGD([T], lr=T_lr)
+    elif optimizer == 'adamax':
+        optimizer = optim.Adamax(net2.parameters(), lr=lr)
+        T_optimizer = optim.Adamax([T], lr=T_lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
     scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5)
@@ -166,6 +172,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     time3 = time.time()
                     optimizer.zero_grad()
+                    T_optimizer.zero_grad()
                     try:
                         if training_method == "two-stage" or epoch <= pretrain_epochs:
                             loss.backward()
@@ -179,10 +186,15 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                         # print(torch.norm(net2.gcn2.weight.grad))
                         # print(torch.norm(net2.fc1.weight.grad))
                         optimizer.step()
+                        T_optimizer.step()
                     except:
                         print("no grad is backpropagated...")
                     epoch_training_time += time.time() - time3
 
+                # ============== normalize T matrix =================
+                T.data = normalize_matrix(T.data)
+
+            # ========= scheduler using validation set ==========
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage":
                     scheduler.step(np.mean(loss_list))
@@ -191,11 +203,11 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 else:
                     raise TypeError("Not Implemented Method")
 
-            # Storing loss and defender utility
+            # ======= Storing loss and defender utility =========
             epoch_loss_list.append(np.mean(loss_list))
             epoch_def_list.append(np.mean(def_obj_list))
 
-            ################################### Print stuff after every epoch 
+            # ========== Print stuff after every epoch ==========
             np.random.shuffle(dataset)
             print("Mode: {}/ Epoch number: {}/ Loss: {}/ DefU: {}/ Simulated DefU: {}".format(
                   mode, epoch, np.mean(loss_list), np.mean(def_obj_list), np.mean(simulated_def_obj_list)))
@@ -348,7 +360,7 @@ if __name__=='__main__':
     parser.add_argument('--number-targets', type=int, default=2, help='number of randomly generated targets')
 
     parser.add_argument('--distribution', type=int, default=1, help='0 -> random walk distribution, 1 -> empirical distribution')
-    parser.add_argument('--method', type=int, default=0, help='0 -> two-stage, 1 -> decision-focused, 2 -> block df, 3 -> corrected df, 4 -> hybrid')
+    parser.add_argument('--method', type=int, default=1, help='1 -> surrogate-decision-focused')
     
     args = parser.parse_args()
 

@@ -9,6 +9,10 @@ import torch
 import autograd
 from gurobipy import *
 
+def normalize_matrix(T):
+    pos_T = torch.clamp(T, min=0)
+    return pos_T / torch.sum(pos_T, axis=0)
+
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
     adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(N)).toarray())
