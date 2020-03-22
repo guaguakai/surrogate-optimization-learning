@@ -29,11 +29,11 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     net2.train()
 
     sample_graph = train_data[0][0]
-    T_size = 10 # sample_graph.number_of_edges() // 4
+    T_size = sample_graph.number_of_edges() // 4
     init_T = torch.rand(sample_graph.number_of_edges(), T_size)
     T = torch.tensor(normalize_matrix(init_T), requires_grad=True)
     full_T = torch.eye(sample_graph.number_of_edges(), requires_grad=False) # TODO
-    T_lr = lr * 10
+    T_lr = lr
 
     if optimizer == 'adam':
         optimizer = optim.Adam(net2.parameters(), lr=lr)
@@ -48,6 +48,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
     scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5)
+    T_scheduler = ReduceLROnPlateau(T_optimizer, 'min', factor=0.5)
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -198,8 +199,10 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage":
                     scheduler.step(np.mean(loss_list))
+                    T_scheduler.step(np.mean(loss_list))
                 elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
                     scheduler.step(-np.mean(def_obj_list))
+                    T_scheduler.step(-np.mean(def_obj_list))
                 else:
                     raise TypeError("Not Implemented Method")
 

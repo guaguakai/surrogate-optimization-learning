@@ -1,7 +1,7 @@
 FILENAME='2020-0320-stochastic-server'
 
 NODES=30
-NOISE=0.0
+NOISE=0.2
 BUDGET=2
 PROB=0.2
 CUTSIZE='0.5n'
