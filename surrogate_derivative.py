@@ -34,20 +34,17 @@ def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distrib
         initial_coverage_prob=np.random.rand(m)
         initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
     
-    # Bounds and constraints
-    bounds=[(0.0,1.0) for _ in range(variable_size)]
+    # Constraints
     A_matrix, b_matrix = (torch.ones(1, m) @ T).detach().numpy(), np.array([budget]) 
     G_matrix, h_matrix = (torch.cat((-torch.eye(m), torch.eye(m))) @ T).detach().numpy(), (torch.cat((torch.zeros(m), torch.ones(m)))).detach().numpy()
     eq_fn = lambda x: np.matmul(A_matrix,x) - b_matrix
     ineq_fn = lambda x: -np.matmul(G_matrix,x) + h_matrix
 
     # eq_fn = lambda x: budget - sum(x * torch.sum(T, axis=0).detach().numpy())
-    # constraints=[{'type': 'eq', 'fun': eq_fn}]
     constraints=[{'type': 'eq', 'fun': eq_fn}, {'type': 'ineq', 'fun': ineq_fn}]
     
     # Optimization step
     coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T, G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options)
-    # coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T, G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options)
     
     return coverage_prob_optimal
 
@@ -64,7 +61,6 @@ def surrogate_objective_function_matrix_form(small_coverage_probs, T, G, unbiase
         coverage_prob_matrix[e[0]][e[1]] = coverage_probs[i]
         coverage_prob_matrix[e[1]][e[0]] = coverage_probs[i] # for undirected graph only
 
-    # adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(n)).toarray())
     exponential_term = torch.exp(- omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
     row_sum = torch.sum(exponential_term, dim=1)
     marginal_prob = torch.zeros_like(exponential_term)
