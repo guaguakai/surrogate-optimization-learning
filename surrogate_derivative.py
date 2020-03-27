@@ -127,6 +127,7 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
             dstate_dx[w,u,j] = omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v]
         dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
 
+    # dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
     dstate_dx = torch.einsum('ij,ijk->ijk', marginal_prob, dstate_dx)
 
     dcaught_dx = -torch.sum(dstate_dx, keepdim=True, dim=1)

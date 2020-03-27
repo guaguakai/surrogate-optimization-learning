@@ -28,7 +28,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     net2.train()
 
     sample_graph = train_data[0][0]
-    T_size = 10 # sample_graph.number_of_edges() // 4
+    T_size = sample_graph.number_of_edges() // 4
     init_T = torch.rand(sample_graph.number_of_edges(), T_size)
     T = torch.tensor(normalize_matrix(init_T), requires_grad=True)
     full_T = torch.eye(sample_graph.number_of_edges(), requires_grad=False) # TODO

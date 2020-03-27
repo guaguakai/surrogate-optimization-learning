@@ -12,6 +12,7 @@ if __name__=='__main__':
     # labels = ['two-stage', 'hybrid']
     # labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid']
     labels = ['two-stage', 'block-decision-focused', 'hybrid', 'surrogate-decision-focused']
+    # labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid', 'surrogate-decision-focused']
     print(labels)
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')
@@ -38,10 +39,10 @@ if __name__=='__main__':
 
     # ============================== generate bar chart =====================================
     defu_list_list = []
-    bar_list = np.zeros((4, len(labels)))
+    bar_list = np.zeros((5, len(labels)))
     for i, label in enumerate(labels):
         filepath = "results/random/exp1/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
-        key_list = list(set(range(1,11)) - set([4,5,8,9])) # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 37, 39, 40, 42, 43, 44, 45, 46, 47, 48, 49, 50] #None
+        key_list = list(set(range(1,11))) # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 37, 39, 40, 42, 43, 44, 45, 46, 47, 48, 49, 50] #None
         if label == 'two-stage':
             loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'two-stage', key_list)
         else:
@@ -60,9 +61,10 @@ if __name__=='__main__':
         bar_list[1,i] = defu_median
 
         time_filepath = "results/time/random/exp1/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
-        training_time, optimizing_time = load_time(time_filepath)
-        bar_list[2,i] = training_time
-        bar_list[3,i] = optimizing_time
+        forward_time, qp_time, backward_time = load_time(time_filepath)
+        bar_list[2,i] = forward_time
+        bar_list[3,i] = qp_time
+        bar_list[4,i] = backward_time
 
     from scipy import stats
     x = np.sum(defu_list_list[0] > defu_list_list[1])
@@ -75,9 +77,10 @@ if __name__=='__main__':
     # bar_list[0,-1] = init_defu_mean
     # bar_list[1,-1] = init_defu_median
 
-    print('mean (ts, df, bdf, hb, init):',   ','.join([str(x) for x in bar_list[0]]) + ',' + str(init_defu_mean))
-    print('training time (ts, df, bdf, hb):', ','.join([str(x) for x in bar_list[2]]))
-    print('optimizing time (ts, df, bdf, hb):', ','.join([str(x) for x in bar_list[3]]))
+    print('mean (ts, df, bdf, hb, surrogate):',   ','.join([str(x) for x in bar_list[0]]))
+    print('forward time (ts, df, bdf, hb, surrogate):', ','.join([str(x) for x in bar_list[2]]))
+    print('qp time (ts, df, bdf, hb, surrogate):', ','.join([str(x) for x in bar_list[3]]))
+    print('backward time (ts, df, bdf, hb, surrogate):', ','.join([str(x) for x in bar_list[4]]))
 
     save_filename = "results/excel/comparison/exp1/barchart_{}_n{}_p{}_b{}_noise{}.png".format(filename, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, NOISE_LEVEL)
     generateBarChart(bar_list, labels, save_filename)

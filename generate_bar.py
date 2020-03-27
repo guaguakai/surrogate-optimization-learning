@@ -99,6 +99,9 @@ def generateBarChart(bar_list, labels, filename):
 
     axs[0].title.set_text('Mean Regret')
     axs[1].title.set_text('Median Regret')
+    axs[2].title.set_text('Forward time')
+    axs[3].title.set_text('QP time')
+    axs[4].title.set_text('Backward time')
 
     #epochs = len(train_loss) - 1
     #x=range(-1, epochs)
