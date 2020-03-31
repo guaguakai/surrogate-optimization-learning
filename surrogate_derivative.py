@@ -73,9 +73,12 @@ def surrogate_objective_function_matrix_form(small_coverage_probs, T, G, unbiase
     Q = full_prob[transient_vector][:,transient_vector]
     R = full_prob[transient_vector][:,targets]
 
-    N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
-    B = N @ R
-    obj = torch.Tensor(initial_distribution) @ B @ torch.Tensor(U)
+    QQ = torch.eye(Q.shape[0]) * (1 + REG) - Q
+    # N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
+    # B = N @ R
+    NRU, QQ_LU = torch.solve((R @ torch.Tensor(U))[None,:,None], QQ[None,:,:])
+    obj = torch.Tensor(initial_distribution) @ NRU[0] # B @ torch.Tensor(U)
+    # obj = torch.Tensor(initial_distribution) @B @ torch.Tensor(U)
 
     if lib == np:
         obj = obj.detach().numpy()
@@ -109,8 +112,9 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
     Q = full_prob[transient_vector][:,transient_vector]
     R = full_prob[transient_vector][:,targets]
 
-    N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
-    B = N @ R
+    QQ = torch.eye(Q.shape[0]) * (1 + REG) - Q
+    # N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
+    # B = N @ R
 
     dstate_dx = torch.zeros((n,n,m))
 
@@ -135,8 +139,13 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
     dQ_dx = dfull_dx[transient_vector][:,transient_vector,:]
     dR_dx = dfull_dx[transient_vector][:,targets,:]
 
-    distN = initial_distribution @ N
-    distNdQ_dxNRU = distN @ torch.einsum("abc,b->ac", dQ_dx, (N @ (R @ U)))
+    # distN = initial_distribution @ N 
+    distN, _ = torch.solve(initial_distribution[None,:,None], QQ.t()[None,:,:])
+    distN = distN[0,:,0]
+    # NRU = N @ R @ U # torch.solve((R @ torch.Tensor(U))[None,:,None], QQ[None,:,:])
+    NRU, _ = torch.solve((R @ torch.Tensor(U))[None,:,None], QQ[None,:,:])
+    NRU = NRU[0,:,0]
+    distNdQ_dxNRU = distN @ torch.einsum("abc,b->ac", dQ_dx, NRU)
     distNdR_dxU = distN @ (torch.einsum("abc,b->ac", dR_dx, U))
     dobj_dx = distNdQ_dxNRU + distNdR_dxU
     dobj_dy = dobj_dx @ T

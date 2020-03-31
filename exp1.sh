@@ -1,6 +1,6 @@
-FILENAME='2020-0326-stochastic-server'
+FILENAME='2020-0327-stochastic-server'
 
-NODES=40
+NODES=50
 NOISE=0.0
 BUDGET=2
 PROB=0.2
