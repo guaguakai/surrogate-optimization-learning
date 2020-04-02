@@ -1,4 +1,4 @@
-FILENAME='2020-0327-stochastic-server'
+FILENAME='2020-0330-stochastic-server'
 
 NODES=50
 NOISE=0.0

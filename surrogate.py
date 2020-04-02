@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Apr 17 17:49:05 2019
-
-@author: Aditya 
-"""
 
 import torch
 import torch.optim as optim
@@ -15,10 +10,12 @@ import matplotlib.pyplot as plt
 import tqdm
 import argparse
 import qpth
+import numpy as np
+# import jax.numpy as np
 
 from gcn import GCNPredictionNet2
 from graphData import *
-from surrogate_derivative import *
+from surrogate_derivative import surrogate_get_optimal_coverage_prob, surrogate_objective_function_matrix_form, surrogate_dobj_dx_matrix_form, np_surrogate_dobj_dx_matrix_form, surrogate_obj_hessian_matrix_form, np_surrogate_obj_hessian_matrix_form
 from utils import phi2prob, prob2unbiased, normalize_matrix
 
 def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
@@ -28,7 +25,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     net2.train()
 
     sample_graph = train_data[0][0]
-    T_size = 5 # sample_graph.number_of_edges() // 4
+    T_size = 10 # sample_graph.number_of_edges() // 4
     init_T = torch.rand(sample_graph.number_of_edges(), T_size)
     T = torch.tensor(normalize_matrix(init_T), requires_grad=True)
     full_T = torch.eye(sample_graph.number_of_edges(), requires_grad=False) # TODO
@@ -221,6 +218,7 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
     if not pred_optimal_res['success']:
         print('optimization fails...')
+        print(pred_optimal_res)
     forward_time = time.time() - forward_start_time
 
     # ========================== QP part ===========================
@@ -236,9 +234,13 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
         # Gurobi performs well when there is no noise but default performs well when there is noise
         # But theoretically they should perform roughly the same...
 
-        Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega)
+        hessian_start_time = time.time()
+        Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
+        # Q = np_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
         jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
         Q_sym = (Q + Q.t()) / 2
+        hessian_time = time.time() - hessian_start_time
+        print('Hessian time:', hessian_time)
     
         # ------------------ regularization -----------------------
         Q_regularized = Q_sym.clone()

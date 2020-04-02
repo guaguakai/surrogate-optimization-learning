@@ -1,18 +1,15 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Apr 30 01:25:29 2019
-
-@author: Aditya
-"""
 from scipy.optimize import minimize, LinearConstraint
 import networkx as nx
-import numpy as np
+# import numpy as np
 import time
-# import autograd.numpy as np
-from numpy.linalg import *
+# from numpy.linalg import *
 from graphData import *
 import torch
-import autograd
+import jax.numpy as np
+from jax import grad, jit, jacfwd
+import jax
+
 from gurobipy import *
 from utils import phi2prob, prob2unbiased
 
@@ -25,18 +22,21 @@ def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distrib
         G is the graph object with dictionaries G[node], G[graph] etc. 
         phi is the attractiveness function, for each of the N nodes, phi(v, Fv)
     """
+    import numpy as np
     n = nx.number_of_nodes(G)
     m = nx.number_of_edges(G) # number of edges
     variable_size = T.shape[1] # number of bundles
 
     # Randomly initialize coverage probability distribution
     if initial_coverage_prob is None:
-        initial_coverage_prob=np.random.rand(m)
-        initial_coverage_prob=budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+        initial_coverage_prob = np.ones(m)
+        # initial_coverage_prob = jax.random.rand(m)
+        initial_coverage_prob = np.random.rand(m)
+        # initial_coverage_prob = budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
     
     # Constraints
-    A_matrix, b_matrix = (torch.ones(1, m) @ T).detach().numpy(), np.array([budget]) 
-    G_matrix, h_matrix = (torch.cat((-torch.eye(m), torch.eye(m))) @ T).detach().numpy(), (torch.cat((torch.zeros(m), torch.ones(m)))).detach().numpy()
+    A_matrix, b_matrix = np.matmul(np.ones((1, m)), T.detach().numpy()), np.array([budget]) 
+    G_matrix, h_matrix = np.matmul(np.concatenate((-np.eye(m), np.eye(m))), T.detach().numpy()), np.concatenate((np.zeros(m), np.ones(m)))
     eq_fn = lambda x: np.matmul(A_matrix,x) - b_matrix
     ineq_fn = lambda x: -np.matmul(G_matrix,x) + h_matrix
 
@@ -44,7 +44,7 @@ def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distrib
     constraints=[{'type': 'eq', 'fun': eq_fn}, {'type': 'ineq', 'fun': ineq_fn}]
     
     # Optimization step
-    coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T, G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options)
+    coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T.detach(), G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options)
     
     return coverage_prob_optimal
 
@@ -155,6 +155,93 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
 
     return dobj_dy
 
+def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4):
+    # import jax.numpy as np
+    coverage_probs = np.clip(np.matmul(T, small_coverage_probs), a_min=0, a_max=1)
+    n = len(G.nodes)
+    m = len(G.edges)
+    targets = list(G.graph["targets"]) + [n] # adding the caught node
+    transient_vector = list(set(range(n)) - set(targets))
+
+    # COVERAGE PROBABILITY MATRIX
+    coverage_prob_matrix = np.zeros((n,n))
+    edges = list(G.edges())
+    for i, e in enumerate(edges):
+        coverage_prob_matrix = jax.ops.index_update(coverage_prob_matrix, jax.ops.index[e[0], e[1]], coverage_probs[i])
+        coverage_prob_matrix = jax.ops.index_update(coverage_prob_matrix, jax.ops.index[e[1], e[0]], coverage_probs[i]) # for undirected graph only
+        # coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
+        # coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
+
+    # adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(n)).toarray())
+    exponential_term = np.exp(-omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
+    row_sum = np.sum(exponential_term, axis=1)
+    marginal_prob = np.zeros_like(exponential_term)
+    marginal_prob = jax.ops.index_update(marginal_prob, (row_sum != 0), exponential_term[row_sum != 0] / np.sum(exponential_term, keepdims=True, axis=1)[row_sum != 0])
+    # marginal_prob[row_sum != 0] = exponential_term[row_sum != 0] / np.sum(exponential_term, keepdims=True, axis=1)[row_sum != 0]
+
+    state_prob = marginal_prob * (1 - coverage_prob_matrix)
+    caught_prob = np.sum(marginal_prob * coverage_prob_matrix, keepdims=True, axis=1)
+    full_prob = np.concatenate((state_prob, caught_prob), axis=1)
+
+    Q = full_prob[transient_vector][:,transient_vector]
+    R = full_prob[transient_vector][:,targets]
+
+    QQ = np.eye(Q.shape[0]) * (1 + REG) - Q
+    # N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
+    # B = N @ R
+
+    dstate_dx = np.zeros((n,n,m))
+
+    edges = list(G.edges())
+    # """
+    # =============== newer implementation of gradient computation ================ # speed up like 6 sec per instance
+    for j, edge_j_idx in enumerate(range(m)):
+        edge_j = edges[edge_j_idx]
+        (v, w) = edge_j
+        for u in G.neighbors(v): # case: v->u and v->w
+            dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[v,u,j], omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w])
+            # dstate_dx[v,u,j] = omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w]
+        dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[v,w,j], dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1)
+
+        for u in G.neighbors(w): # case: w->u and w->v
+            dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,u,j], omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v])
+        dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,v,j], dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1)
+    # """
+
+    """
+    # =============== newer implementation of gradient computation ================ # speed up like 6 sec per instance
+    for j, edge_j_idx in enumerate(range(m)):
+        edge_j = edges[edge_j_idx]
+        (v, w) = edge_j
+        for u in G.neighbors(v): # case: v->u and v->w
+            dstate_dx[v,u,j] = omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w]
+        dstate_dx[v,w,j] = dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1
+
+        for u in G.neighbors(w): # case: w->u and w->v
+            dstate_dx[w,u,j] = omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v]
+        dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
+    # """
+
+    # dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
+    dstate_dx = np.einsum('ij,ijk->ijk', marginal_prob, dstate_dx)
+
+    dcaught_dx = -np.sum(dstate_dx, keepdims=True, axis=1)
+    dfull_dx = np.concatenate((dstate_dx, dcaught_dx), axis=1)
+    dQ_dx = dfull_dx[transient_vector][:,transient_vector,:]
+    dR_dx = dfull_dx[transient_vector][:,targets,:]
+
+    # distN = initial_distribution @ N 
+    distN = np.linalg.solve(QQ.T[None,:,:], initial_distribution[None,:,None])
+    distN = distN[0,:,0]
+    # NRU = N @ R @ U # torch.solve((R @ torch.Tensor(U))[None,:,None], QQ[None,:,:])
+    NRU = np.linalg.solve(QQ[None,:,:], np.matmul(R, U)[None,:,None])
+    NRU = NRU[0,:,0]
+    distNdQ_dxNRU = np.matmul(distN, np.einsum("abc,b->ac", dQ_dx, NRU))
+    distNdR_dxU = np.matmul(distN, (np.einsum("abc,b->ac", dR_dx, U)))
+    dobj_dx = distNdQ_dxNRU + distNdR_dxU
+    dobj_dy = np.matmul(dobj_dx, T)
+    return dobj_dy
+
 def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     # TODO
     if type(small_coverage_probs) == torch.Tensor:
@@ -164,11 +251,29 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs
 
     x = torch.autograd.Variable(small_coverage_probs, requires_grad=True)
     dobj_dx = surrogate_dobj_dx_matrix_form(x, T, G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch)
+    # np_dobj_dx = np_surrogate_dobj_dx_matrix_form(small_coverage_probs.numpy(), T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
+    # print(dobj_dx)
+    # print(np_dobj_dx)
     obj_hessian = torch.zeros((len(x),len(x)))
     for i in range(len(x)):
         obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
+    # np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
+    # np_obj_hessian = jacfwd(np_obj_dx_fn)(small_coverage_probs.detach().numpy())
+    # print(obj_hessian)
+    # print(np_obj_hessian)
 
     return obj_hessian
+
+def np_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
+    # TODO
+    if type(small_coverage_probs) == torch.Tensor:
+        small_coverage_probs = small_coverage_probs.detach()
+    else:
+        small_coverage_probs = torch.Tensor(small_coverage_probs)
+
+    np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
+    np_obj_hessian = jacfwd(np_obj_dx_fn)(small_coverage_probs.detach().numpy())
+    return torch.Tensor(np_obj_hessian.tolist())
 
 if __name__=='__main__':
     
@@ -194,8 +299,8 @@ if __name__=='__main__':
     net1= GCNDataGenerationNet(node_feature_size)     
     # Define node features for each of the n nodes
     for node in list(G.nodes()):
-        node_features=np.random.randn(node_feature_size)
-        G.node[node]['node_features']=node_features
+        node_features = np.random.randn(node_feature_size)
+        G.node[node]['node_features'] = node_features
     Fv=np.zeros((N,node_feature_size))
     for node in list(G.nodes()):
         Fv[node]=G.node[node]['node_features']

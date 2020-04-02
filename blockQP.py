@@ -286,9 +286,12 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         # Gurobi performs well when there is no noise but default performs well when there is noise
         # But theoretically they should perform roughly the same...
 
+        hessian_start_time = time.time()
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         Q_sym = (Q + Q.t()) / 2
+        hessian_time = time.time() - hessian_start_time
+        print("Hessian time:", hessian_time)
     
         # ------------------ regularization -----------------------
         Q_regularized = Q_sym.clone()
@@ -396,7 +399,7 @@ if __name__=='__main__':
     FIXED_GRAPH = args.fixed_graph
     CUT_SIZE = args.cut_size
     if CUT_SIZE[-1] != 'n':
-        CUT_SIZE = float(CUT_SIZE)
+        CUT_SIZE = int(CUT_SIZE)
     GRAPH_TYPE = "random_graph" if FIXED_GRAPH == 0 else "fixed_graph"
     SEED = args.seed
     NOISE_LEVEL = args.noise
