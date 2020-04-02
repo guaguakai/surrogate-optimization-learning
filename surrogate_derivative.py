@@ -119,16 +119,16 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
     dstate_dx = torch.zeros((n,n,m))
 
     edges = list(G.edges())
-    # =============== newer implementation of gradient computation ================ # speed up like 6 sec per instance
+    # =============== newer implementation of gradient computation ================
+    # speed up like 6 times per instance
+    # another update on removing the inner for loop speeds up another 2-4 times
     for j, edge_j_idx in enumerate(range(m)):
         edge_j = edges[edge_j_idx]
         (v, w) = edge_j
-        for u in G.neighbors(v): # case: v->u and v->w
-            dstate_dx[v,u,j] = omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w]
+        dstate_dx[v,list(G.neighbors(v)),j] = omega * (1 - coverage_prob_matrix[v,list(G.neighbors(v))]) * marginal_prob[v,w]
         dstate_dx[v,w,j] = dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1
 
-        for u in G.neighbors(w): # case: w->u and w->v
-            dstate_dx[w,u,j] = omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v]
+        dstate_dx[w,list(G.neighbors(w)),j] = omega * (1 - coverage_prob_matrix[w,list(G.neighbors(w))]) * marginal_prob[w,v]
         dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
 
     # dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
@@ -166,11 +166,13 @@ def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs,
     # COVERAGE PROBABILITY MATRIX
     coverage_prob_matrix = np.zeros((n,n))
     edges = list(G.edges())
-    for i, e in enumerate(edges):
-        coverage_prob_matrix = jax.ops.index_update(coverage_prob_matrix, jax.ops.index[e[0], e[1]], coverage_probs[i])
-        coverage_prob_matrix = jax.ops.index_update(coverage_prob_matrix, jax.ops.index[e[1], e[0]], coverage_probs[i]) # for undirected graph only
-        # coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
-        # coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
+    update_x_indices = [e[0] for e in edges]
+    update_y_indices = [e[1] for e in edges]
+    coverage_prob_matrix = jax.ops.index_update(coverage_prob_matrix, jax.ops.index[update_x_indices, update_y_indices], coverage_probs)
+    coverage_prob_matrix = jax.ops.index_update(coverage_prob_matrix, jax.ops.index[update_y_indices, update_x_indices], coverage_probs)
+    # for i, e in enumerate(edges):
+    #    coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
+    #    coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
 
     # adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(n)).toarray())
     exponential_term = np.exp(-omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
@@ -198,13 +200,14 @@ def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs,
     for j, edge_j_idx in enumerate(range(m)):
         edge_j = edges[edge_j_idx]
         (v, w) = edge_j
-        for u in G.neighbors(v): # case: v->u and v->w
-            dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[v,u,j], omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w])
-            # dstate_dx[v,u,j] = omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w]
+        # for u in G.neighbors(v): # case: v->u and v->w
+        #     dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[v,u,j], omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w])
+        dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[v,list(G.neighbors(v)),j], omega * (1 - coverage_prob_matrix[v,list(G.neighbors(v))]) * marginal_prob[v,w])
         dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[v,w,j], dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1)
 
-        for u in G.neighbors(w): # case: w->u and w->v
-            dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,u,j], omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v])
+        # for u in G.neighbors(w): # case: w->u and w->v
+        #     dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,u,j], omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v])
+        dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,list(G.neighbors(w)),j], omega * (1 - coverage_prob_matrix[w,list(G.neighbors(w))]) * marginal_prob[w,v])
         dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,v,j], dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1)
     # """
 
@@ -252,7 +255,7 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs
     x = torch.autograd.Variable(small_coverage_probs, requires_grad=True)
     dobj_dx = surrogate_dobj_dx_matrix_form(x, T, G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch)
     # np_dobj_dx = np_surrogate_dobj_dx_matrix_form(small_coverage_probs.numpy(), T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
-    # print(dobj_dx)
+    print(dobj_dx)
     # print(np_dobj_dx)
     obj_hessian = torch.zeros((len(x),len(x)))
     for i in range(len(x)):
