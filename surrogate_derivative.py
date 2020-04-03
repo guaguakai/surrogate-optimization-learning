@@ -272,7 +272,7 @@ def np_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_pr
         small_coverage_probs = np.array(small_coverage_probs.detach().numpy())
 
     np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
-    np_obj_hessian = jacrev(np_obj_dx_fn)(small_coverage_probs)
+    np_obj_hessian = jacfwd(np_obj_dx_fn)(small_coverage_probs)
     return torch.Tensor(np_obj_hessian.tolist())
 
 if __name__=='__main__':
