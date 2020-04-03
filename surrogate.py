@@ -239,7 +239,7 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
         jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
         Q_sym = (Q + Q.t()) / 2
         hessian_time = time.time() - hessian_start_time
-        print('Hessian time:', hessian_time)
+        # print('Hessian time:', hessian_time)
     
         # ------------------ regularization -----------------------
         Q_regularized = Q_sym.clone()
