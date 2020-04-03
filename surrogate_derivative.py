@@ -254,7 +254,7 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs
     x = torch.autograd.Variable(small_coverage_probs, requires_grad=True)
     dobj_dx = surrogate_dobj_dx_matrix_form(x, T, G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch)
     # np_dobj_dx = np_surrogate_dobj_dx_matrix_form(small_coverage_probs.numpy(), T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
-    print(dobj_dx)
+    # print(dobj_dx)
     # print(np_dobj_dx)
     obj_hessian = torch.zeros((len(x),len(x)))
     for i in range(len(x)):
