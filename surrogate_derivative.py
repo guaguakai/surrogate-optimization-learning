@@ -7,7 +7,7 @@ import time
 from graphData import *
 import torch
 import jax.numpy as np
-from jax import grad, jit, jacfwd
+from jax import grad, jit, jacfwd, jacrev
 import jax
 
 from gurobipy import *
@@ -189,7 +189,7 @@ def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs,
     R = full_prob[transient_vector][:,targets]
 
     QQ = np.eye(Q.shape[0]) * (1 + REG) - Q
-    # N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
+    # N = np.linalg.inv(np.eye(Q.shape[0]) * (1 + REG) - Q)
     # B = N @ R
 
     dstate_dx = np.zeros((n,n,m))
@@ -234,11 +234,10 @@ def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs,
     dR_dx = dfull_dx[transient_vector][:,targets,:]
 
     # distN = initial_distribution @ N 
-    distN = np.linalg.solve(QQ.T[None,:,:], initial_distribution[None,:,None])
-    distN = distN[0,:,0]
+    distN = np.linalg.solve(QQ.T, initial_distribution)
+    distN = distN
     # NRU = N @ R @ U # torch.solve((R @ torch.Tensor(U))[None,:,None], QQ[None,:,:])
-    NRU = np.linalg.solve(QQ[None,:,:], np.matmul(R, U)[None,:,None])
-    NRU = NRU[0,:,0]
+    NRU = np.linalg.solve(QQ, np.matmul(R, U))
     distNdQ_dxNRU = np.matmul(distN, np.einsum("abc,b->ac", dQ_dx, NRU))
     distNdR_dxU = np.matmul(distN, (np.einsum("abc,b->ac", dR_dx, U)))
     dobj_dx = distNdQ_dxNRU + distNdR_dxU
@@ -270,12 +269,10 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs
 def np_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     # TODO
     if type(small_coverage_probs) == torch.Tensor:
-        small_coverage_probs = small_coverage_probs.detach()
-    else:
-        small_coverage_probs = torch.Tensor(small_coverage_probs)
+        small_coverage_probs = np.array(small_coverage_probs.detach().numpy())
 
     np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
-    np_obj_hessian = jacfwd(np_obj_dx_fn)(small_coverage_probs.detach().numpy())
+    np_obj_hessian = jacrev(np_obj_dx_fn)(small_coverage_probs)
     return torch.Tensor(np_obj_hessian.tolist())
 
 if __name__=='__main__':

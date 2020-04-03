@@ -235,8 +235,8 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
         # But theoretically they should perform roughly the same...
 
         hessian_start_time = time.time()
-        Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
-        # Q = np_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
+        # Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
+        Q = np_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
         jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
         Q_sym = (Q + Q.t()) / 2
         hessian_time = time.time() - hessian_start_time
