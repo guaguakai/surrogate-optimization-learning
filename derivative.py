@@ -129,8 +129,9 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     Q = full_prob[transient_vector][:,transient_vector]
     R = full_prob[transient_vector][:,targets]
 
-    N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
-    B = N @ R
+    QQ = torch.eye(Q.shape[0]) * (1 + REG) - Q
+    # N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
+    # B = N @ R
 
     dstate_dx = torch.zeros((n,n,len(edge_set)))
 
@@ -139,12 +140,10 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     for j, edge_j_idx in enumerate(edge_set):
         edge_j = edges[edge_j_idx]
         (v, w) = edge_j
-        for u in G.neighbors(v): # case: v->u and v->w
-            dstate_dx[v,u,j] = omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w]
+        dstate_dx[v,list(G.neighbors(v)),j] = omega * (1 - coverage_prob_matrix[v,list(G.neighbors(v))]) * marginal_prob[v,w]
         dstate_dx[v,w,j] = dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1
 
-        for u in G.neighbors(w): # case: w->u and w->v
-            dstate_dx[w,u,j] = omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v]
+        dstate_dx[w,list(G.neighbors(w)),j] = omega * (1 - coverage_prob_matrix[w,list(G.neighbors(w))]) * marginal_prob[w,v]
         dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
 
     dstate_dx = torch.einsum('ij,ijk->ijk', marginal_prob, dstate_dx)
@@ -154,8 +153,13 @@ def dobj_dx_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distributi
     dQ_dx = dfull_dx[transient_vector][:,transient_vector,:]
     dR_dx = dfull_dx[transient_vector][:,targets,:]
 
-    distN = initial_distribution @ N
-    distNdQ_dxNRU = distN @ torch.einsum("abc,b->ac", dQ_dx, (N @ (R @ U)))
+    # distN = initial_distribution @ N
+    distN, _ = torch.solve(initial_distribution[None,:,None], QQ.t()[None,:,:])
+    distN = distN[0,:,0]
+    # NRU = N @ (R @ U)
+    NRU, _ = torch.solve((R @ torch.Tensor(U))[None,:,None], QQ[None,:,:])
+    NRU = NRU[0,:,0]
+    distNdQ_dxNRU = distN @ torch.einsum("abc,b->ac", dQ_dx, NRU)
     distNdR_dxU = distN @ (torch.einsum("abc,b->ac", dR_dx, U))
     dobj_dx = distNdQ_dxNRU + distNdR_dxU
 

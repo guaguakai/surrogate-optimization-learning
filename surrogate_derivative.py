@@ -13,7 +13,7 @@ import jax
 from gurobipy import *
 from utils import phi2prob, prob2unbiased
 
-REG = 0.01
+REG = 0.0
 MEAN_REG = 0.0
 
 def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None, tol=0.1):
