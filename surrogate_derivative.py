@@ -266,7 +266,6 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs
     # print(np_dobj_dx)
     obj_hessian = torch.zeros((len(x),len(x)))
     for i in range(len(x)):
-        print("hessian", i)
         obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True, allow_unused=True)[0]
     # np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
     # np_obj_hessian = jacfwd(np_obj_dx_fn)(small_coverage_probs.detach().numpy())

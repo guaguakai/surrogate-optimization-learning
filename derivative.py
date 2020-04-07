@@ -181,7 +181,6 @@ def obj_hessian_matrix_form(coverage_probs, G, unbiased_probs, U, initial_distri
     dobj_dx = dobj_dx_matrix_form(torch.Tensor(full_coverage_probs), G, unbiased_probs, U, initial_distribution, edge_set, omega=omega, lib=torch)
     obj_hessian = torch.zeros((len(x),len(x)))
     for i in range(len(x)):
-        print("hessian", i)
         if i < len(x) - 1:
             obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
         else:
