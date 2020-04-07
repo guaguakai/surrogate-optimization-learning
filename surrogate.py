@@ -14,7 +14,7 @@ import numpy as np
 
 from gcn import GCNPredictionNet2
 from graphData import *
-from surrogate_derivative import surrogate_get_optimal_coverage_prob, surrogate_objective_function_matrix_form, surrogate_dobj_dx_matrix_form, np_surrogate_dobj_dx_matrix_form, surrogate_obj_hessian_matrix_form, np_surrogate_obj_hessian_matrix_form
+from surrogate_derivative import surrogate_get_optimal_coverage_prob, surrogate_objective_function_matrix_form, surrogate_dobj_dx_matrix_form, np_surrogate_dobj_dx_matrix_form, surrogate_obj_hessian_matrix_form, np_surrogate_obj_hessian_matrix_form, numerical_surrogate_obj_hessian_matrix_form
 from utils import phi2prob, prob2unbiased, normalize_matrix
 
 def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
@@ -227,16 +227,21 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
     G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size))) @ T
     h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
 
-    if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
+    if training_mode and pred_optimal_res['success']:
         solver_option = 'default'
         # I seriously don't know wherether to use 'default' or 'gurobi' now...
         # Gurobi performs well when there is no noise but default performs well when there is noise
         # But theoretically they should perform roughly the same...
 
+        # cut_size = 10
+        # edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False)))
+        edge_set = list(range(m))
+
         hessian_start_time = time.time()
-        Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
+        Q = numerical_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega, edge_set=edge_set)
+        # Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega, edge_set=edge_set)
         # Q = np_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
-        jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch)
+        jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch, edge_set=edge_set)
         Q_sym = (Q + Q.t()) / 2
         hessian_time = time.time() - hessian_start_time
         # print('Hessian time:', hessian_time)

@@ -13,7 +13,7 @@ import jax
 from gurobipy import *
 from utils import phi2prob, prob2unbiased
 
-REG = 0.0
+REG = 0.01
 MEAN_REG = 0.0
 
 def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None, tol=0.1):
@@ -29,10 +29,9 @@ def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distrib
 
     # Randomly initialize coverage probability distribution
     if initial_coverage_prob is None:
-        initial_coverage_prob = np.ones(m)
         # initial_coverage_prob = jax.random.rand(m)
         initial_coverage_prob = np.random.rand(m)
-        # initial_coverage_prob = budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+        initial_coverage_prob = budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
     
     # Constraints
     A_matrix, b_matrix = np.matmul(np.ones((1, m)), T.detach().numpy()), np.array([budget]) 
@@ -85,10 +84,11 @@ def surrogate_objective_function_matrix_form(small_coverage_probs, T, G, unbiase
 
     return obj
 
-def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
+def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
     coverage_probs = torch.clamp(T @ torch.Tensor(small_coverage_probs), min=0, max=1)
     n = len(G.nodes)
     m = len(G.edges)
+    variable_size = T.shape[1]
     targets = list(G.graph["targets"]) + [n] # adding the caught node
     transient_vector = list(set(range(n)) - set(targets))
 
@@ -96,8 +96,12 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
     coverage_prob_matrix=torch.zeros((n,n))
     edges = list(G.edges())
     for i, e in enumerate(edges):
-        coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
-        coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
+        if i in edge_set:
+            coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i]
+            coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i] # for undirected graph only
+        else:
+            coverage_prob_matrix[e[0]][e[1]]=coverage_probs[i].detach()
+            coverage_prob_matrix[e[1]][e[0]]=coverage_probs[i].detach() # for undirected graph only
 
     # adj = torch.Tensor(nx.adjacency_matrix(G, nodelist=range(n)).toarray())
     exponential_term = torch.exp(-omega * coverage_prob_matrix) * unbiased_probs # + MEAN_REG
@@ -116,6 +120,24 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
     # N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
     # B = N @ R
 
+    """
+    dstate_dx = torch.zeros((n,n,variable_size))
+
+    edges = list(G.edges())
+    # =============== newer implementation of gradient computation ================
+    # speed up like 6 times per instance
+    # another update on removing the inner for loop speeds up another 2-4 times
+    for j, edge_j_idx in enumerate(range(variable_size)):
+        edge_j = edges[edge_j_idx]
+        (v, w) = edge_j
+        dstate_dx[v,list(G.neighbors(v)),j] = omega * (1 - coverage_prob_matrix[v,list(G.neighbors(v))]) * marginal_prob[v,w]
+        dstate_dx[v,w,j] = dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1
+
+        dstate_dx[w,list(G.neighbors(w)),j] = omega * (1 - coverage_prob_matrix[w,list(G.neighbors(w))]) * marginal_prob[w,v]
+        dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
+
+    dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
+    """
     dstate_dx = torch.zeros((n,n,m))
 
     edges = list(G.edges())
@@ -131,7 +153,9 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
         dstate_dx[w,list(G.neighbors(w)),j] = omega * (1 - coverage_prob_matrix[w,list(G.neighbors(w))]) * marginal_prob[w,v]
         dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
 
-    # dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
+    dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
+    # """
+
     dstate_dx = torch.einsum('ij,ijk->ijk', marginal_prob, dstate_dx)
 
     dcaught_dx = -torch.sum(dstate_dx, keepdim=True, dim=1)
@@ -148,12 +172,12 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
     distNdQ_dxNRU = distN @ torch.einsum("abc,b->ac", dQ_dx, NRU)
     distNdR_dxU = distN @ (torch.einsum("abc,b->ac", dR_dx, U))
     dobj_dx = distNdQ_dxNRU + distNdR_dxU
-    dobj_dy = dobj_dx @ T
+    # dobj_dy = dobj_dx @ T
 
     if lib == np:
-        dobj_dy = dobj_dy.detach().numpy()
+        dobj_dx = dobj_dx.detach().numpy()
 
-    return dobj_dy
+    return dobj_dx
 
 def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4):
     # import jax.numpy as np
@@ -195,7 +219,6 @@ def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs,
     dstate_dx = np.zeros((n,n,m))
 
     edges = list(G.edges())
-    # """
     # =============== newer implementation of gradient computation ================ # speed up like 6 sec per instance
     for j, edge_j_idx in enumerate(range(m)):
         edge_j = edges[edge_j_idx]
@@ -209,21 +232,6 @@ def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs,
         #     dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,u,j], omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v])
         dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,list(G.neighbors(w)),j], omega * (1 - coverage_prob_matrix[w,list(G.neighbors(w))]) * marginal_prob[w,v])
         dstate_dx = jax.ops.index_update(dstate_dx, jax.ops.index[w,v,j], dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1)
-    # """
-
-    """
-    # =============== newer implementation of gradient computation ================ # speed up like 6 sec per instance
-    for j, edge_j_idx in enumerate(range(m)):
-        edge_j = edges[edge_j_idx]
-        (v, w) = edge_j
-        for u in G.neighbors(v): # case: v->u and v->w
-            dstate_dx[v,u,j] = omega * (1 - coverage_prob_matrix[v,u]) * marginal_prob[v,w]
-        dstate_dx[v,w,j] = dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1
-
-        for u in G.neighbors(w): # case: w->u and w->v
-            dstate_dx[w,u,j] = omega * (1 - coverage_prob_matrix[w,u]) * marginal_prob[w,v]
-        dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
-    # """
 
     # dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
     dstate_dx = np.einsum('ij,ijk->ijk', marginal_prob, dstate_dx)
@@ -244,7 +252,7 @@ def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs,
     dobj_dy = np.matmul(dobj_dx, T)
     return dobj_dy
 
-def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
+def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
     # TODO
     if type(small_coverage_probs) == torch.Tensor:
         small_coverage_probs = small_coverage_probs.detach()
@@ -252,13 +260,14 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs
         small_coverage_probs = torch.Tensor(small_coverage_probs)
 
     x = torch.autograd.Variable(small_coverage_probs, requires_grad=True)
-    dobj_dx = surrogate_dobj_dx_matrix_form(x, T, G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch)
+    dobj_dx = surrogate_dobj_dx_matrix_form(x, T, G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch, edge_set=edge_set)
     # np_dobj_dx = np_surrogate_dobj_dx_matrix_form(small_coverage_probs.numpy(), T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
     # print(dobj_dx)
     # print(np_dobj_dx)
     obj_hessian = torch.zeros((len(x),len(x)))
     for i in range(len(x)):
-        obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
+        print("hessian", i)
+        obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True, allow_unused=True)[0]
     # np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
     # np_obj_hessian = jacfwd(np_obj_dx_fn)(small_coverage_probs.detach().numpy())
     # print(obj_hessian)
@@ -274,6 +283,17 @@ def np_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_pr
     np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
     np_obj_hessian = jacfwd(np_obj_dx_fn)(small_coverage_probs)
     return torch.Tensor(np_obj_hessian.tolist())
+
+def numerical_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
+    variable_size = len(small_coverage_probs)
+    obj_hessian = torch.zeros(variable_size, variable_size)
+    x = torch.autograd.Variable(small_coverage_probs, requires_grad=True)
+    obj = surrogate_objective_function_matrix_form(x, T, G, unbiased_probs, U, initial_distribution, omega=omega)
+    dobj_dx = torch.autograd.grad(obj, x, create_graph=True, retain_graph=True)[0]
+    for i in range(variable_size):
+        obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]
+
+    return obj_hessian
 
 if __name__=='__main__':
     
