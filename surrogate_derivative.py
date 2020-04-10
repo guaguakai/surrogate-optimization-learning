@@ -16,7 +16,7 @@ from utils import phi2prob, prob2unbiased
 REG = 0.01
 MEAN_REG = 0.0
 
-def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None, tol=0.1):
+def surrogate_get_optimal_coverage_prob(T, s, G, unbiased_probs, U, initial_distribution, budget, omega=4, options={}, method='SLSQP', initial_coverage_prob=None, tol=0.1):
     """
     Inputs: 
         G is the graph object with dictionaries G[node], G[graph] etc. 
@@ -32,10 +32,15 @@ def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distrib
         # initial_coverage_prob = jax.random.rand(m)
         initial_coverage_prob = np.random.rand(m)
         initial_coverage_prob = budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
+
+    s_trans, _, _, _ = np.linalg.lstsq(T.detach().numpy(), s.detach().numpy())
+    initial_coverage_prob = initial_coverage_prob - s_trans
     
     # Constraints
-    A_matrix, b_matrix = np.matmul(np.ones((1, m)), T.detach().numpy()), np.array([budget]) 
-    G_matrix, h_matrix = np.matmul(np.concatenate((-np.eye(m), np.eye(m))), T.detach().numpy()), np.concatenate((np.zeros(m), np.ones(m)))
+    A_original = np.ones((1, m))
+    A_matrix, b_matrix = np.matmul(A_original, T.detach().numpy()), np.array([budget]) - np.matmul(A_original, s.detach().numpy())
+    G_original = np.concatenate((-np.eye(m), np.eye(m)))
+    G_matrix, h_matrix = np.matmul(G_original, T.detach().numpy()), np.concatenate((np.zeros(m), np.ones(m))) - np.matmul(G_original, s.detach().numpy())
     eq_fn = lambda x: np.matmul(A_matrix,x) - b_matrix
     ineq_fn = lambda x: -np.matmul(G_matrix,x) + h_matrix
 
@@ -43,12 +48,12 @@ def surrogate_get_optimal_coverage_prob(T, G, unbiased_probs, U, initial_distrib
     constraints=[{'type': 'eq', 'fun': eq_fn}, {'type': 'ineq', 'fun': ineq_fn}]
     
     # Optimization step
-    coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T.detach(), G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options)
+    coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T.detach(), s.detach(), G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options)
     
     return coverage_prob_optimal
 
-def surrogate_objective_function_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
-    coverage_probs = torch.clamp(T @ torch.Tensor(small_coverage_probs), min=0, max=1)
+def surrogate_objective_function_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
+    coverage_probs = torch.clamp(T @ torch.Tensor(small_coverage_probs) + torch.Tensor(s), min=0, max=1)
     n = len(G.nodes)
     targets = list(G.graph["targets"]) + [n] # adding the caught node
     transient_vector = list(set(range(n)) - set(targets))
@@ -84,8 +89,8 @@ def surrogate_objective_function_matrix_form(small_coverage_probs, T, G, unbiase
 
     return obj
 
-def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
-    coverage_probs = torch.clamp(T @ torch.Tensor(small_coverage_probs), min=0, max=1)
+def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
+    coverage_probs = torch.clamp(T @ torch.Tensor(small_coverage_probs) + torch.Tensor(s), min=0, max=1)
     n = len(G.nodes)
     m = len(G.edges)
     variable_size = T.shape[1]
@@ -179,9 +184,9 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U,
 
     return dobj_dx
 
-def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4):
+def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4):
     # import jax.numpy as np
-    coverage_probs = np.clip(np.matmul(T, small_coverage_probs), a_min=0, a_max=1)
+    coverage_probs = np.clip(np.matmul(T, small_coverage_probs) + s, a_min=0, a_max=1)
     n = len(G.nodes)
     m = len(G.edges)
     targets = list(G.graph["targets"]) + [n] # adding the caught node
@@ -252,7 +257,7 @@ def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, G, unbiased_probs,
     dobj_dy = np.matmul(dobj_dx, T)
     return dobj_dy
 
-def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
+def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
     # TODO
     if type(small_coverage_probs) == torch.Tensor:
         small_coverage_probs = small_coverage_probs.detach()
@@ -260,7 +265,7 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs
         small_coverage_probs = torch.Tensor(small_coverage_probs)
 
     x = torch.autograd.Variable(small_coverage_probs, requires_grad=True)
-    dobj_dx = surrogate_dobj_dx_matrix_form(x, T, G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch, edge_set=edge_set)
+    dobj_dx = surrogate_dobj_dx_matrix_form(x, T, s, G, unbiased_probs, U, initial_distribution, omega=omega, lib=torch, edge_set=edge_set)
     # np_dobj_dx = np_surrogate_dobj_dx_matrix_form(small_coverage_probs.numpy(), T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
     # print(dobj_dx)
     # print(np_dobj_dx)
@@ -274,20 +279,20 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs
 
     return obj_hessian
 
-def np_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
+def np_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     # TODO
     if type(small_coverage_probs) == torch.Tensor:
         small_coverage_probs = np.array(small_coverage_probs.detach().numpy())
 
-    np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
+    np_obj_dx_fn = lambda x: np_surrogate_dobj_dx_matrix_form(x, T.detach().numpy(), s.detach().numpy(), G, unbiased_probs.detach().numpy(), U.detach().numpy(), initial_distribution.detach().numpy(), omega=omega)
     np_obj_hessian = jacfwd(np_obj_dx_fn)(small_coverage_probs)
     return torch.Tensor(np_obj_hessian.tolist())
 
-def numerical_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
+def numerical_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
     variable_size = len(small_coverage_probs)
     obj_hessian = torch.zeros(variable_size, variable_size)
     x = torch.autograd.Variable(small_coverage_probs, requires_grad=True)
-    obj = surrogate_objective_function_matrix_form(x, T, G, unbiased_probs, U, initial_distribution, omega=omega)
+    obj = surrogate_objective_function_matrix_form(x, T, s, G, unbiased_probs, U, initial_distribution, omega=omega)
     dobj_dx = torch.autograd.grad(obj, x, create_graph=True, retain_graph=True)[0]
     for i in range(variable_size):
         obj_hessian[i] = torch.autograd.grad(dobj_dx[i], x, create_graph=False, retain_graph=True)[0]

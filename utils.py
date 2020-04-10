@@ -11,7 +11,19 @@ from gurobipy import *
 
 def normalize_matrix(T):
     pos_T = torch.clamp(T, min=0)
-    return pos_T / torch.sum(pos_T, axis=0)
+    # pos_T = T
+    return pos_T / torch.norm(pos_T, dim=0)
+
+def normalize_matrix_qr(T):
+    Q, R, _ = np.linalg.qr(T.detach().numpy())
+    return Q
+
+def normalize_vector(s, max_value=1):
+    s = torch.clamp(s, min=0)
+    s_sum = torch.sum(s)
+    if s_sum > max_value:
+        s = s / s_sum * max_value
+    return s
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)

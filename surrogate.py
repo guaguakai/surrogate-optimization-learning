@@ -15,7 +15,7 @@ import numpy as np
 from gcn import GCNPredictionNet2
 from graphData import *
 from surrogate_derivative import surrogate_get_optimal_coverage_prob, surrogate_objective_function_matrix_form, surrogate_dobj_dx_matrix_form, np_surrogate_dobj_dx_matrix_form, surrogate_obj_hessian_matrix_form, np_surrogate_obj_hessian_matrix_form, numerical_surrogate_obj_hessian_matrix_form
-from utils import phi2prob, prob2unbiased, normalize_matrix
+from utils import phi2prob, prob2unbiased, normalize_matrix, normalize_vector
 
 def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
                           n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
@@ -25,25 +25,25 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
     sample_graph = train_data[0][0]
     T_size = 10 # sample_graph.number_of_edges() // 4
-    init_T = torch.rand(sample_graph.number_of_edges(), T_size)
-    T = torch.tensor(normalize_matrix(init_T), requires_grad=True)
-    full_T = torch.eye(sample_graph.number_of_edges(), requires_grad=False) # TODO
-    T_lr = lr
+    init_T, init_s = torch.rand(sample_graph.number_of_edges(), T_size), torch.zeros(sample_graph.number_of_edges())
+    T, s = torch.tensor(normalize_matrix(init_T), requires_grad=True), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
+    full_T, full_s = torch.eye(sample_graph.number_of_edges(), requires_grad=False), torch.zeros(sample_graph.number_of_edges(), requires_grad=False)
+    T_lr = lr # TODO???
 
     if optimizer == 'adam':
         optimizer = optim.Adam(net2.parameters(), lr=lr)
-        T_optimizer = optim.Adam([T], lr=T_lr)
+        T_optimizer = optim.Adam([T, s], lr=T_lr)
         # optimizer=optim.Adam(list(net2.parameters()) + [T], lr=lr)
     elif optimizer == 'sgd':
         optimizer = optim.SGD(net2.parameters(), lr=lr)
-        T_optimizer = optim.SGD([T], lr=T_lr)
+        T_optimizer = optim.SGD([T, s], lr=T_lr)
     elif optimizer == 'adamax':
         optimizer = optim.Adamax(net2.parameters(), lr=lr)
-        T_optimizer = optim.Adamax([T], lr=T_lr)
+        T_optimizer = optim.Adamax([T, s], lr=T_lr)
 
     # scheduler = ReduceLROnPlateau(optimizer, 'min')
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5)
-    T_scheduler = ReduceLROnPlateau(T_optimizer, 'min', factor=0.5)
+    scheduler = ReduceLROnPlateau(optimizer, 'min')
+    T_scheduler = ReduceLROnPlateau(T_optimizer, 'min')
    
     training_loss_list, validating_loss_list, testing_loss_list = [], [], []
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
@@ -89,6 +89,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 time1 = time.time()
                 G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true, previous_gradient = dataset[iter_n]
                 n, m = G.number_of_nodes(), G.number_of_edges()
+                budget = G.graph['budget']
                 
                 # =============== Compute edge probabilities ===========
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
@@ -112,15 +113,15 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
                 if epoch == -1: # optimal solution
                     cut_size = m
-                    def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, full_T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                    def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, full_T, full_s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
                 elif mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
                     cut_size = m
-                    def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                    def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
                 else:
                     time2 = time.time() # including the time of computing defender utility
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
-                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
+                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
                         # ignore the time of computing defender utility
                     else:
                         if training_method == 'decision-focused' or training_method == 'surrogate-decision-focused':
@@ -128,7 +129,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                         else:
                             raise TypeError('Not defined method')
 
-                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
+                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
                 
                 epoch_forward_time += single_forward_time
                 epoch_qp_time      += single_qp_time
@@ -143,8 +144,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                         if training_method == "two-stage" or epoch <= pretrain_epochs:
                             loss.backward()
                         elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
-                            # (-def_obj).backward()
-                            (-def_obj * m / cut_size).backward()
+                            (-def_obj).backward()
                         else:
                             raise TypeError("Not Implemented Method")
                         torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
@@ -156,6 +156,8 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
                 # ============== normalize T matrix =================
                 T.data = normalize_matrix(T.data)
+                # s.data = normalize_vector(s.data, max_value=budget)
+                # print(s.data)
 
             # ========= scheduler using validation set ==========
             if (epoch > 0) and (mode == "validating"):
@@ -193,7 +195,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, (forward_time, qp_time, backward_time)
     
 
-def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='coverage'):
+def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='coverage'):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true, previous_gradient = single_data
     
     n, m, variable_size = G.number_of_nodes(), G.number_of_edges(), T.shape[1]
@@ -207,13 +209,13 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
     edges = G.edges()
 
     # full forward path, the decision variables are the entire set of variables
-    # initial_coverage_prob = np.zeros(m)
+    # initial_coverage_prob = np.zeros(variable_size)
     # initial_coverage_prob = np.random.rand(m) # somehow this is very influential...
     initial_coverage_prob = np.ones(variable_size) # somehow this is very influential...
     initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     forward_start_time = time.time()
-    pred_optimal_res = surrogate_get_optimal_coverage_prob(T, G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
+    pred_optimal_res = surrogate_get_optimal_coverage_prob(T, s, G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
     if not pred_optimal_res['success']:
         print('optimization fails...')
@@ -223,9 +225,11 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
     # ========================== QP part ===========================
     qp_start_time = time.time()
     scale_constant = 1 # cut_size
-    A_matrix, b_matrix = torch.ones(1, cut_size)/scale_constant @ T, torch.Tensor([budget]) # torch.Tensor([sum(pred_optimal_coverage[edge_set])])/scale_constant
-    G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size))) @ T
-    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
+    A_original = torch.ones(1, cut_size)/scale_constant
+    A_matrix, b_matrix = A_original @ T, torch.Tensor([budget]) - A_original @ s
+    G_original = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
+    G_matrix, h_matrix = G_original @ T, torch.cat((torch.zeros(cut_size), torch.ones(cut_size))) - G_original @ s
+    # G_matrix, h_matrix = torch.Tensor(), torch.Tensor()
 
     if training_mode and pred_optimal_res['success']:
         solver_option = 'default'
@@ -238,10 +242,11 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
         edge_set = list(range(m))
 
         hessian_start_time = time.time()
-        Q = numerical_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega, edge_set=edge_set)
+        # Q = torch.eye(len(pred_optimal_coverage))
+        Q = numerical_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), s.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega, edge_set=edge_set)
         # Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega, edge_set=edge_set)
         # Q = np_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
-        jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch, edge_set=edge_set)
+        jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch, edge_set=edge_set)
         Q_sym = (Q + Q.t()) / 2
         hessian_time = time.time() - hessian_start_time
         # print('Hessian time:', hessian_time)
@@ -271,22 +276,22 @@ def getDefUtility(single_data, T, unbiased_probs_pred, path_model, cut_size, ome
             print("QP solver fails... Usually because Q is not PSD")
             full_coverage_qp_solution = pred_optimal_coverage.clone()
 
-        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
     else:
         full_coverage_qp_solution = pred_optimal_coverage.clone()
-        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
     qp_time = time.time() - qp_start_time
 
     # ========================= Error message =========================
     if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
-        print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+        print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
         print(pred_optimal_coverage)
-        print("objective value (QP): {}".format(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+        print("objective value (QP): {}".format(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
         print(full_coverage_qp_solution)
         full_coverage_qp_solution = pred_optimal_coverage.clone()
-        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
     return pred_defender_utility, full_coverage_qp_solution, (forward_time, qp_time)
 
