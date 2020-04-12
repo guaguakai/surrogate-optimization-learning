@@ -15,7 +15,7 @@ import numpy as np
 from gcn import GCNPredictionNet2
 from graphData import *
 from surrogate_derivative import surrogate_get_optimal_coverage_prob, surrogate_objective_function_matrix_form, surrogate_dobj_dx_matrix_form, np_surrogate_dobj_dx_matrix_form, surrogate_obj_hessian_matrix_form, np_surrogate_obj_hessian_matrix_form, numerical_surrogate_obj_hessian_matrix_form
-from utils import phi2prob, prob2unbiased, normalize_matrix, normalize_vector
+from utils import phi2prob, prob2unbiased, normalize_matrix, normalize_vector, normalize_matrix_qr
 
 def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
                           n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
@@ -145,6 +145,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                             loss.backward()
                         elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
                             (-def_obj).backward()
+                            # (-def_obj * df_weight + loss * ts_weight).backward()
                         else:
                             raise TypeError("Not Implemented Method")
                         torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
@@ -156,6 +157,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
                 # ============== normalize T matrix =================
                 T.data = normalize_matrix(T.data)
+                # T.data = normalize_matrix_qr(T.data)
                 # s.data = normalize_vector(s.data, max_value=budget)
                 # print(s.data)
 
@@ -225,11 +227,11 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
     # ========================== QP part ===========================
     qp_start_time = time.time()
     scale_constant = 1 # cut_size
-    A_original = torch.ones(1, cut_size)/scale_constant
-    A_matrix, b_matrix = A_original @ T, torch.Tensor([budget]) - A_original @ s
+    A_original, b_original = torch.ones(1, cut_size)/scale_constant, torch.Tensor([budget])
+    A_matrix, b_matrix = torch.Tensor(), torch.Tensor() # A_original @ T, b_original - A_original @ s
     G_original = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
-    G_matrix, h_matrix = G_original @ T, torch.cat((torch.zeros(cut_size), torch.ones(cut_size))) - G_original @ s
-    # G_matrix, h_matrix = torch.Tensor(), torch.Tensor()
+    G_matrix = torch.cat((G_original, A_original)) @ T
+    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), b_original)) # - G_original @ s
 
     if training_mode and pred_optimal_res['success']:
         solver_option = 'default'

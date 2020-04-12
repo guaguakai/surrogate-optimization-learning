@@ -41,11 +41,11 @@ def surrogate_get_optimal_coverage_prob(T, s, G, unbiased_probs, U, initial_dist
     A_matrix, b_matrix = np.matmul(A_original, T.detach().numpy()), np.array([budget]) - np.matmul(A_original, s.detach().numpy())
     G_original = np.concatenate((-np.eye(m), np.eye(m)))
     G_matrix, h_matrix = np.matmul(G_original, T.detach().numpy()), np.concatenate((np.zeros(m), np.ones(m))) - np.matmul(G_original, s.detach().numpy())
-    eq_fn = lambda x: np.matmul(A_matrix,x) - b_matrix
+    eq_fn = lambda x: -np.matmul(A_matrix,x) + b_matrix
     ineq_fn = lambda x: -np.matmul(G_matrix,x) + h_matrix
 
     # eq_fn = lambda x: budget - sum(x * torch.sum(T, axis=0).detach().numpy())
-    constraints=[{'type': 'eq', 'fun': eq_fn}, {'type': 'ineq', 'fun': ineq_fn}]
+    constraints=[{'type': 'ineq', 'fun': eq_fn}, {'type': 'ineq', 'fun': ineq_fn}]
     
     # Optimization step
     coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T.detach(), s.detach(), G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options)
