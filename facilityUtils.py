@@ -214,6 +214,7 @@ def train(epoch, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     average_optimal = np.mean(train_optimals) 
     sys.stdout.write(f'Epoch {epoch} | Train Loss: {average_loss:.3f} | Train Objective Value: {average_obj:.3f} | Train Optimal Value: {average_optimal:.3f} \n')
     sys.stdout.flush()
+    return average_loss, average_obj, average_optimal
 
 def surrogate_train(epoch, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     # train a single epoch
@@ -269,6 +270,7 @@ def surrogate_train(epoch, dataset, lr=0.1, training_method='two-stage', device=
     average_optimal = np.mean(train_optimals) 
     sys.stdout.write(f'Epoch {epoch} | Train Loss: {average_loss:.3f} | Train Objective Value: {average_obj:.3f} | Train Optimal Value: {average_optimal:.3f} \n')
     sys.stdout.flush()
+    return average_loss, average_obj, average_optimal
 
 def test(epoch, dataset, device='cpu'):
     # test a single epoch
@@ -305,6 +307,7 @@ def test(epoch, dataset, device='cpu'):
     average_optimal = np.mean(test_optimals) 
     sys.stdout.write(f'Epoch {epoch} | Test Loss: {average_loss:.3f}  | Test Objective Value: {average_obj:.3f}  | Test Optimal Value: {average_optimal:.3f} \n')
     sys.stdout.flush()
+    return average_loss, average_obj, average_optimal
 
 if __name__ == '__main__':
     n, m = 5, 10 # n: # of facilities, m: # of customers
@@ -316,9 +319,9 @@ if __name__ == '__main__':
     # print("LP solver")
     # LPSolver(instance)
 
-    # training_method = 'two-stage'
+    training_method = 'two-stage'
     # training_method = 'decision-focused'
-    training_method = 'surrogate'
+    # training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
     lr = 0.005
@@ -341,12 +344,30 @@ if __name__ == '__main__':
         new_A, new_b = torch.ones((1, T_size)), torch.ones(1)
 
     num_epochs = 100
+    train_loss_list, train_obj_list, train_opt_list = [], [], []
+    test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
     for epoch in range(num_epochs):
         if training_method == 'surrogate':
-            surrogate_train(epoch, dataset.train, training_method=training_method)
+            train_loss, train_obj, train_opt = surrogate_train(epoch, dataset.train, training_method=training_method)
         else:
-            train(epoch, dataset.train, training_method=training_method)
+            train_loss, train_obj, train_opt = train(epoch, dataset.train, training_method=training_method)
         # validate(dataset.validate)
-        test(epoch, dataset.test)
+        test_loss, test_obj, test_opt = test(epoch, dataset.test)
 
+        train_loss_list.append(train_loss)
+        train_obj_list.append(train_obj)
+        train_opt_list.append(train_opt)
+        test_loss_list.append(test_loss)
+        test_obj_list.append(test_obj)
+        test_opt_list.append(test_opt)
+
+    f_output = open("facility/results/{}".format(training_method), 'w')
+    f_output.write('training loss' + ','.join([str(x) for x in train_loss_list]) + '\n')
+    f_output.write('training obj'  + ','.join([str(x) for x in train_obj_list])  + '\n')
+    f_output.write('training opt'  + ','.join([str(x) for x in train_opt_list])  + '\n')
+    f_output.write('testing loss'  + ','.join([str(x) for x in test_loss_list])  + '\n')
+    f_output.write('testing obj'   + ','.join([str(x) for x in test_obj_list])   + '\n')
+    f_output.write('testing opt'   + ','.join([str(x) for x in test_opt_list])   + '\n')
+
+    f_output.close()
 
