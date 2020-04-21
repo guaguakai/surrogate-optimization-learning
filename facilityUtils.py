@@ -319,9 +319,9 @@ if __name__ == '__main__':
     # print("LP solver")
     # LPSolver(instance)
 
-    training_method = 'two-stage'
+    # training_method = 'two-stage'
     # training_method = 'decision-focused'
-    # training_method = 'surrogate'
+    training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
     lr = 0.005
@@ -361,13 +361,13 @@ if __name__ == '__main__':
         test_obj_list.append(test_obj)
         test_opt_list.append(test_opt)
 
-    f_output = open("facility/results/{}".format(training_method), 'w')
-    f_output.write('training loss' + ','.join([str(x) for x in train_loss_list]) + '\n')
-    f_output.write('training obj'  + ','.join([str(x) for x in train_obj_list])  + '\n')
-    f_output.write('training opt'  + ','.join([str(x) for x in train_opt_list])  + '\n')
-    f_output.write('testing loss'  + ','.join([str(x) for x in test_loss_list])  + '\n')
-    f_output.write('testing obj'   + ','.join([str(x) for x in test_obj_list])   + '\n')
-    f_output.write('testing opt'   + ','.join([str(x) for x in test_opt_list])   + '\n')
+    f_output = open("facility/results/{}.csv".format(training_method), 'w')
+    f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
+    f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
+    f_output.write('training opt,'  + ','.join([str(x) for x in train_opt_list])  + '\n')
+    f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
+    f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
+    f_output.write('testing opt,'   + ','.join([str(x) for x in test_opt_list])   + '\n')
 
     f_output.close()
 
