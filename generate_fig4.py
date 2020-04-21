@@ -75,7 +75,7 @@ def return_yaxis(filename):
 
 def generateLineChart(xy_list, filename):
     
-    fig, axs = plt.subplots(1, len(xy_list))
+    fig, axs = plt.subplots(1, len(xy_list), figsize=(12,6))
 
     for i in range(len(xy_list)):
         x, ys, labels, title, ytitle = xy_list[i]
@@ -83,9 +83,15 @@ def generateLineChart(xy_list, filename):
             print(len(y), label)
             axs[i].plot(x, y, label=label, markersize=1)
         
-        axs[i].legend()
+        if i in [2,3]:
+            start = 10
+            bottom = min(min(ys[0][start:]), min(ys[1][start:]), min(ys[2][start:]))
+            top    = max(max(ys[0][start:]), max(ys[1][start:]), max(ys[2][start:]), max(ys[3][start:]))
+            axs[i].set_ylim(bottom, top)
+        if i == 0:
+            axs[i].legend()
 
-    plt.autoscale()
+    # plt.autoscale()
     plt.savefig(filename)
     plt.show()
 

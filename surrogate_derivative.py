@@ -6,9 +6,7 @@ import time
 # from numpy.linalg import *
 from graphData import *
 import torch
-import jax.numpy as np
-from jax import grad, jit, jacfwd, jacrev
-import jax
+import numpy as np
 
 from gurobipy import *
 from utils import phi2prob, prob2unbiased
@@ -22,7 +20,6 @@ def surrogate_get_optimal_coverage_prob(T, s, G, unbiased_probs, U, initial_dist
         G is the graph object with dictionaries G[node], G[graph] etc. 
         phi is the attractiveness function, for each of the N nodes, phi(v, Fv)
     """
-    import numpy as np
     n = nx.number_of_nodes(G)
     m = nx.number_of_edges(G) # number of edges
     variable_size = T.shape[1] # number of bundles
@@ -33,22 +30,23 @@ def surrogate_get_optimal_coverage_prob(T, s, G, unbiased_probs, U, initial_dist
         initial_coverage_prob = np.random.rand(m)
         initial_coverage_prob = budget*(initial_coverage_prob/np.sum(initial_coverage_prob))
 
-    s_trans, _, _, _ = np.linalg.lstsq(T.detach().numpy(), s.detach().numpy())
-    initial_coverage_prob = initial_coverage_prob - s_trans
+    # s_trans, _, _, _ = np.linalg.lstsq(T.detach().numpy(), s.detach().numpy())
+    initial_coverage_prob = initial_coverage_prob # - s_trans
     
     # Constraints
     A_original = np.ones((1, m))
-    A_matrix, b_matrix = np.matmul(A_original, T.detach().numpy()), np.array([budget]) - np.matmul(A_original, s.detach().numpy())
+    A_matrix, b_matrix = np.matmul(A_original, T.detach().numpy()), np.array([budget]) # - np.matmul(A_original, s.detach().numpy())
     G_original = np.concatenate((-np.eye(m), np.eye(m)))
-    G_matrix, h_matrix = np.matmul(G_original, T.detach().numpy()), np.concatenate((np.zeros(m), np.ones(m))) - np.matmul(G_original, s.detach().numpy())
+    G_matrix, h_matrix = np.matmul(G_original, T.detach().numpy()), np.concatenate((np.zeros(m), np.ones(m))) # - np.matmul(G_original, s.detach().numpy())
     eq_fn = lambda x: -np.matmul(A_matrix,x) + b_matrix
     ineq_fn = lambda x: -np.matmul(G_matrix,x) + h_matrix
+    bounds = [(0.0,np.inf)] * variable_size
 
     # eq_fn = lambda x: budget - sum(x * torch.sum(T, axis=0).detach().numpy())
     constraints=[{'type': 'ineq', 'fun': eq_fn}, {'type': 'ineq', 'fun': ineq_fn}]
     
     # Optimization step
-    coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T.detach(), s.detach(), G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options)
+    coverage_prob_optimal= minimize(surrogate_objective_function_matrix_form, initial_coverage_prob, args=(T.detach(), s.detach(), G, unbiased_probs, torch.Tensor(U), torch.Tensor(initial_distribution), omega, np), method=method, jac=surrogate_dobj_dx_matrix_form, constraints=constraints, tol=tol, options=options, bounds=bounds)
     
     return coverage_prob_optimal
 
@@ -125,30 +123,10 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, s, G, unbiased_probs,
     # N = (torch.eye(Q.shape[0]) * (1 + REG) - Q).inverse()
     # B = N @ R
 
-    """
-    dstate_dx = torch.zeros((n,n,variable_size))
-
-    edges = list(G.edges())
-    # =============== newer implementation of gradient computation ================
-    # speed up like 6 times per instance
-    # another update on removing the inner for loop speeds up another 2-4 times
-    for j, edge_j_idx in enumerate(range(variable_size)):
-        edge_j = edges[edge_j_idx]
-        (v, w) = edge_j
-        dstate_dx[v,list(G.neighbors(v)),j] = omega * (1 - coverage_prob_matrix[v,list(G.neighbors(v))]) * marginal_prob[v,w]
-        dstate_dx[v,w,j] = dstate_dx[v,w,j] - omega * (1 - coverage_prob_matrix[v,w]) - 1
-
-        dstate_dx[w,list(G.neighbors(w)),j] = omega * (1 - coverage_prob_matrix[w,list(G.neighbors(w))]) * marginal_prob[w,v]
-        dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
-
-    dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
-    """
     dstate_dx = torch.zeros((n,n,m))
 
     edges = list(G.edges())
     # =============== newer implementation of gradient computation ================
-    # speed up like 6 times per instance
-    # another update on removing the inner for loop speeds up another 2-4 times
     for j, edge_j_idx in enumerate(range(m)):
         edge_j = edges[edge_j_idx]
         (v, w) = edge_j
@@ -159,7 +137,6 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, s, G, unbiased_probs,
         dstate_dx[w,v,j] = dstate_dx[w,v,j] - omega * (1 - coverage_prob_matrix[w,v]) - 1
 
     dstate_dx = dstate_dx @ T # torch.einsum('ijk,kl->ijl', dstate_dx, T)
-    # """
 
     dstate_dx = torch.einsum('ij,ijk->ijk', marginal_prob, dstate_dx)
 
@@ -185,7 +162,6 @@ def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, s, G, unbiased_probs,
     return dobj_dx
 
 def np_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4):
-    # import jax.numpy as np
     coverage_probs = np.clip(np.matmul(T, small_coverage_probs) + s, a_min=0, a_max=1)
     n = len(G.nodes)
     m = len(G.edges)
@@ -277,7 +253,7 @@ def surrogate_obj_hessian_matrix_form(small_coverage_probs, T, s, G, unbiased_pr
     # print(obj_hessian)
     # print(np_obj_hessian)
 
-    return obj_hessian
+    return obj_hessian.detach()
 
 def np_surrogate_obj_hessian_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch):
     # TODO

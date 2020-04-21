@@ -15,7 +15,7 @@ import numpy as np
 from gcn import GCNPredictionNet2
 from graphData import *
 from surrogate_derivative import surrogate_get_optimal_coverage_prob, surrogate_objective_function_matrix_form, surrogate_dobj_dx_matrix_form, np_surrogate_dobj_dx_matrix_form, surrogate_obj_hessian_matrix_form, np_surrogate_obj_hessian_matrix_form, numerical_surrogate_obj_hessian_matrix_form
-from utils import phi2prob, prob2unbiased, normalize_matrix, normalize_vector, normalize_matrix_qr
+from utils import phi2prob, prob2unbiased, normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr
 
 def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
                           n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
@@ -26,7 +26,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     sample_graph = train_data[0][0]
     T_size = 10 # sample_graph.number_of_edges() // 4
     init_T, init_s = torch.rand(sample_graph.number_of_edges(), T_size), torch.zeros(sample_graph.number_of_edges())
-    T, s = torch.tensor(normalize_matrix(init_T), requires_grad=True), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
+    T, s = torch.tensor(normalize_matrix_positive(init_T), requires_grad=True), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
     full_T, full_s = torch.eye(sample_graph.number_of_edges(), requires_grad=False), torch.zeros(sample_graph.number_of_edges(), requires_grad=False)
     T_lr = lr # TODO???
 
@@ -156,7 +156,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                     epoch_backward_time += time.time() - backward_start_time
 
                 # ============== normalize T matrix =================
-                T.data = normalize_matrix(T.data)
+                T.data = normalize_matrix_positive(T.data)
                 # T.data = normalize_matrix_qr(T.data)
                 # s.data = normalize_vector(s.data, max_value=budget)
                 # print(s.data)
@@ -230,8 +230,10 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
     A_original, b_original = torch.ones(1, cut_size)/scale_constant, torch.Tensor([budget])
     A_matrix, b_matrix = torch.Tensor(), torch.Tensor() # A_original @ T, b_original - A_original @ s
     G_original = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
-    G_matrix = torch.cat((G_original, A_original)) @ T
-    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), b_original)) # - G_original @ s
+    # G_matrix = torch.cat((G_original, A_original)) @ T
+    # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), b_original)) # - G_original @ s
+    G_matrix = torch.cat((torch.cat((G_original, A_original)) @ T, -torch.eye(variable_size)))
+    h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), b_original, torch.zeros(variable_size))) # - G_original @ s
 
     if training_mode and pred_optimal_res['success']:
         solver_option = 'default'
@@ -359,7 +361,7 @@ if __name__=='__main__':
     FIXED_GRAPH = args.fixed_graph
     CUT_SIZE = args.cut_size
     if CUT_SIZE[-1] != 'n':
-        CUT_SIZE = float(CUT_SIZE)
+        CUT_SIZE = int(CUT_SIZE)
     GRAPH_TYPE = "random_graph" if FIXED_GRAPH == 0 else "fixed_graph"
     SEED = args.seed
     NOISE_LEVEL = args.noise

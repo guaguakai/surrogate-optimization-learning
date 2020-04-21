@@ -10,13 +10,16 @@ import autograd
 from gurobipy import *
 
 def normalize_matrix(T):
+    return T / torch.norm(T, dim=0)
+
+def normalize_matrix_positive(T):
     pos_T = torch.clamp(T, min=0)
     # pos_T = T
-    return pos_T / torch.norm(pos_T, dim=0)
+    return pos_T / torch.sum(pos_T, dim=0)
 
 def normalize_matrix_qr(T):
     Q, R = np.linalg.qr(T.detach().numpy())
-    return torch.clamp(torch.Tensor(Q), min=0)
+    return torch.Tensor(Q)
 
 def normalize_vector(s, max_value=1):
     s = torch.clamp(s, min=0)
@@ -24,6 +27,23 @@ def normalize_vector(s, max_value=1):
     if s_sum > max_value:
         s = s / s_sum * max_value
     return s
+
+def projection(P, A, b): # P is the reparameterization matrix
+    p_variable_size, batch_size = P.shape # reparameterization matrix
+    constraint_size, variable_size = A.shape
+    b_constraint_size, b_size = b.shape
+    assert(p_variable_size == variable_size and constraint_size == b_constraint_size and b_size == 1)
+    AA_up   = torch.cat((A, torch.zeros(constraint_size, constraint_size)), dim=1)
+    AA_down = torch.cat((-torch.eye(variable_size), A.t()), dim=1)
+    AA = torch.cat((AA_up, AA_down))
+    bb = torch.cat((b[None,:,:].repeat(batch_size,1,1), -P.t()[:,:,None]), dim=1)
+    Plambda, _ = torch.solve(bb, AA)
+    newP = Plambda[:,:variable_size,0].t()
+    return newP
+
+def normalize_projection(P, A, b):
+    newP = projection(P, A, b)
+    return newP
 
 def phi2prob(G, phi): # unbiased but no need to be normalized. It will be normalized later
     N=nx.number_of_nodes(G)
