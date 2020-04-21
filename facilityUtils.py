@@ -324,7 +324,7 @@ if __name__ == '__main__':
     training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
-    lr = 0.005
+    lr = 0.001
     dataset = generateDataset(n, m, num_instances, feature_size)
 
     A, b, G, h = createConstraintMatrix(m, n)
