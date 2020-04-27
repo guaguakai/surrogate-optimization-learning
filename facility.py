@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from facilityNN import FacilityNN, FeatureNN
 from facilityUtils import generateInstance, generateFeatures, generateDataset, MILPSolver, LPSolver, LPCreateConstraintMatrix, LPCreateSurrogateConstraintMatrix, createConstraintMatrix
 from facilityDerivative import getObjective, getDerivative, getManualDerivative, getHessian, getOptimalDecision
-from facilityUtils import train_submodular # train, surrogate_train, test
+from facilityUtils import train_submodular, test_submodular # train, surrogate_train, test
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
 # Random Seed Initialization
@@ -80,14 +80,14 @@ if __name__ == '__main__':
         else:
             train_loss, train_obj, train_opt = train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
         # validate(dataset.validate)
-        # test_loss, test_obj, test_opt = test(net, optimizer, epoch, sample_instance, dataset.test)
+        test_loss, test_obj, test_opt = test_submodular(net, epoch, sample_instance, dataset.test)
 
-        # train_loss_list.append(train_loss)
-        # train_obj_list.append(train_obj)
-        # train_opt_list.append(train_opt)
-        # test_loss_list.append(test_loss)
-        # test_obj_list.append(test_obj)
-        # test_opt_list.append(test_opt)
+        train_loss_list.append(train_loss)
+        train_obj_list.append(train_obj)
+        train_opt_list.append(train_opt)
+        test_loss_list.append(test_loss)
+        test_obj_list.append(test_obj)
+        test_opt_list.append(test_opt)
 
     f_output = open("facility/results/{}.csv".format(training_method), 'w')
     f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')

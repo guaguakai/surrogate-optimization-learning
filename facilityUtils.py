@@ -251,6 +251,68 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
     sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
+def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
+    net.eval()
+    loss_fn = torch.nn.MSELoss()
+    test_losses, test_objs, test_optimals = [], [], []
+    n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
+    A, b, G, h = createConstraintMatrix(m, n, budget)
+
+    for batch_idx, (features, labels) in enumerate(dataset):
+        features, labels = features.to(device), labels.to(device)
+        outputs = net(features)
+        # two-stage loss
+        loss = loss_fn(outputs, labels)
+
+        # decision-focused loss
+        objective_value_list, optimal_value_list = [], []
+        batch_size = len(labels)
+        for (label, output) in zip(labels, outputs):
+            optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+            optimal_x = torch.Tensor(optimize_result.x)
+
+            obj = getObjective(optimal_x, n, m, output, d, f)
+            # print('objective:', obj)
+
+            Q = getHessian(optimal_x, n, m, output, d, f)
+            jac = -getManualDerivative(optimal_x, n, m, output, d, f)
+            p = jac - Q @ optimal_x
+            # print('derivative', jac)
+            # print('normalized derivative', p)
+            # qp_solver = qpth.qp.QPFunction() 
+            qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
+            x = qp_solver(Q, p, G, h, A, b)[0]
+            # print(optimal_x, x)
+
+            # ============= the real optimum =========
+            real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
+            obj = getObjective(x, n, m, label, d, f)
+            # print('real obj:', obj)
+            
+            objective_value_list.append(obj)
+            # print(-real_optimize_result.fun)
+            optimal_value_list.append(-real_optimize_result.fun) # TODO
+        objective = sum(objective_value_list) / batch_size
+        optimal   = sum(optimal_value_list) / batch_size
+        # print('objective', objective)
+
+        test_losses.append(loss.item())
+        test_objs.append(objective.item())
+        test_optimals.append(optimal)
+
+        average_loss = np.mean(test_losses)
+        average_obj  = np.mean(test_objs)
+        average_opt  = np.mean(test_optimals)
+        # Print status
+
+    average_loss    = np.mean(test_losses)
+    average_obj     = np.mean(test_objs)
+    average_optimal = np.mean(test_optimals) 
+    sys.stdout.write(f'Epoch {epoch} | Test Loss: {average_loss:.3f}  | Test Objective Value: {average_obj:.3f}  | Test Optimal Value: {average_optimal:.3f}  \n')
+    sys.stdout.flush()
+    return average_loss, average_obj, average_optimal
+
+
 def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     # train a single epoch
     net.train()
