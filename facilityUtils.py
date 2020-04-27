@@ -3,6 +3,8 @@ import tqdm
 import numpy as np
 import qpth
 import random
+import scipy
+import autograd
 import torch
 import torch.utils.data as data_utils
 from torch.utils.data.sampler import SubsetRandomSampler
@@ -12,13 +14,14 @@ from types import SimpleNamespace
 
 from facilityNN import FacilityNN, FeatureNN
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
+from facilityDerivative import getObjective, getManualDerivative, getDerivative, getOptimalDecision, getHessian
 
 # Random Seed Initialization
-SEED = 1289 #  random.randint(0,10000)
-print("Random seed: {}".format(SEED))
-torch.manual_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
+# SEED = 1289 #  random.randint(0,10000)
+# print("Random seed: {}".format(SEED))
+# torch.manual_seed(SEED)
+# np.random.seed(SEED)
+# random.seed(SEED)
 
 # uncapacitated facility location problem
 def generateInstance(n, m):
@@ -62,9 +65,10 @@ def generateDataset(n, m, num_instances, feature_size=32):
     validate_indices = indices[train_size:train_size+validate_size]
     test_indices     = indices[train_size+validate_size:]
 
-    train_loader    = data_utils.DataLoader(entire_dataset, batch_size=16, sampler=SubsetRandomSampler(train_indices))
-    validate_loader = data_utils.DataLoader(entire_dataset, batch_size=16, sampler=SubsetRandomSampler(validate_indices))
-    test_loader     = data_utils.DataLoader(entire_dataset, batch_size=16, sampler=SubsetRandomSampler(test_indices))
+    batch_size = 1
+    train_loader    = data_utils.DataLoader(entire_dataset, batch_size=batch_size, sampler=SubsetRandomSampler(train_indices))
+    validate_loader = data_utils.DataLoader(entire_dataset, batch_size=batch_size, sampler=SubsetRandomSampler(validate_indices))
+    test_loader     = data_utils.DataLoader(entire_dataset, batch_size=batch_size, sampler=SubsetRandomSampler(test_indices))
 
     return SimpleNamespace(train=train_loader, test=test_loader, validate=validate_loader)
 
@@ -138,7 +142,16 @@ def LPSolver(instance):
 
     return SimpleNamespace(x=x_values, z=z_values, obj=obj_value)
 
-def createConstraintMatrix(m, n):
+def createConstraintMatrix(m, n, budget):
+    variable_size = n
+    A = torch.ones(1,n)
+    b = torch.Tensor([budget])
+    G = torch.cat((-torch.eye(n),  torch.eye(n)))
+    h = torch.cat((torch.zeros(n), torch.ones(n)))
+
+    return A, b, G, h
+
+def LPCreateConstraintMatrix(m, n):
     # min  1/2 x^T Q x + x^T p
     # s.t. A x =  b
     #      G x <= h
@@ -151,7 +164,7 @@ def createConstraintMatrix(m, n):
 
     return A, b, G, h
 
-def createSurrogateConstraintMatrix(m, n):
+def LPCreateSurrogateConstraintMatrix(m, n):
     # min  1/2 x^T Q x + x^T p
     # s.t. A x =  b
     #      G x <= h
@@ -164,12 +177,88 @@ def createSurrogateConstraintMatrix(m, n):
 
     return A, b, G, h
 
-def train(epoch, dataset, lr=0.1, training_method='two-stage', device='cpu'):
+def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
+    net.train()
+    loss_fn = torch.nn.MSELoss()
+    train_losses, train_objs, train_optimals = [], [], []
+    n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
+    A, b, G, h = createConstraintMatrix(m, n, budget)
+
+    with tqdm.tqdm(dataset) as tqdm_loader:
+        for batch_idx, (features, labels) in enumerate(tqdm_loader):
+            features, labels = features.to(device), labels.to(device)
+            outputs = net(features)
+            # two-stage loss
+            loss = loss_fn(outputs, labels)
+
+            # decision-focused loss
+            objective_value_list, optimal_value_list = [], []
+            batch_size = len(labels)
+            for (label, output) in zip(labels, outputs):
+                optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+                optimal_x = torch.Tensor(optimize_result.x)
+
+                obj = getObjective(optimal_x, n, m, output, d, f)
+                # print('objective:', obj)
+
+                Q = getHessian(optimal_x, n, m, output, d, f)
+                jac = -getManualDerivative(optimal_x, n, m, output, d, f)
+                p = jac - Q @ optimal_x
+                # print('derivative', jac)
+                # print('normalized derivative', p)
+                # qp_solver = qpth.qp.QPFunction() 
+                qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
+                x = qp_solver(Q, p, G, h, A, b)[0]
+                # print(optimal_x, x)
+
+                # ============= the real optimum =========
+                real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
+                obj = getObjective(x, n, m, label, d, f)
+                # print('real obj:', obj)
+                
+                objective_value_list.append(obj)
+                # print(-real_optimize_result.fun)
+                optimal_value_list.append(-real_optimize_result.fun) # TODO
+            objective = sum(objective_value_list) / batch_size
+            optimal   = sum(optimal_value_list) / batch_size
+            # print('objective', objective)
+
+            optimizer.zero_grad()
+            if training_method == 'two-stage':
+                loss.backward()
+            elif training_method == 'decision-focused':
+                objective.backward()
+                for parameter in net.parameters():
+                    parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+            else:
+                raise ValueError('Not implemented method')
+            optimizer.step()
+
+            train_losses.append(loss.item())
+            train_objs.append(objective.item())
+            train_optimals.append(optimal)
+
+            average_loss = np.mean(train_losses)
+            average_obj = np.mean(train_objs)
+            average_opt = np.mean(train_optimals)
+            # Print status
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', opt=f'{average_opt:.3f}')
+
+    average_loss    = np.mean(train_losses)
+    average_obj     = np.mean(train_objs)
+    average_optimal = np.mean(train_optimals) 
+    sys.stdout.write(f'Epoch {epoch} | Train Loss: {average_loss:.3f} | Train Objective Value: {average_obj:.3f} | Train Optimal Value: {average_optimal:.3f} \n')
+    sys.stdout.flush()
+    return average_loss, average_obj, average_optimal
+
+def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     # train a single epoch
     net.train()
     loss_fn = torch.nn.MSELoss()
     train_losses, train_objs, train_optimals = [], [], []
     n, m, d, f = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f)
+    A, b, G, h = LPCreateConstraintMatrix(m, n)
+
     for batch_idx, (features, labels) in enumerate(tqdm.tqdm(dataset)):
         features, labels = features.to(device), labels.to(device)
         outputs = net(features)
@@ -216,12 +305,14 @@ def train(epoch, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
-def surrogate_train(epoch, dataset, lr=0.1, training_method='two-stage', device='cpu'):
+def surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     # train a single epoch
     net.train()
     loss_fn = torch.nn.MSELoss()
     train_losses, train_objs, train_optimals = [], [], []
     n, m, d, f = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f)
+    A, b, G, h = LPCreateConstraintMatrix(m, n)
+
     for batch_idx, (features, labels) in enumerate(tqdm.tqdm(dataset)):
         features, labels = features.to(device), labels.to(device)
         outputs = net(features)
@@ -272,7 +363,7 @@ def surrogate_train(epoch, dataset, lr=0.1, training_method='two-stage', device=
     sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
-def test(epoch, dataset, device='cpu'):
+def test_LP(net, optimizer, epoch, sample_instance, dataset, device='cpu'):
     # test a single epoch
     net.eval()
     loss_fn = torch.nn.MSELoss()
@@ -327,32 +418,33 @@ if __name__ == '__main__':
     lr = 0.001
     dataset = generateDataset(n, m, num_instances, feature_size)
 
-    A, b, G, h = createConstraintMatrix(m, n)
+    A, b, G, h = LPCreateConstraintMatrix(m, n)
 
     net = FacilityNN(input_shape=(n,feature_size), output_shape=(n,m))
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
     # surrogate setup
     if training_method == 'surrogate':
-        # A, b, G, h = createSurrogateConstraintMatrix(m, n)
+        # A, b, G, h = LPCreateSurrogateConstraintMatrix(m, n)
         variable_size = n*m + n
         T_size = 15
         init_T = torch.rand(variable_size, T_size)
-        T = torch.tensor(normalize_projection(init_T, A, b[:,None]), requires_grad=True)
+        T = torch.Tensor(normalize_projection(init_T, A, b[:,None]), requires_grad=True)
         T_lr = lr
         T_optimizer = torch.optim.Adam([T], lr=T_lr)
         new_A, new_b = torch.ones((1, T_size)), torch.ones(1)
 
+    '''
     num_epochs = 100
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
     for epoch in range(num_epochs):
         if training_method == 'surrogate':
-            train_loss, train_obj, train_opt = surrogate_train(epoch, dataset.train, training_method=training_method)
+            train_loss, train_obj, train_opt = surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
         else:
-            train_loss, train_obj, train_opt = train(epoch, dataset.train, training_method=training_method)
+            train_loss, train_obj, train_opt = train_LP(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
         # validate(dataset.validate)
-        test_loss, test_obj, test_opt = test(epoch, dataset.test)
+        test_loss, test_obj, test_opt = test_LP(net, optimizer, epoch, sample_instance, dataset.test)
 
         train_loss_list.append(train_loss)
         train_obj_list.append(train_obj)
@@ -370,4 +462,4 @@ if __name__ == '__main__':
     f_output.write('testing opt,'   + ','.join([str(x) for x in test_opt_list])   + '\n')
 
     f_output.close()
-
+    '''
