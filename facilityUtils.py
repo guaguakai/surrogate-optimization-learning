@@ -177,8 +177,10 @@ def LPCreateSurrogateConstraintMatrix(m, n):
 
     return A, b, G, h
 
-def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
+def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', disable=False):
     net.train()
+    if disable:
+        net.eval()
     loss_fn = torch.nn.MSELoss()
     train_losses, train_objs, train_optimals = [], [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
@@ -202,6 +204,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     Q = getHessian(optimal_x, n, m, output, d, f)
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
                     p = jac - Q @ optimal_x
+                    # qp_solver = qpth.qp.QPFunction()
                     qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
                     x = qp_solver(Q, p, G, h, A, b)[0]
                     if torch.norm(x.detach() - optimal_x) > 0.01:
@@ -224,7 +227,9 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
 
             optimizer.zero_grad()
             try:
-                if training_method == 'two-stage':
+                if disable:
+                    pass
+                elif training_method == 'two-stage':
                     loss.backward()
                 elif training_method == 'decision-focused':
                     objective.backward()

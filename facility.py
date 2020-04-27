@@ -77,7 +77,7 @@ if __name__ == '__main__':
     for epoch in range(-1, num_epochs):
         if epoch == -1:
             print('Not training in the first epoch...')
-            train_loss, train_obj, train_opt = test_submodular(net, epoch, sample_instance, dataset.train)
+            train_loss, train_obj, train_opt = train_submodular(net, optimizer, epoch, sample_instance, dataset.train, disable=True)
         elif training_method == 'surrogate':
             train_loss, train_obj, train_opt = surrogate_train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
         else:
