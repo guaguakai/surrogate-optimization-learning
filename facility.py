@@ -75,7 +75,10 @@ if __name__ == '__main__':
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
     for epoch in range(num_epochs):
-        if training_method == 'surrogate':
+        if epoch == 0:
+            print('Not training in the first epoch...')
+            train_loss, train_obj, train_opt = surrogate_test_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
+        elif training_method == 'surrogate':
             train_loss, train_obj, train_opt = surrogate_train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
         else:
             train_loss, train_obj, train_opt = train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
