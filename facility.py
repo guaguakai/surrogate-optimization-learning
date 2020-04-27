@@ -24,8 +24,8 @@ np.random.seed(SEED)
 random.seed(SEED)
 
 if __name__ == '__main__':
-    n, m = 10, 20 # n: # of facilities, m: # of customers
-    budget = 3
+    n, m = 5, 20 # n: # of facilities, m: # of customers
+    budget = 1
     sample_instance = generateInstance(n, m)
     sample_instance.budget = budget
     # sample_instance.c = None

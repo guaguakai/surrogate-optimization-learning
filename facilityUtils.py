@@ -198,40 +198,43 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
                 optimal_x = torch.Tensor(optimize_result.x)
 
-                obj = getObjective(optimal_x, n, m, output, d, f)
-                # print('objective:', obj)
-
-                Q = getHessian(optimal_x, n, m, output, d, f)
-                jac = -getManualDerivative(optimal_x, n, m, output, d, f)
-                p = jac - Q @ optimal_x
-                # print('derivative', jac)
-                # print('normalized derivative', p)
-                # qp_solver = qpth.qp.QPFunction() 
-                qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
-                x = qp_solver(Q, p, G, h, A, b)[0]
-                # print(optimal_x, x)
+                if training_method == 'decision-focused':
+                    Q = getHessian(optimal_x, n, m, output, d, f)
+                    jac = -getManualDerivative(optimal_x, n, m, output, d, f)
+                    p = jac - Q @ optimal_x
+                    qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
+                    x = qp_solver(Q, p, G, h, A, b)[0]
+                    if torch.norm(x.detach() - optimal_x) > 0.01:
+                        print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
+                        x = optimal_x
+                elif training_method == 'two-stage':
+                    x = optimal_x
+                else:
+                    raise ValueError('Not implemented method!')
 
                 # ============= the real optimum =========
                 real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
                 obj = getObjective(x, n, m, label, d, f)
-                # print('real obj:', obj)
                 
                 objective_value_list.append(obj)
-                # print(-real_optimize_result.fun)
                 optimal_value_list.append(-real_optimize_result.fun) # TODO
             objective = sum(objective_value_list) / batch_size
             optimal   = sum(optimal_value_list) / batch_size
             # print('objective', objective)
 
             optimizer.zero_grad()
-            if training_method == 'two-stage':
-                loss.backward()
-            elif training_method == 'decision-focused':
-                objective.backward()
-                for parameter in net.parameters():
-                    parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
-            else:
-                raise ValueError('Not implemented method')
+            try:
+                if training_method == 'two-stage':
+                    loss.backward()
+                elif training_method == 'decision-focused':
+                    objective.backward()
+                    for parameter in net.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                else:
+                    raise ValueError('Not implemented method')
+            except:
+                pass
+                # print("no grad is backpropagated...")
             optimizer.step()
 
             train_losses.append(loss.item())
@@ -271,26 +274,11 @@ def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
             optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
             optimal_x = torch.Tensor(optimize_result.x)
 
-            obj = getObjective(optimal_x, n, m, output, d, f)
-            # print('objective:', obj)
-
-            Q = getHessian(optimal_x, n, m, output, d, f)
-            jac = -getManualDerivative(optimal_x, n, m, output, d, f)
-            p = jac - Q @ optimal_x
-            # print('derivative', jac)
-            # print('normalized derivative', p)
-            # qp_solver = qpth.qp.QPFunction() 
-            qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
-            x = qp_solver(Q, p, G, h, A, b)[0]
-            # print(optimal_x, x)
-
             # ============= the real optimum =========
             real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
-            obj = getObjective(x, n, m, label, d, f)
-            # print('real obj:', obj)
+            obj = getObjective(optimal_x, n, m, label, d, f)
             
             objective_value_list.append(obj)
-            # print(-real_optimize_result.fun)
             optimal_value_list.append(-real_optimize_result.fun) # TODO
         objective = sum(objective_value_list) / batch_size
         optimal   = sum(optimal_value_list) / batch_size
