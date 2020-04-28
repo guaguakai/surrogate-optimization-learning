@@ -35,8 +35,8 @@ if __name__ == '__main__':
     # print("LP solver")
     # LPSolver(instance)
 
-    # training_method = 'two-stage'
-    training_method = 'decision-focused'
+    training_method = 'two-stage'
+    # training_method = 'decision-focused'
     # training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     print('hand grad:', jac_manual)
     hessian = getHessian(optimal_x, n, m, torch.Tensor(c), d, f)
 
-    num_epochs = 100
+    num_epochs = 20
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
     for epoch in range(-1, num_epochs):
