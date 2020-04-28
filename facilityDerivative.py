@@ -52,9 +52,9 @@ def getDerivative(x, n, m, c, d, f, create_graph=False):
 
 def getOptimalDecision(n, m, c, d, f, budget, initial_x=None):
     if initial_x is None:
-        initial_x = np.zeros(n)
-        # initial_x = np.random.rand(n)
-        # initial_x = initial_x * budget / np.sum(initial_x)
+        # initial_x = np.zeros(n)
+        initial_x = np.random.rand(n)
+        initial_x = initial_x * budget / np.sum(initial_x)
 
     getObj = lambda x: -getObjective(torch.Tensor(x), n, m, c.detach(), d, f).detach().item() # maximize objective
     getJac = lambda x: -getManualDerivative(torch.Tensor(x), n, m, c.detach(), d, f).detach().numpy()
@@ -62,9 +62,10 @@ def getOptimalDecision(n, m, c, d, f, budget, initial_x=None):
     bounds = [(0,1)]*n
     eq_fn = lambda x: budget - sum(x)
     constraints = [{'type': 'eq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
+    options = {'maxiter': 100, 'eps':1e-12}
 
-    # optimize_result = scipy.optimize.minimize(getObj, initial_x, method='SLSQP', jac=getJac, bounds=bounds, constraints=constraints)
-    optimize_result = scipy.optimize.minimize(getObj, initial_x, method='trust-constr', jac=getJac, bounds=bounds, constraints=constraints)
+    optimize_result = scipy.optimize.minimize(getObj, initial_x, method='SLSQP', jac=getJac, bounds=bounds, constraints=constraints, options=options)
+    # optimize_result = scipy.optimize.minimize(getObj, initial_x, method='trust-constr', jac=getJac, bounds=bounds, constraints=constraints)
 
     return optimize_result
 

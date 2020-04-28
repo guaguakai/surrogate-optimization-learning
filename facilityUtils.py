@@ -2,6 +2,7 @@ import sys
 import tqdm
 import numpy as np
 import qpth
+import qpthlocal
 import random
 import scipy
 import autograd
@@ -198,14 +199,14 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
                 optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
-                optimal_x = torch.Tensor(optimize_result.x)
+                optimal_x = torch.Tensor(optimize_result.x).requires_grad_(True)
 
                 if training_method == 'decision-focused':
                     Q = getHessian(optimal_x, n, m, output, d, f)
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
                     p = jac - Q @ optimal_x
                     # qp_solver = qpth.qp.QPFunction()
-                    qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
+                    qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     x = qp_solver(Q, p, G, h, A, b)[0]
                     if torch.norm(x.detach() - optimal_x) > 0.01:
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
@@ -217,9 +218,9 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
 
                 # ============= the real optimum =========
                 real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
-                obj = getObjective(x, n, m, label, d, f)
+                obj = -getObjective(x, n, m, label, d, f)
                 
-                objective_value_list.append(obj)
+                objective_value_list.append(-obj)
                 optimal_value_list.append(-real_optimize_result.fun) # TODO
             objective = sum(objective_value_list) / batch_size
             optimal   = sum(optimal_value_list) / batch_size
@@ -327,7 +328,7 @@ def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_m
         Q = torch.eye(variable_size) * 0.01
         for (label, output) in zip(labels, outputs):
             p = torch.cat(((output * d).flatten(), f))
-            qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
+            qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
             zx = qp_solver(Q, p, G, h, A, b)
 
             real_p = torch.cat((torch.Tensor(label * d).flatten(), torch.Tensor(f)))
@@ -382,7 +383,7 @@ def surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, 
         for (label, output) in zip(labels, outputs):
             p = torch.cat(((output * d).flatten(), f)) @ T
             # qp_solver = qpth.qp.QPFunction()
-            qp_solver = qpth.qp.QPFunction(verbose=True, solver=qpth.qp.QPSolvers.GUROBI)
+            qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
             zx = T @ qp_solver(Q, p, G @ T, h, new_A, new_b)[0]
 
             real_p = torch.cat((torch.Tensor(label * d).flatten(), torch.Tensor(f)))
