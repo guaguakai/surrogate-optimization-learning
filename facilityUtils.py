@@ -218,9 +218,9 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
 
                 # ============= the real optimum =========
                 real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
-                obj = -getObjective(x, n, m, label, d, f)
+                obj = getObjective(x, n, m, label, d, f)
                 
-                objective_value_list.append(-obj)
+                objective_value_list.append(obj)
                 optimal_value_list.append(-real_optimize_result.fun) # TODO
             objective = sum(objective_value_list) / batch_size
             optimal   = sum(optimal_value_list) / batch_size
@@ -233,7 +233,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 elif training_method == 'two-stage':
                     loss.backward()
                 elif training_method == 'decision-focused':
-                    objective.backward()
+                    (-objective).backward()
                     for parameter in net.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
                 else:
