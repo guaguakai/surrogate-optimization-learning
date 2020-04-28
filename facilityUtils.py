@@ -16,6 +16,7 @@ from types import SimpleNamespace
 from facilityNN import FacilityNN, FeatureNN
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 from facilityDerivative import getObjective, getManualDerivative, getDerivative, getOptimalDecision, getHessian
+from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateManualDerivative, getSurrogateHessian, getSurrogateOptimalDecision
 
 # Random Seed Initialization
 # SEED = 1289 #  random.randint(0,10000)
@@ -260,6 +261,103 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
     sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
+def surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', disable=False):
+    net.train()
+    if disable:
+        net.eval()
+    loss_fn = torch.nn.MSELoss()
+    train_losses, train_objs, train_optimals = [], [], []
+    variable_size = T.shape[1]
+    n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
+    A, b, G, h = createConstraintMatrix(m, n, budget)
+
+    with tqdm.tqdm(dataset) as tqdm_loader:
+        for batch_idx, (features, labels) in enumerate(tqdm_loader):
+            features, labels = features.to(device), labels.to(device)
+            outputs = net(features)
+            # two-stage loss
+            loss = loss_fn(outputs, labels)
+
+            # decision-focused loss
+            objective_value_list, optimal_value_list = [], []
+            batch_size = len(labels)
+            for (label, output) in zip(labels, outputs):
+                if training_method == 'surrogate':
+                    optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
+                    optimal_y = torch.Tensor(optimize_result.x).requires_grad_(True)
+
+                    newA, newb = A @ T, b
+                    newG = torch.cat((G @ T, -torch.eye(variable_size)))
+                    newh = torch.cat((h, torch.zeros(variable_size)))
+
+                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f) + torch.eye(len(optimal_y)) * 0.01
+                    jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
+                    p = jac - Q @ optimal_y
+                    # qp_solver = qpth.qp.QPFunction()
+                    qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
+                    y = qp_solver(Q, p, newG, newh, newA, newb)[0]
+                    if torch.norm(y.detach() - optimal_y) > 1:
+                        print('incorrect solution due to high mismatch {}'.format(torch.norm(y.detach() - optimal_y)))
+                        y = optimal_y
+                    x = T @ y
+                elif training_method == 'two-stage':
+                    optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+                    x = torch.Tensor(optimize_result.x)
+                else:
+                    raise ValueError('Not implemented method!')
+
+                # ============= the real optimum =========
+                real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
+                obj = getObjective(x, n, m, label, d, f)
+                
+                objective_value_list.append(obj)
+                optimal_value_list.append(-real_optimize_result.fun) # TODO
+            objective = sum(objective_value_list) / batch_size
+            optimal   = sum(optimal_value_list) / batch_size
+            # print('objective', objective)
+
+            optimizer.zero_grad()
+            try:
+                if disable:
+                    pass
+                elif training_method == 'two-stage':
+                    loss.backward()
+                    optimizer.step()
+                elif training_method == 'decision-focused':
+                    (-objective).backward()
+                    for parameter in net.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                    optimizer.step()
+                elif training_method == 'surrogate':
+                    (-objective).backward()
+                    for parameter in net.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                    optimizer.step()
+                    T_optimizer.step()
+                    T.data = normalize_matrix_positive(T.data)
+                else:
+                    raise ValueError('Not implemented method')
+            except:
+                pass
+                # print("no grad is backpropagated...")
+
+            train_losses.append(loss.item())
+            train_objs.append(objective.item())
+            train_optimals.append(optimal)
+
+            average_loss = np.mean(train_losses)
+            average_obj = np.mean(train_objs)
+            average_opt = np.mean(train_optimals)
+            # Print status
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', opt=f'{average_opt:.3f}')
+
+    average_loss    = np.mean(train_losses)
+    average_obj     = np.mean(train_objs)
+    average_optimal = np.mean(train_optimals) 
+    sys.stdout.write(f'Epoch {epoch} | Train Loss: {average_loss:.3f} | Train Objective Value: {average_obj:.3f} | Train Optimal Value: {average_optimal:.3f} \n')
+    sys.stdout.flush()
+    return average_loss, average_obj, average_optimal
+
 def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
     net.eval()
     loss_fn = torch.nn.MSELoss()
@@ -306,6 +404,51 @@ def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
     sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
+def surrogate_test_submodular(net, T, epoch, sample_instance, dataset, device='cpu'):
+    net.eval()
+    loss_fn = torch.nn.MSELoss()
+    test_losses, test_objs, test_optimals = [], [], []
+    n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
+    A, b, G, h = createConstraintMatrix(m, n, budget)
+
+    for batch_idx, (features, labels) in enumerate(dataset):
+        features, labels = features.to(device), labels.to(device)
+        outputs = net(features)
+        # two-stage loss
+        loss = loss_fn(outputs, labels)
+
+        # decision-focused loss
+        objective_value_list, optimal_value_list = [], []
+        batch_size = len(labels)
+        for (label, output) in zip(labels, outputs):
+            optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
+            optimal_y = torch.Tensor(optimize_result.x)
+
+            # ============= the real optimum =========
+            real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
+            obj = getSurrogateObjective(T, optimal_y, n, m, label, d, f)
+            
+            objective_value_list.append(obj)
+            optimal_value_list.append(-real_optimize_result.fun) # TODO
+        objective = sum(objective_value_list) / batch_size
+        optimal   = sum(optimal_value_list) / batch_size
+        # print('objective', objective)
+
+        test_losses.append(loss.item())
+        test_objs.append(objective.item())
+        test_optimals.append(optimal)
+
+        average_loss = np.mean(test_losses)
+        average_obj  = np.mean(test_objs)
+        average_opt  = np.mean(test_optimals)
+        # Print status
+
+    average_loss    = np.mean(test_losses)
+    average_obj     = np.mean(test_objs)
+    average_optimal = np.mean(test_optimals) 
+    sys.stdout.write(f'Epoch {epoch} | Test Loss: {average_loss:.3f}  | Test Objective Value: {average_obj:.3f}  | Test Optimal Value: {average_optimal:.3f}  \n')
+    sys.stdout.flush()
+    return average_loss, average_obj, average_optimal
 
 def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     # train a single epoch

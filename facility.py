@@ -13,7 +13,8 @@ from types import SimpleNamespace
 from facilityNN import FacilityNN, FeatureNN
 from facilityUtils import generateInstance, generateFeatures, generateDataset, MILPSolver, LPSolver, LPCreateConstraintMatrix, LPCreateSurrogateConstraintMatrix, createConstraintMatrix
 from facilityDerivative import getObjective, getDerivative, getManualDerivative, getHessian, getOptimalDecision
-from facilityUtils import train_submodular, test_submodular # train, surrogate_train, test
+from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateManualDerivative, getSurrogateHessian, getSurrogateOptimalDecision
+from facilityUtils import train_submodular, test_submodular, surrogate_train_submodular, surrogate_test_submodular # train, surrogate_train, test
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
 # Random Seed Initialization
@@ -35,9 +36,9 @@ if __name__ == '__main__':
     # print("LP solver")
     # LPSolver(instance)
 
-    training_method = 'two-stage'
+    # training_method = 'two-stage'
     # training_method = 'decision-focused'
-    # training_method = 'surrogate'
+    training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
     lr = 0.001
@@ -53,7 +54,7 @@ if __name__ == '__main__':
         # A, b, G, h = LPCreateSurrogateConstraintMatrix(m, n)
         variable_size = n
         T_size = 3
-        init_T = torch.rand(variable_size, T_size)
+        init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
         T = torch.tensor(init_T, requires_grad=True)
         T_lr = lr
         T_optimizer = torch.optim.Adam([T], lr=T_lr)
@@ -77,13 +78,13 @@ if __name__ == '__main__':
     for epoch in range(-1, num_epochs):
         if epoch == -1:
             print('Not training in the first epoch...')
-            train_loss, train_obj, train_opt = train_submodular(net, optimizer, epoch, sample_instance, dataset.train, disable=True)
+            train_loss, train_obj, train_opt = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset.train, training_method=training_method, disable=True)
         elif training_method == 'surrogate':
-            train_loss, train_obj, train_opt = surrogate_train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
+            train_loss, train_obj, train_opt = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
         else:
-            train_loss, train_obj, train_opt = train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
+            raise ValueError('Not implemented')
         # validate(dataset.validate)
-        test_loss, test_obj, test_opt = test_submodular(net, epoch, sample_instance, dataset.test)
+        test_loss, test_obj, test_opt = surrogate_test_submodular(net, T, epoch, sample_instance, dataset.test)
 
         train_loss_list.append(train_loss)
         train_obj_list.append(train_obj)
