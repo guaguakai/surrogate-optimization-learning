@@ -75,7 +75,7 @@ if __name__ == '__main__':
     num_epochs = 20
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
-    for epoch in range(-1, num_epochs):
+    for epoch in range(0, num_epochs):
         if training_method == 'surrogate':
             if epoch == -1:
                 print('Not training in the first epoch...')

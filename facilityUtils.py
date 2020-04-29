@@ -290,12 +290,13 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             # decision-focused loss
             objective_value_list, optimal_value_list = [], []
             batch_size = len(labels)
+
+            # randomly select column to update
+            T = init_T.detach().clone()
+            random_column = torch.randint(init_T.shape[1], [1])
+            T[:,random_column] = init_T[:,random_column]
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
-                    T = init_T.detach()
-                    random_column = torch.randint(init_T.shape[1], [1])
-                    T[:,random_column] = init_T[:,random_column]
-
                     optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
                     optimal_y = torch.Tensor(optimize_result.x).requires_grad_(True)
 
@@ -334,7 +335,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             # print('objective', objective)
 
             optimizer.zero_grad()
-            try:
+            if True: # try:
                 if disable:
                     pass
                 elif training_method == 'two-stage':
@@ -346,7 +347,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
                     optimizer.step()
                 elif training_method == 'surrogate':
-                    print('surrogate backward')
+                    T_optimizer.zero_grad()
                     print(init_T)
                     (-objective).backward()
                     for parameter in net.parameters():
@@ -355,12 +356,11 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     T_optimizer.step()
                     init_T.data = normalize_matrix_positive(init_T.data)
                     print(init_T)
-                    print('surrogate backward ends')
                 else:
                     raise ValueError('Not implemented method')
-            except:
-                pass
-                # print("no grad is backpropagated...")
+            # except:
+            #     pass
+            #     # print("no grad is backpropagated...")
 
             train_losses.append(loss.item())
             train_objs.append(objective.item())
