@@ -184,7 +184,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
     net.train()
     if disable:
         net.eval()
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.BCELoss()
     train_losses, train_objs, train_optimals = [], [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
@@ -266,7 +266,7 @@ def surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_ins
     net.train()
     if disable:
         net.eval()
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.BCELoss()
     train_losses, train_objs, train_optimals = [], [], []
     variable_size = T.shape[1]
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
@@ -361,7 +361,8 @@ def surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_ins
 
 def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
     net.eval()
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.BCELoss()
+    # loss_fn = torch.nn.MSELoss()
     test_losses, test_objs, test_optimals = [], [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
@@ -407,7 +408,7 @@ def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
 
 def surrogate_test_submodular(net, T, epoch, sample_instance, dataset, device='cpu'):
     net.eval()
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.BCELoss()
     test_losses, test_objs, test_optimals = [], [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
@@ -454,7 +455,7 @@ def surrogate_test_submodular(net, T, epoch, sample_instance, dataset, device='c
 def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     # train a single epoch
     net.train()
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.BCELoss()
     train_losses, train_objs, train_optimals = [], [], []
     n, m, d, f = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f)
     A, b, G, h = LPCreateConstraintMatrix(m, n)
@@ -508,7 +509,7 @@ def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_m
 def surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     # train a single epoch
     net.train()
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.BCELoss()
     train_losses, train_objs, train_optimals = [], [], []
     n, m, d, f = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f)
     A, b, G, h = LPCreateConstraintMatrix(m, n)
@@ -566,7 +567,7 @@ def surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, 
 def test_LP(net, optimizer, epoch, sample_instance, dataset, device='cpu'):
     # test a single epoch
     net.eval()
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.BCELoss()
     test_losses, test_objs, test_optimals = [], [], []
     n, m, d, f = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f)
     for batch_idx, (features, labels) in enumerate(dataset):

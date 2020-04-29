@@ -37,11 +37,11 @@ if __name__ == '__main__':
     # LPSolver(instance)
 
     # training_method = 'two-stage'
-    training_method = 'decision-focused'
-    # training_method = 'surrogate'
+    # training_method = 'decision-focused'
+    training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
-    lr = 0.001
+    lr = 0.005
     dataset = generateDataset(n, m, num_instances, feature_size)
 
     A, b, G, h = createConstraintMatrix(m, n, budget)
@@ -82,7 +82,7 @@ if __name__ == '__main__':
                 train_loss, train_obj, train_opt = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset.train, training_method=training_method, disable=True)
             else:
                 train_loss, train_obj, train_opt = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
-        elif training_method == 'decision-focused':
+        elif training_method == 'decision-focused' or training_method == 'two-stage':
             if epoch == -1:
                 print('Not training in the first epoch...')
                 train_loss, train_obj, train_opt = train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method, disable=True)

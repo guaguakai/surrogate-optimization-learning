@@ -27,8 +27,8 @@ class FacilityNN(nn.Module):
                 linear_block(input_size, 512),
                 linear_block(512, 512),
                 linear_block(512, 256),
-                linear_block(256, output_size, activation='ReLU')
-                # linear_block(256, output_size, activation='Sigmoid')
+                # linear_block(256, output_size, activation='ReLU')
+                linear_block(256, output_size, activation='Sigmoid')
                 )
 
     def forward(self, x):
