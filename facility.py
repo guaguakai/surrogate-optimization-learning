@@ -25,7 +25,7 @@ np.random.seed(SEED)
 random.seed(SEED)
 
 if __name__ == '__main__':
-    n, m = 20, 50 # n: # of facilities, m: # of customers
+    n, m = 10, 50 # n: # of facilities, m: # of customers
     budget = 5
     sample_instance = generateInstance(n, m)
     sample_instance.budget = budget
@@ -37,8 +37,8 @@ if __name__ == '__main__':
     # LPSolver(instance)
 
     # training_method = 'two-stage'
-    # training_method = 'decision-focused'
-    training_method = 'surrogate'
+    training_method = 'decision-focused'
+    # training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
     lr = 0.005

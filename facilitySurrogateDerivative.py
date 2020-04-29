@@ -4,7 +4,7 @@ import scipy
 import autograd
 from facilityDerivative import getObjective
 
-REG = 0.01
+REG = 0
 
 def getSurrogateObjective(T, y, n, m, c, d, f):
     x = T @ y

@@ -204,15 +204,19 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 optimal_x = torch.Tensor(optimize_result.x).requires_grad_(True)
 
                 if training_method == 'decision-focused':
-                    Q = getHessian(optimal_x, n, m, output, d, f)
+                    Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 1
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
                     p = jac - Q @ optimal_x
                     # qp_solver = qpth.qp.QPFunction()
                     qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     x = qp_solver(Q, p, G, h, A, b)[0]
-                    # if torch.norm(x.detach() - optimal_x) > 0.01:
-                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
-                    #     x = optimal_x
+                    if torch.norm(x.detach() - optimal_x) > 0.05:
+                        print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
+                        print(x, optimal_x)
+                        scipy_obj = getObjective(optimal_x, n, m, output, d, f)
+                        qp_obj    = getObjective(x, n, m, output, d, f)
+                        print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
+                        x = optimal_x
                 elif training_method == 'two-stage':
                     x = optimal_x
                 else:
@@ -291,15 +295,19 @@ def surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_ins
                     newG = torch.cat((G @ T, -torch.eye(variable_size)))
                     newh = torch.cat((h, torch.zeros(variable_size)))
 
-                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f) + torch.eye(len(optimal_y)) * 0.01
+                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f) + torch.eye(len(optimal_y)) * 1
                     jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
-                    # qp_solver = qpth.qp.QPFunction()
-                    qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
+                    qp_solver = qpth.qp.QPFunction()
+                    # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
-                    # if torch.norm(y.detach() - optimal_y) > 1:
-                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(y.detach() - optimal_y)))
-                    #     y = optimal_y
+                    if torch.norm(y.detach() - optimal_y) > 0.05:
+                        print('incorrect solution due to high mismatch {}'.format(torch.norm(y.detach() - optimal_y)))
+                        print(y, optimal_y)
+                        scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
+                        qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
+                        print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
+                        y = optimal_y
                     x = T @ y
                 elif training_method == 'two-stage':
                     optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
