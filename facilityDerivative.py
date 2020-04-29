@@ -3,7 +3,7 @@ import numpy as np
 import scipy
 import autograd
 
-REG = 0.01
+REG = 0.0
 
 def getObjective(x, n, m, c, d, f):
     p = torch.zeros(m)

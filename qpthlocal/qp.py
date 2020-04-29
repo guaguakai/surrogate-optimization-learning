@@ -293,8 +293,7 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
             neq, nineq = ctx.neq, ctx.nineq
 
 
-            if solver != QPSolvers.PDIPM_BATCHED:
-                ctx.Q_LU, ctx.S_LU, ctx.R = pdipm_b.pre_factor_kkt(Q, G, A)
+            ctx.Q_LU, ctx.S_LU, ctx.R = pdipm_b.pre_factor_kkt(Q, G, A)
 
             # Clamp here to avoid issues coming up when the slacks are too small.
             # TODO: A better fix would be to get lams and slacks from the
@@ -302,12 +301,14 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
             d = torch.clamp(ctx.lams, min=1e-8) / torch.clamp(ctx.slacks, min=1e-8)
 
             pdipm_b.factor_kkt(ctx.S_LU, ctx.R, d)
+            # print('qpth backward bug:', torch.eig(ctx.S_LU[0][0]))
             dx, _, dlam, dnu = pdipm_b.solve_kkt(
                 ctx.Q_LU, d, G, A, ctx.S_LU,
                 dl_dzhat, torch.zeros(nBatch, nineq).type_as(G),
                 torch.zeros(nBatch, nineq).type_as(G),
                 torch.zeros(nBatch, neq).type_as(G) if neq > 0 else torch.Tensor())
 
+            # print('qpth backward bug2:', dx, dlam, dnu)
             dps = dx
             dGs = bger(dlam, zhats) + bger(ctx.lams, dx)
             if G_e:
@@ -331,6 +332,8 @@ def QPFunction(eps=1e-12, verbose=0, notImprovedLim=3,
                 dps = dps.mean(0)
 
 
+            # print('qpth backward bug3:', dx, dlam, dnu)
+            # print(dQs)
             grads = (dQs, dps, dGs, dhs, dAs, dbs)
 
             return grads

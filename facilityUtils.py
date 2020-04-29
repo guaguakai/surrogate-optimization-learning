@@ -207,16 +207,20 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 1
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
                     p = jac - Q @ optimal_x
-                    # qp_solver = qpth.qp.QPFunction()
-                    qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
+                    qp_solver = qpth.qp.QPFunction()
+                    # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     x = qp_solver(Q, p, G, h, A, b)[0]
-                    if torch.norm(x.detach() - optimal_x) > 0.05:
-                        print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
-                        print(x, optimal_x)
-                        scipy_obj = getObjective(optimal_x, n, m, output, d, f)
-                        qp_obj    = getObjective(x, n, m, output, d, f)
-                        print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
-                        x = optimal_x
+                    # if torch.norm(x.detach() - optimal_x) > 0.05:
+                    #     # debugging message
+                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
+                    #     print('optimal x:', optimal_x)
+                    #     print('x:        ', x)
+                    #     scipy_obj = 0.5 * optimal_x @ Q @ optimal_x + p @ optimal_x # getObjective(optimal_x, n, m, output, d, f)
+                    #     qp_obj    = 0.5 * x @ Q @ x + p @ x # getObjective(x, n, m, output, d, f)
+                    #     print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
+                    #     print('constraint on optimal_x: Ax-b={}, Gx-h={}'.format(A @ optimal_x - b, G @ optimal_x - h))
+                    #     print('constraint on x:         Ax-b={}, Gx-h={}'.format(A @ x - b, G @ x - h))
+                    #     x = optimal_x
                 elif training_method == 'two-stage':
                     x = optimal_x
                 else:
