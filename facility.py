@@ -25,8 +25,8 @@ np.random.seed(SEED)
 random.seed(SEED)
 
 if __name__ == '__main__':
-    n, m = 5, 20 # n: # of facilities, m: # of customers
-    budget = 1
+    n, m = 20, 50 # n: # of facilities, m: # of customers
+    budget = 5
     sample_instance = generateInstance(n, m)
     sample_instance.budget = budget
     # sample_instance.c = None
@@ -37,8 +37,8 @@ if __name__ == '__main__':
     # LPSolver(instance)
 
     # training_method = 'two-stage'
-    # training_method = 'decision-focused'
-    training_method = 'surrogate'
+    training_method = 'decision-focused'
+    # training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
     lr = 0.001
@@ -76,15 +76,25 @@ if __name__ == '__main__':
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
     for epoch in range(-1, num_epochs):
-        if epoch == -1:
-            print('Not training in the first epoch...')
-            train_loss, train_obj, train_opt = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset.train, training_method=training_method, disable=True)
-        elif training_method == 'surrogate':
-            train_loss, train_obj, train_opt = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
+        if training_method == 'surrogate':
+            if epoch == -1:
+                print('Not training in the first epoch...')
+                train_loss, train_obj, train_opt = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset.train, training_method=training_method, disable=True)
+            else:
+                train_loss, train_obj, train_opt = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
+        elif training_method == 'decision-focused':
+            if epoch == -1:
+                print('Not training in the first epoch...')
+                train_loss, train_obj, train_opt = train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method, disable=True)
+            else:
+                train_loss, train_obj, train_opt = train_submodular(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
         else:
             raise ValueError('Not implemented')
         # validate(dataset.validate)
-        test_loss, test_obj, test_opt = surrogate_test_submodular(net, T, epoch, sample_instance, dataset.test)
+        if training_method == 'surrogate':
+            test_loss, test_obj, test_opt = surrogate_test_submodular(net, T, epoch, sample_instance, dataset.test)
+        else:
+            test_loss, test_obj, test_opt = test_submodular(net, epoch, sample_instance, dataset.test)
 
         train_loss_list.append(train_loss)
         train_obj_list.append(train_obj)

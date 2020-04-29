@@ -36,7 +36,8 @@ def generateInstance(n, m):
     #     G[e]['weight'] = np.linalg.norm(np.array(pos[e[0]]) - np.array(pos[e[1]]))
     # c = distance[:n,n:] # shipping cost per product
 
-    c = np.random.random((n,m))
+    c_prob = np.random.random((n,m)) * 0.2 # average 0.1 like
+    c = np.random.binomial(np.ones((n,m)).tolist(), c_prob)
     d = np.ones(m) # customer demand
     f = np.ones(n) # facility open cost
     # d = np.random.random(m) # customer demand
@@ -209,9 +210,9 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     # qp_solver = qpth.qp.QPFunction()
                     qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     x = qp_solver(Q, p, G, h, A, b)[0]
-                    if torch.norm(x.detach() - optimal_x) > 0.01:
-                        print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
-                        x = optimal_x
+                    # if torch.norm(x.detach() - optimal_x) > 0.01:
+                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
+                    #     x = optimal_x
                 elif training_method == 'two-stage':
                     x = optimal_x
                 else:
@@ -296,9 +297,9 @@ def surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_ins
                     # qp_solver = qpth.qp.QPFunction()
                     qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
-                    if torch.norm(y.detach() - optimal_y) > 1:
-                        print('incorrect solution due to high mismatch {}'.format(torch.norm(y.detach() - optimal_y)))
-                        y = optimal_y
+                    # if torch.norm(y.detach() - optimal_y) > 1:
+                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(y.detach() - optimal_y)))
+                    #     y = optimal_y
                     x = T @ y
                 elif training_method == 'two-stage':
                     optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
