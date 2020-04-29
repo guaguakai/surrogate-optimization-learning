@@ -295,6 +295,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             T = init_T.detach().clone()
             random_column = torch.randint(init_T.shape[1], [1])
             T[:,random_column] = init_T[:,random_column]
+
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
                     optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
@@ -348,14 +349,16 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     optimizer.step()
                 elif training_method == 'surrogate':
                     T_optimizer.zero_grad()
-                    print(init_T)
+                    T_optimizer.zero_grad()
+                    T_optimizer.zero_grad()
+                    T_optimizer.zero_grad()
                     (-objective).backward()
                     for parameter in net.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                    init_T.grad = torch.clamp(init_T.grad, min=-0.01, max=0.01)
                     optimizer.step()
                     T_optimizer.step()
                     init_T.data = normalize_matrix_positive(init_T.data)
-                    print(init_T)
                 else:
                     raise ValueError('Not implemented method')
             # except:

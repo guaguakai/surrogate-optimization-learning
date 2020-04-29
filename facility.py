@@ -41,13 +41,13 @@ if __name__ == '__main__':
     training_method = 'surrogate'
     num_instances = 200
     feature_size = 32
-    lr = 0.005
+    lr = 0.01
     dataset = generateDataset(n, m, num_instances, feature_size)
 
     A, b, G, h = createConstraintMatrix(m, n, budget)
 
     net = FacilityNN(input_shape=(n,feature_size), output_shape=(n,m))
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+    optimizer = torch.optim.SGD(net.parameters(), lr=lr)
 
     # surrogate setup
     if training_method == 'surrogate':
@@ -56,8 +56,8 @@ if __name__ == '__main__':
         T_size = 5
         init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
         T = torch.tensor(init_T, requires_grad=True)
-        T_lr = lr * 10
-        T_optimizer = torch.optim.Adam([T], lr=T_lr)
+        T_lr = lr
+        T_optimizer = torch.optim.SGD([T], lr=T_lr)
 
     optimize_result = getOptimalDecision(n, m, torch.Tensor(sample_instance.c), sample_instance.d, sample_instance.f, budget=budget) 
     optimal_x = torch.Tensor(optimize_result.x)
