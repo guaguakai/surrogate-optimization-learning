@@ -270,13 +270,13 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
     sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
-def surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', disable=False):
+def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', disable=False):
     net.train()
     if disable:
         net.eval()
     loss_fn = torch.nn.BCELoss()
     train_losses, train_objs, train_optimals = [], [], []
-    variable_size = T.shape[1]
+    variable_size = init_T.shape[1]
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
 
@@ -292,6 +292,10 @@ def surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_ins
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
+                    T = init_T.detach()
+                    random_column = torch.randint(init_T.shape[1], [1])
+                    T[:,random_column] = init_T[:,random_column]
+
                     optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
                     optimal_y = torch.Tensor(optimize_result.x).requires_grad_(True)
 
@@ -342,12 +346,16 @@ def surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_ins
                         parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
                     optimizer.step()
                 elif training_method == 'surrogate':
+                    print('surrogate backward')
+                    print(init_T)
                     (-objective).backward()
                     for parameter in net.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
                     optimizer.step()
                     T_optimizer.step()
-                    T.data = normalize_matrix_positive(T.data)
+                    init_T.data = normalize_matrix_positive(init_T.data)
+                    print(init_T)
+                    print('surrogate backward ends')
                 else:
                     raise ValueError('Not implemented method')
             except:
