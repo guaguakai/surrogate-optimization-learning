@@ -39,7 +39,7 @@ if __name__ == '__main__':
     # training_method = 'two-stage'
     # training_method = 'decision-focused'
     training_method = 'surrogate'
-    num_instances = 200
+    num_instances = 100
     feature_size = 32
     lr = 0.01
     dataset = generateDataset(n, m, num_instances, feature_size)
@@ -54,10 +54,11 @@ if __name__ == '__main__':
         # A, b, G, h = LPCreateSurrogateConstraintMatrix(m, n)
         variable_size = n
         T_size = 5
-        init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
+        init_T = torch.rand(variable_size, T_size)
+        # init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
         T = torch.tensor(init_T, requires_grad=True)
         T_lr = lr
-        T_optimizer = torch.optim.SGD([T], lr=T_lr)
+        T_optimizer = torch.optim.Adam([T], lr=T_lr)
 
     optimize_result = getOptimalDecision(n, m, torch.Tensor(sample_instance.c), sample_instance.d, sample_instance.f, budget=budget) 
     optimal_x = torch.Tensor(optimize_result.x)
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     num_epochs = 20
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
-    for epoch in range(0, num_epochs):
+    for epoch in range(-1, num_epochs):
         if training_method == 'surrogate':
             if epoch == -1:
                 print('Not training in the first epoch...')

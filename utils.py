@@ -28,6 +28,11 @@ def normalize_vector(s, max_value=1):
         s = s / s_sum * max_value
     return s
 
+def point_projection(x, T): # project x to the hyperplane x = {Ty}_y
+    y = torch.pinverse(T) @ x
+    newx = T @ y
+    return newx
+
 def projection(P, A, b): # P is the reparameterization matrix
     p_variable_size, batch_size = P.shape # reparameterization matrix
     constraint_size, variable_size = A.shape

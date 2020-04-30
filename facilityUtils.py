@@ -14,7 +14,7 @@ from gurobipy import *
 from types import SimpleNamespace
 
 from facilityNN import FacilityNN, FeatureNN
-from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
+from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection, point_projection
 from facilityDerivative import getObjective, getManualDerivative, getDerivative, getOptimalDecision, getHessian
 from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateManualDerivative, getSurrogateHessian, getSurrogateOptimalDecision
 
@@ -275,7 +275,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
     if disable:
         net.eval()
     loss_fn = torch.nn.BCELoss()
-    train_losses, train_objs, train_optimals = [], [], []
+    train_losses, train_objs, train_optimals, train_T_losses = [], [], [], []
     variable_size = init_T.shape[1]
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
@@ -288,25 +288,27 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             loss = loss_fn(outputs, labels)
 
             # decision-focused loss
-            objective_value_list, optimal_value_list = [], []
+            objective_value_list, optimal_value_list, T_loss_list = [], [], []
             batch_size = len(labels)
 
             # randomly select column to update
-            T = init_T.detach().clone()
-            random_column = torch.randint(init_T.shape[1], [1])
-            T[:,random_column] = init_T[:,random_column]
+            T = init_T
+            # T = init_T.detach().clone()
+            # random_column = torch.randint(init_T.shape[1], [1])
+            # T[:,random_column] = init_T[:,random_column]
 
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
-                    optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
+                    optimize_result = getSurrogateOptimalDecision(T, n, m, label, d, f, budget=budget) # end-to-end for T only TODO
+                    # optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget) # end-to-end for both T and net
                     optimal_y = torch.Tensor(optimize_result.x).requires_grad_(True)
 
                     newA, newb = A @ T, b
                     newG = torch.cat((G @ T, -torch.eye(variable_size)))
                     newh = torch.cat((h, torch.zeros(variable_size)))
 
-                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f) + torch.eye(len(optimal_y)) * 1
-                    jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
+                    Q = getSurrogateHessian(T, optimal_y, n, m, label, d, f).detach() + torch.eye(len(optimal_y)) * 0.1
+                    jac = -getSurrogateManualDerivative(T, optimal_y, n, m, label, d, f)
                     p = jac - Q @ optimal_y
                     qp_solver = qpth.qp.QPFunction()
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
@@ -327,16 +329,22 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
                 # ============= the real optimum =========
                 real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
+                real_optimal_x = torch.Tensor(real_optimize_result.x)
+
                 obj = getObjective(x, n, m, label, d, f)
+                projected_real_optimal_x = point_projection(real_optimal_x, T)
+                tmp_T_loss = torch.sum((projected_real_optimal_x - real_optimal_x) ** 2)
                 
                 objective_value_list.append(obj)
                 optimal_value_list.append(-real_optimize_result.fun) # TODO
-            objective = sum(objective_value_list) / batch_size
-            optimal   = sum(optimal_value_list) / batch_size
+                T_loss_list.append(tmp_T_loss)
+            objective  = sum(objective_value_list) / batch_size
+            optimal    = sum(optimal_value_list) / batch_size
+            T_loss     = sum(T_loss_list) / batch_size
             # print('objective', objective)
 
             optimizer.zero_grad()
-            if True: # try:
+            try:
                 if disable:
                     pass
                 elif training_method == 'two-stage':
@@ -349,31 +357,32 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     optimizer.step()
                 elif training_method == 'surrogate':
                     T_optimizer.zero_grad()
-                    T_optimizer.zero_grad()
-                    T_optimizer.zero_grad()
-                    T_optimizer.zero_grad()
                     (-objective).backward()
-                    for parameter in net.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
-                    init_T.grad = torch.clamp(init_T.grad, min=-0.01, max=0.01)
+                    # T_loss.backward() # TODO: minimizing reparameterization loss
+
+                    # for parameter in net.parameters():
+                    #     parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                    # init_T.grad = torch.clamp(init_T.grad, min=-0.01, max=0.01)
                     optimizer.step()
                     T_optimizer.step()
-                    init_T.data = normalize_matrix_positive(init_T.data)
+                    # init_T.data = normalize_matrix_positive(init_T.data)
                 else:
                     raise ValueError('Not implemented method')
-            # except:
-            #     pass
-            #     # print("no grad is backpropagated...")
+            except:
+                pass
+                print("Error! No grad is backpropagated...")
 
             train_losses.append(loss.item())
             train_objs.append(objective.item())
             train_optimals.append(optimal)
+            train_T_losses.append(T_loss.item())
 
-            average_loss = np.mean(train_losses)
-            average_obj = np.mean(train_objs)
-            average_opt = np.mean(train_optimals)
+            average_loss   = np.mean(train_losses)
+            average_obj    = np.mean(train_objs)
+            average_opt    = np.mean(train_optimals)
+            average_T_loss = np.mean(train_T_losses)
             # Print status
-            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', opt=f'{average_opt:.3f}')
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', opt=f'{average_opt:.3f}', T_loss=f'{average_T_loss:.3f}')
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
