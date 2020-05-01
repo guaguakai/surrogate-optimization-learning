@@ -1,6 +1,6 @@
 import torch
-from engine import Engine
-from utils import use_cuda
+from movie.engine import Engine
+from movie.utils import use_cuda
 
 
 class GMF(torch.nn.Module):

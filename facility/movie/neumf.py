@@ -1,8 +1,8 @@
 import torch
-from gmf import GMF
-from mlp import MLP
-from engine import Engine
-from utils import use_cuda, resume_checkpoint
+from movie.gmf import GMF
+from movie.mlp import MLP
+from movie.engine import Engine
+from movie.utils import use_cuda, resume_checkpoint
 
 
 class NeuMF(torch.nn.Module):
