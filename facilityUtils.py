@@ -299,7 +299,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
-                    optimize_result = getSurrogateOptimalDecision(T, n, m, label, d, f, budget=budget) # end-to-end for T only TODO
+                    optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget) # end-to-end for T only TODO
                     # optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget) # end-to-end for both T and net
                     optimal_y = torch.Tensor(optimize_result.x).requires_grad_(True)
 
@@ -307,8 +307,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     newG = torch.cat((G @ T, -torch.eye(variable_size)))
                     newh = torch.cat((h, torch.zeros(variable_size)))
 
-                    Q = getSurrogateHessian(T, optimal_y, n, m, label, d, f).detach() + torch.eye(len(optimal_y)) * 0.1
-                    jac = -getSurrogateManualDerivative(T, optimal_y, n, m, label, d, f)
+                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 0.1
+                    jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
                     qp_solver = qpth.qp.QPFunction()
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
@@ -321,9 +321,6 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
                         y = optimal_y
                     x = T @ y
-                elif training_method == 'two-stage':
-                    optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
-                    x = torch.Tensor(optimize_result.x)
                 else:
                     raise ValueError('Not implemented method!')
 
@@ -360,12 +357,12 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     (-objective).backward()
                     # T_loss.backward() # TODO: minimizing reparameterization loss
 
-                    # for parameter in net.parameters():
-                    #     parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
-                    # init_T.grad = torch.clamp(init_T.grad, min=-0.01, max=0.01)
+                    for parameter in net.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                    init_T.grad = torch.clamp(init_T.grad, min=-0.01, max=0.01)
                     optimizer.step()
                     T_optimizer.step()
-                    # init_T.data = normalize_matrix_positive(init_T.data)
+                    init_T.data = normalize_matrix_positive(init_T.data)
                 else:
                     raise ValueError('Not implemented method')
             except:

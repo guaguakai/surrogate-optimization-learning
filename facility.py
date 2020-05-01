@@ -53,9 +53,9 @@ if __name__ == '__main__':
     if training_method == 'surrogate':
         # A, b, G, h = LPCreateSurrogateConstraintMatrix(m, n)
         variable_size = n
-        T_size = 5
-        init_T = torch.rand(variable_size, T_size)
-        # init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
+        T_size = 8
+        # init_T = normalize_matrix(torch.rand(variable_size, T_size))
+        init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
         T = torch.tensor(init_T, requires_grad=True)
         T_lr = lr
         T_optimizer = torch.optim.Adam([T], lr=T_lr)
