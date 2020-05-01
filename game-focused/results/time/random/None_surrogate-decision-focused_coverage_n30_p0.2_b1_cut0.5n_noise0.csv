@@ -1,0 +1,4 @@
+Random seed, 123, training time, 1065.2513065338135, optimization time, 0
+Random seed, 123, training time, 40221.33570456505, optimization time, 0
+Random seed, 100, forward time, 43.05947923660278, qp time, 44.27677297592163, backward_time, 10.614189147949219
+Random seed, 100, forward time, 47.62940788269043, qp time, 54.99096632003784, backward_time, 13.198942422866821
