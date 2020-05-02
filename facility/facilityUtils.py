@@ -184,7 +184,8 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
     net.train()
     if disable:
         net.eval()
-    loss_fn = torch.nn.BCELoss()
+    # loss_fn = torch.nn.BCELoss()
+    loss_fn = torch.nn.MSELoss()
     train_losses, train_objs, train_optimals = [], [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
@@ -274,7 +275,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
     net.train()
     if disable:
         net.eval()
-    loss_fn = torch.nn.BCELoss()
+    # loss_fn = torch.nn.BCELoss()
+    loss_fn = torch.nn.MSELoss()
     train_losses, train_objs, train_optimals, train_T_losses = [], [], [], []
     variable_size = init_T.shape[1]
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
@@ -390,8 +392,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
 def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
     net.eval()
-    loss_fn = torch.nn.BCELoss()
-    # loss_fn = torch.nn.MSELoss()
+    # loss_fn = torch.nn.BCELoss()
+    loss_fn = torch.nn.MSELoss()
     test_losses, test_objs, test_optimals = [], [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
@@ -437,7 +439,8 @@ def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
 
 def surrogate_test_submodular(net, T, epoch, sample_instance, dataset, device='cpu'):
     net.eval()
-    loss_fn = torch.nn.BCELoss()
+    # loss_fn = torch.nn.BCELoss()
+    loss_fn = torch.nn.MSELoss()
     test_losses, test_objs, test_optimals = [], [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)

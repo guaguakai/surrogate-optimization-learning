@@ -48,6 +48,20 @@ class MLP(torch.nn.Module):
         self.embedding_user.weight.data = gmf_model.embedding_user.weight.data
         self.embedding_item.weight.data = gmf_model.embedding_item.weight.data
 
+def MLPWrapper(MLP):
+    def forward(self, features):
+        user_indices, item_indices = features[0], features[1]
+        user_embedding = self.embedding_user(user_indices)
+        item_embedding = self.embedding_item(item_indices)
+        vector = torch.cat([user_embedding, item_embedding], dim=-1)  # the concat latent vector
+        for idx, _ in enumerate(range(len(self.fc_layers))):
+            vector = self.fc_layers[idx](vector)
+            vector = torch.nn.ReLU()(vector)
+            # vector = torch.nn.BatchNorm1d()(vector)
+            # vector = torch.nn.Dropout(p=0.5)(vector)
+        logits = self.affine_output(vector)
+        rating = self.logistic(logits)
+        return rating
 
 class MLPEngine(Engine):
     """Engine for training & evaluating GMF model"""

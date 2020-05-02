@@ -27,6 +27,18 @@ class GMF(torch.nn.Module):
     def init_weight(self):
         pass
 
+class GMFWrapper(GMF):
+    def forward(self, features):
+        user_dict, item_dict, user_indices, item_indices = features.getData()
+        c = torch.zeros(1, len(item_dict), len(user_dict))
+        user_embedding = self.embedding_user(user_indices)
+        item_embedding = self.embedding_item(item_indices)
+        element_product = torch.mul(user_embedding, item_embedding)
+        logits = self.affine_output(element_product)
+        ratings = self.logistic(logits)
+        for user_id, item_id, rating in zip(user_indices, item_indices, ratings):
+            c[0, item_dict[item_id.item()], user_dict[user_id.item()]] = rating
+        return c
 
 class GMFEngine(Engine):
     """Engine for training & evaluating GMF model"""

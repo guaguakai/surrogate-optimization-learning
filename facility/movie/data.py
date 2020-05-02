@@ -1,5 +1,6 @@
 import torch
 import random
+import numpy as np
 import pandas as pd
 from copy import deepcopy
 from torch.utils.data import DataLoader, Dataset
@@ -25,11 +26,23 @@ class UserItemRatingDataset(Dataset):
     def __len__(self):
         return self.user_tensor.size(0)
 
+class UserItemData:
+    def __init__(self, user_dict, item_dict, users, items):
+        self.user_dict = user_dict
+        self.item_dict = item_dict
+        self.users     = users
+        self.items     = items
+
+    def getData(self):
+        return self.user_dict, self.item_dict, self.users, self.items
+
+    def to(self, device):
+        return UserItemData(self.user_dict, self.item_dict, self.users.to(device), self.items.to(device))
 
 class SampleGenerator(object):
     """Construct dataset for NCF"""
 
-    def __init__(self, ratings):
+    def __init__(self, ratings, item_chunk_size=100, user_chunk_size=200):
         """
         args:
             ratings: pd.DataFrame, which contains 4 columns = ['userId', 'itemId', 'rating', 'timestamp']
@@ -40,10 +53,24 @@ class SampleGenerator(object):
 
         self.ratings = ratings
         # explicit feedback using _normalize and implicit using _binarize
-        # self.preprocess_ratings = self._normalize(ratings)
-        self.preprocess_ratings = self._binarize(ratings)
+        self.preprocess_ratings = self._normalize(ratings)
+        # self.preprocess_ratings = self._binarize(ratings)
         self.user_pool = set(self.ratings['userId'].unique())
         self.item_pool = set(self.ratings['itemId'].unique())
+
+        # splitting training and testing item lists
+        # self.user_list, self.item_list = list(self.user_pool), list(self.item_pool)
+        self.user_list, self.item_list = list(self.user_pool)[:200], list(self.item_pool)[:500]
+
+        random.shuffle(self.user_list)
+        random.shuffle(self.item_list)
+
+        self.item_chunks = [self.item_list[i*item_chunk_size: (i+1)*item_chunk_size] for i in range((len(self.item_list)) // item_chunk_size)] # ignoring the remaining
+        self.user_chunks = [self.user_list[i*user_chunk_size: (i+1)*user_chunk_size] for i in range((len(self.user_list)) // user_chunk_size)] # ignoring the remaining
+
+        self.test_item_indices = np.random.choice(len(self.item_chunks), size=int(0.2*len(self.item_chunks)), replace=False)
+        self.test_user_indices = np.random.choice(len(self.user_chunks), size=int(0.2*len(self.user_chunks)), replace=False)
+
         # create negative item samples for NCF learning
         self.negatives = self._sample_negative(ratings)
         self.train_ratings, self.test_ratings = self._split_loo(self.preprocess_ratings)
@@ -94,6 +121,45 @@ class SampleGenerator(object):
                                         item_tensor=torch.LongTensor(items),
                                         target_tensor=torch.FloatTensor(ratings))
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    def instance_a_train_loader_chunk(self, num_negatives):
+        """instance train loader for one training epoch"""
+        train_list, test_list = [], []
+
+        all_ratings = pd.merge(self.ratings, self.negatives[['userId', 'negative_items']], on='userId')
+        all_ratings['negatives'] = all_ratings['negative_items'].apply(lambda x: random.sample(x, num_negatives))
+        for userset_id, userset in enumerate(self.user_chunks):
+            for itemset_id, itemset in enumerate(self.item_chunks):
+                users, items, ratings = [], [], []
+                rating_chunk = all_ratings[(all_ratings['userId'].isin(userset)) & (all_ratings['itemId'].isin(itemset))]
+                print('truncated size:', len(rating_chunk))
+                for row in rating_chunk.itertuples():
+                    users.append(int(row.userId))
+                    items.append(int(row.itemId))
+                    ratings.append(float(row.rating))
+
+                    negative_items = random.sample(set(row.negative_items).intersection(set(itemset)), num_negatives)
+                    for negative_item in negative_items:
+                        users.append(int(row.userId))
+                        items.append(int(negative_item))
+                        ratings.append(float(0))  # negative samples get 0 rating
+                indices = list(range(len(users)))
+
+                user_dict = {k: v for v, k in enumerate(userset)}
+                item_dict = {k: v for v, k in enumerate(itemset)}
+                c_target  = torch.zeros(1, len(itemset), len(userset)) 
+                for user_id, item_id, rating in zip(users, items, ratings):
+                    c_target[0, item_dict[item_id], user_dict[user_id]] = rating
+                random.shuffle(indices)
+                users, items = torch.LongTensor(users), torch.LongTensor(items)
+
+                instance_data = (UserItemData(user_dict, item_dict, users[indices], items[indices]), c_target)
+                if userset_id in self.test_user_indices and itemset_id in self.test_item_indices:
+                    test_list.append(instance_data)
+                else:
+                    train_list.append(instance_data)
+
+        return train_list, test_list
 
     @property
     def evaluate_data(self):
