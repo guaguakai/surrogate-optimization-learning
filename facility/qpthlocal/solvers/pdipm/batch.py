@@ -76,13 +76,13 @@ def forward(Q, p, G, h, A, b, Q_LU, S_LU, R, eps=1e-12, verbose=0, notImprovedLi
     # Make all of the slack variables >= 1.
     M = torch.min(s, 1)[0]
     M = M.view(M.size(0), 1).repeat(1, nineq)
-    I = M < 0
+    I = M <= 0 # TODO
     s[I] -= M[I] - 1
 
     # Make all of the inequality dual variables >= 1.
     M = torch.min(z, 1)[0]
     M = M.view(M.size(0), 1).repeat(1, nineq)
-    I = M < 0
+    I = M < 0 # TODO
     z[I] -= M[I] - 1
 
     best = {'resids': None, 'x': None, 'z': None, 's': None, 'y': None}
@@ -106,10 +106,10 @@ def forward(Q, p, G, h, A, b, Q_LU, S_LU, R, eps=1e-12, verbose=0, notImprovedLi
         resids = pri_resid + dual_resid + nineq * mu
 
         d = z / s
-        try:
+        if True:
             factor_kkt(S_LU, R, d)
-        except:
-            return best['x'], best['y'], best['z'], best['s']
+        # except:
+        #     return best['x'], best['y'], best['z'], best['s']
 
         if verbose == 1:
             print('iter: {}, pri_resid: {:.5e}, dual_resid: {:.5e}, mu: {:.5e}'.format(

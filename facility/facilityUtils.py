@@ -282,7 +282,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.MSELoss()
     train_losses, train_objs, train_optimals, train_T_losses = [], [], [], []
-    variable_size = init_T.shape[1]
+    x_size, variable_size = init_T.shape
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
 
@@ -311,11 +311,13 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     newA, newb = A @ T, b
                     newG = torch.cat((G @ T, -torch.eye(variable_size)))
                     newh = torch.cat((h, torch.zeros(variable_size)))
+                    # newG = torch.cat((G @ T, - T, T)) # torch.eye(variable_size)))
+                    # newh = torch.cat((h, torch.zeros(x_size), torch.ones(x_size)))
 
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
                     jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
-                    qp_solver = qpth.qp.QPFunction() # TODO unknown bug
+                    qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
                     if torch.norm(y.detach() - optimal_y) > 0.05:
