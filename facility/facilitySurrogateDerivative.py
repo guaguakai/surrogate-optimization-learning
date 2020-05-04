@@ -37,7 +37,8 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None):
     bounds = [(0,np.inf)]*variable_size
     eq_fn   = lambda y: budget - sum( T.detach().numpy() @ y)
     ineq_fn = lambda y: T.detach().numpy() @ y
-    constraints = [{'type': 'eq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}, {'type': 'ineq', 'fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)}]
+    constraints = [{'type': 'eq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
+    # constraints = [{'type': 'eq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}, {'type': 'ineq', 'fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)}]
     options = {'maxiter': 100, 'eps':1e-12}
 
     optimize_result = scipy.optimize.minimize(getObj, initial_y, method='SLSQP', jac=getJac, constraints=constraints, options=options, bounds=bounds)

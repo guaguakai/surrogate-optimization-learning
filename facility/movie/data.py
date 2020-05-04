@@ -60,7 +60,7 @@ class SampleGenerator(object):
 
         # splitting training and testing item lists
         # self.user_list, self.item_list = list(self.user_pool), list(self.item_pool)
-        self.user_list, self.item_list = list(self.user_pool)[:200], list(self.item_pool)[:500]
+        self.user_list, self.item_list = list(self.user_pool)[:500], list(self.item_pool)[:500]
 
         random.shuffle(self.user_list)
         random.shuffle(self.item_list)
@@ -132,13 +132,13 @@ class SampleGenerator(object):
             for itemset_id, itemset in enumerate(self.item_chunks):
                 users, items, ratings = [], [], []
                 rating_chunk = all_ratings[(all_ratings['userId'].isin(userset)) & (all_ratings['itemId'].isin(itemset))]
-                print('truncated size:', len(rating_chunk))
                 for row in rating_chunk.itertuples():
                     users.append(int(row.userId))
                     items.append(int(row.itemId))
                     ratings.append(float(row.rating))
 
-                    negative_items = random.sample(set(row.negative_items).intersection(set(itemset)), num_negatives)
+                    valid_negatives = set(row.negative_items).intersection(set(itemset))
+                    negative_items = random.sample(valid_negatives, min(num_negatives, len(valid_negatives)))
                     for negative_item in negative_items:
                         users.append(int(row.userId))
                         items.append(int(negative_item))

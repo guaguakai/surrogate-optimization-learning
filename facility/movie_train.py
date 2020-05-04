@@ -60,11 +60,9 @@ if __name__ == '__main__':
     # =============== Learning setting ==============
     budget = 5
 
-    training_method = 'two-stage'
+    # training_method = 'two-stage'
     # training_method = 'decision-focused'
-    # training_method = 'surrogate'
-    num_instances = 100
-    feature_size = 32
+    training_method = 'surrogate'
     lr = 0.01
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
@@ -75,7 +73,7 @@ if __name__ == '__main__':
     if training_method == 'surrogate':
         # A, b, G, h = LPCreateSurrogateConstraintMatrix(m, n)
         variable_size = n
-        T_size = 8
+        T_size = 5
         # init_T = normalize_matrix(torch.rand(variable_size, T_size))
         init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
         T = torch.tensor(init_T, requires_grad=True)
@@ -85,7 +83,7 @@ if __name__ == '__main__':
     num_epochs = 20
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
-    for epoch in range(-1, num_epochs):
+    for epoch in range(0, num_epochs):
         if training_method == 'surrogate':
             if epoch == -1:
                 print('Not training in the first epoch...')
@@ -106,6 +104,8 @@ if __name__ == '__main__':
         else:
             test_loss, test_obj, test_opt = test_submodular(net, epoch, sample_instance, test_dataset)
 
+        random.shuffle(train_dataset)
+
         train_loss_list.append(train_loss)
         train_obj_list.append(train_obj)
         train_opt_list.append(train_opt)
@@ -113,12 +113,13 @@ if __name__ == '__main__':
         test_obj_list.append(test_obj)
         test_opt_list.append(test_opt)
 
-    f_output = open("movie_results/{}.csv".format(training_method), 'w')
-    f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
-    f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
-    f_output.write('training opt,'  + ','.join([str(x) for x in train_opt_list])  + '\n')
-    f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
-    f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
-    f_output.write('testing opt,'   + ','.join([str(x) for x in test_opt_list])   + '\n')
+        # record the data every epoch
+        f_output = open("movie_results/{}.csv".format(training_method), 'w')
+        f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
+        f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
+        f_output.write('training opt,'  + ','.join([str(x) for x in train_opt_list])  + '\n')
+        f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
+        f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
+        f_output.write('testing opt,'   + ','.join([str(x) for x in test_opt_list])   + '\n')
 
-    f_output.close()
+        f_output.close()
