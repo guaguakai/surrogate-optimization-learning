@@ -20,7 +20,7 @@ from utils import normalize_matrix, normalize_matrix_positive, normalize_vector,
 
 from movie.gmf import GMFWrapper
 from movie.mlp import MLPWrapper
-from movie.neumf import NeuMF
+from movie.neumf import NeuMFWrapper
 from movie.data import SampleGenerator
 
 # Random Seed Initialization
@@ -73,9 +73,9 @@ if __name__ == '__main__':
     # ================= Model setup =================
     from config import gmf_config, mlp_config, neumf_config
     config = gmf_config
-    net = GMFWrapper(config=config)
-    # mlp = MLP(config=mlp_config)
-    # neumf = NeuMF(config=neumf_config)
+    # net = GMFWrapper(config=config)
+    # net = MLPWrapper(config=mlp_config)
+    net = NeuMFWrapper(config=neumf_config)
 
     # ============ DataLoader for training ==========
     n, m = args.n, args.m # n: # of facilities or movies, m: # of customers or users

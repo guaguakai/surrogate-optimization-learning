@@ -73,6 +73,32 @@ class NeuMF(torch.nn.Module):
         self.affine_output.bias.data = 0.5 * (mlp_model.affine_output.bias.data + gmf_model.affine_output.bias.data)
 
 
+class NeuMFWrapper(GMF):
+    def forward(self, features):
+        user_dict, item_dict, user_indices, item_indices = features.getData()
+        c = torch.zeros(1, len(item_dict), len(user_dict))
+
+        user_embedding_mlp = self.embedding_user_mlp(user_indices)
+        item_embedding_mlp = self.embedding_item_mlp(item_indices)
+        user_embedding_mf = self.embedding_user_mf(user_indices)
+        item_embedding_mf = self.embedding_item_mf(item_indices)
+
+        mlp_vector = torch.cat([user_embedding_mlp, item_embedding_mlp], dim=-1)  # the concat latent vector
+        mf_vector =torch.mul(user_embedding_mf, item_embedding_mf)
+
+        for idx, _ in enumerate(range(len(self.fc_layers))):
+            mlp_vector = self.fc_layers[idx](mlp_vector)
+            mlp_vector = torch.nn.ReLU()(mlp_vector)
+
+        vector = torch.cat([mlp_vector, mf_vector], dim=-1)
+        logits = self.affine_output(vector)
+        rating = self.logistic(logits)
+
+        for user_id, item_id, rating in zip(user_indices, item_indices, ratings):
+            c[0, item_dict[item_id.item()], user_dict[user_id.item()]] = rating
+        return c
+
+
 class NeuMFEngine(Engine):
     """Engine for training & evaluating GMF model"""
     def __init__(self, config):

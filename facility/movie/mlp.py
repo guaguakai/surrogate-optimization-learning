@@ -50,7 +50,9 @@ class MLP(torch.nn.Module):
 
 def MLPWrapper(MLP):
     def forward(self, features):
-        user_indices, item_indices = features[0], features[1]
+        user_dict, item_dict, user_indices, item_indices = features.getData()
+        c = torch.zeros(1, len(item_dict), len(user_dict))
+
         user_embedding = self.embedding_user(user_indices)
         item_embedding = self.embedding_item(item_indices)
         vector = torch.cat([user_embedding, item_embedding], dim=-1)  # the concat latent vector
@@ -61,7 +63,10 @@ def MLPWrapper(MLP):
             # vector = torch.nn.Dropout(p=0.5)(vector)
         logits = self.affine_output(vector)
         rating = self.logistic(logits)
-        return rating
+
+        for user_id, item_id, rating in zip(user_indices, item_indices, ratings):
+            c[0, item_dict[item_id.item()], user_dict[user_id.item()]] = rating
+        return c
 
 class MLPEngine(Engine):
     """Engine for training & evaluating GMF model"""
