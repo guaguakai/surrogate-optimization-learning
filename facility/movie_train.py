@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import qpth
 import random
+import argparse
 import torch
 import torch.utils.data as data_utils
 from torch.utils.data.sampler import SubsetRandomSampler
@@ -30,6 +31,30 @@ np.random.seed(SEED)
 random.seed(SEED)
 
 if __name__ == '__main__':
+    # ==================== Parser setting ==========================
+    parser = argparse.ArgumentParser(description='GCN Interdiction')
+    parser.add_argument('--filepath', type=str, default='movie_results/', help='filename under folder results')
+    parser.add_argument('--method', type=int, default=0, help='0: two-stage, 1: decision-focused, 2: surrogate-decision-focused')
+    parser.add_argument('--T-size', type=int, default=10, help='the size of reparameterization metrix')
+    parser.add_argument('--epochs', type=int, default=20, help='number of training epochs')
+    parser.add_argument('--budget', type=int, default=20, help='budget')
+    parser.add_argument('--n', type=int, default=50, help='number of items')
+    parser.add_argument('--m', type=int, default=50, help='number of users')
+    parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
+
+    args = parser.parse_args()
+    method_id = args.method
+    if method_id == 0:
+        training_method = 'two-stage'
+    elif method_id == 1:
+        training_method = 'decision-focused'
+    elif method_id == 2:
+        training_method = 'surrogate'
+    else:
+        raise ValueError('Not implemented methods')
+    print("Training method: {}".format(training_method))
+
+    filepath = args.filepath
 
     # ============= Loading Movie Data =============
     ml1m_dir = 'data/ml-1m/ratings.dat'
@@ -53,17 +78,14 @@ if __name__ == '__main__':
     # neumf = NeuMF(config=neumf_config)
 
     # ============ DataLoader for training ==========
-    n, m = 20, 50 # n: # of facilities or movies, m: # of customers or users
+    n, m = args.n, args.m # n: # of facilities or movies, m: # of customers or users
+    num_epochs = args.epochs
     sample_generator = SampleGenerator(ratings=ml1m_rating, item_chunk_size=n, user_chunk_size=m)
     train_dataset, test_dataset = sample_generator.instance_a_train_loader_chunk(num_negatives=config['num_negative'])
 
     # =============== Learning setting ==============
-    budget = 5
-
-    # training_method = 'two-stage'
-    # training_method = 'decision-focused'
-    training_method = 'surrogate'
-    lr = 0.01
+    budget = args.budget
+    lr = args.lr
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
     sample_instance = SimpleNamespace(n=n, m=m, d=2*np.ones(m), f=np.ones(n), budget=budget) # dummy sample instance that is used to store the given n, m, d, f 
@@ -73,14 +95,13 @@ if __name__ == '__main__':
     if training_method == 'surrogate':
         # A, b, G, h = LPCreateSurrogateConstraintMatrix(m, n)
         variable_size = n
-        T_size = 20
+        T_size = args.T_size
         # init_T = normalize_matrix(torch.rand(variable_size, T_size))
         init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
         T = torch.tensor(init_T, requires_grad=True)
         T_lr = lr
         T_optimizer = torch.optim.Adam([T], lr=T_lr)
 
-    num_epochs = 20
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
     for epoch in range(-1, num_epochs):
@@ -114,7 +135,7 @@ if __name__ == '__main__':
         test_opt_list.append(test_opt)
 
         # record the data every epoch
-        f_output = open("movie_results/{}.csv".format(training_method), 'w')
+        f_output = open(filepath + "{}.csv".format(training_method), 'w')
         f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
         f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
         f_output.write('training opt,'  + ','.join([str(x) for x in train_opt_list])  + '\n')

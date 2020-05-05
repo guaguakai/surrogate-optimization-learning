@@ -60,7 +60,7 @@ class SampleGenerator(object):
 
         # splitting training and testing item lists
         # self.user_list, self.item_list = list(self.user_pool), list(self.item_pool)
-        self.user_list, self.item_list = list(self.user_pool)[:500], list(self.item_pool)[:500]
+        self.user_list, self.item_list = list(self.user_pool)[:1000], list(self.item_pool)[:200]
 
         random.shuffle(self.user_list)
         random.shuffle(self.item_list)
@@ -68,7 +68,7 @@ class SampleGenerator(object):
         self.item_chunks = [self.item_list[i*item_chunk_size: (i+1)*item_chunk_size] for i in range((len(self.item_list)) // item_chunk_size)] # ignoring the remaining
         self.user_chunks = [self.user_list[i*user_chunk_size: (i+1)*user_chunk_size] for i in range((len(self.user_list)) // user_chunk_size)] # ignoring the remaining
 
-        self.test_item_indices = np.random.choice(len(self.item_chunks), size=int(0.2*len(self.item_chunks)), replace=False)
+        self.test_item_indices = np.random.choice(len(self.item_chunks), size=int(0.5*len(self.item_chunks)), replace=False)
         self.test_user_indices = np.random.choice(len(self.user_chunks), size=int(0.2*len(self.user_chunks)), replace=False)
 
         # create negative item samples for NCF learning

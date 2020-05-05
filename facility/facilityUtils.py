@@ -298,10 +298,10 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             batch_size = len(labels)
 
             # randomly select column to update
-            T = init_T
-            # T = init_T.detach().clone()
-            # random_column = torch.randint(init_T.shape[1], [1])
-            # T[:,random_column] = init_T[:,random_column]
+            # T = init_T
+            T = init_T.detach().clone()
+            random_column = torch.randint(init_T.shape[1], [1])
+            T[:,random_column] = init_T[:,random_column]
 
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
