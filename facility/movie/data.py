@@ -60,7 +60,7 @@ class SampleGenerator(object):
 
         # splitting training and testing item lists
         # self.user_list, self.item_list = list(self.user_pool), list(self.item_pool)
-        self.user_list, self.item_list = list(self.user_pool)[:1000], list(self.item_pool)[:200]
+        self.user_list, self.item_list = list(self.user_pool), list(self.item_pool)[:200]
 
         random.shuffle(self.user_list)
         random.shuffle(self.item_list)

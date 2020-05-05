@@ -48,7 +48,7 @@ class MLP(torch.nn.Module):
         self.embedding_user.weight.data = gmf_model.embedding_user.weight.data
         self.embedding_item.weight.data = gmf_model.embedding_item.weight.data
 
-def MLPWrapper(MLP):
+class MLPWrapper(MLP):
     def forward(self, features):
         user_dict, item_dict, user_indices, item_indices = features.getData()
         c = torch.zeros(1, len(item_dict), len(user_dict))
@@ -62,7 +62,7 @@ def MLPWrapper(MLP):
             # vector = torch.nn.BatchNorm1d()(vector)
             # vector = torch.nn.Dropout(p=0.5)(vector)
         logits = self.affine_output(vector)
-        rating = self.logistic(logits)
+        ratings = self.logistic(logits)
 
         for user_id, item_id, rating in zip(user_indices, item_indices, ratings):
             c[0, item_dict[item_id.item()], user_dict[user_id.item()]] = rating

@@ -92,7 +92,7 @@ class NeuMFWrapper(GMF):
 
         vector = torch.cat([mlp_vector, mf_vector], dim=-1)
         logits = self.affine_output(vector)
-        rating = self.logistic(logits)
+        ratings = self.logistic(logits)
 
         for user_id, item_id, rating in zip(user_indices, item_indices, ratings):
             c[0, item_dict[item_id.item()], user_dict[user_id.item()]] = rating
