@@ -63,7 +63,7 @@ if __name__ == '__main__':
     # training_method = 'two-stage'
     # training_method = 'decision-focused'
     training_method = 'surrogate'
-    lr = 0.001
+    lr = 0.01
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
     sample_instance = SimpleNamespace(n=n, m=m, d=2*np.ones(m), f=np.ones(n), budget=budget) # dummy sample instance that is used to store the given n, m, d, f 
@@ -73,14 +73,14 @@ if __name__ == '__main__':
     if training_method == 'surrogate':
         # A, b, G, h = LPCreateSurrogateConstraintMatrix(m, n)
         variable_size = n
-        T_size = 10
+        T_size = 20
         # init_T = normalize_matrix(torch.rand(variable_size, T_size))
         init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
         T = torch.tensor(init_T, requires_grad=True)
         T_lr = lr
         T_optimizer = torch.optim.Adam([T], lr=T_lr)
 
-    num_epochs = 100
+    num_epochs = 20
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
     for epoch in range(-1, num_epochs):
