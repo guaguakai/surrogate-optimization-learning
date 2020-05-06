@@ -1,7 +1,7 @@
 import torch
 from movie.engine import Engine
 from movie.utils import use_cuda
-
+from movie.feature2embedding import Feature2Embedding
 
 class GMF(torch.nn.Module):
     def __init__(self, config):
@@ -10,14 +10,14 @@ class GMF(torch.nn.Module):
         self.num_items = config['num_items']
         self.latent_dim = config['latent_dim']
 
-        self.embedding_user = torch.nn.Embedding(num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+        self.embedding_user_model = Feature2Embedding(output_size=self.latent_dim)
         self.embedding_item = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim)
 
         self.affine_output = torch.nn.Linear(in_features=self.latent_dim, out_features=1)
         self.logistic = torch.nn.Sigmoid()
 
-    def forward(self, user_indices, item_indices):
-        user_embedding = self.embedding_user(user_indices)
+    def forward(self, user_features, item_indices):
+        user_embedding = self.embedding_user_model(user_features)
         item_embedding = self.embedding_item(item_indices)
         element_product = torch.mul(user_embedding, item_embedding)
         logits = self.affine_output(element_product)
@@ -29,9 +29,9 @@ class GMF(torch.nn.Module):
 
 class GMFWrapper(GMF):
     def forward(self, features):
-        user_dict, item_dict, user_indices, item_indices = features.getData()
+        user_dict, item_dict, user_indices, item_indices, user_features = features.getData()
         c = torch.zeros(1, len(item_dict), len(user_dict))
-        user_embedding = self.embedding_user(user_indices)
+        user_embedding = self.embedding_user_model(user_features)
         item_embedding = self.embedding_item(item_indices)
         element_product = torch.mul(user_embedding, item_embedding)
         logits = self.affine_output(element_product)

@@ -2,6 +2,7 @@ import torch
 from movie.gmf import GMF
 from movie.engine import Engine
 from movie.utils import use_cuda, resume_checkpoint
+from movie.feature2embedding import Feature2Embedding
 
 
 class MLP(torch.nn.Module):
@@ -12,7 +13,8 @@ class MLP(torch.nn.Module):
         self.num_items = config['num_items']
         self.latent_dim = config['latent_dim']
 
-        self.embedding_user = torch.nn.Embedding(num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+        # self.embedding_user = torch.nn.Embedding(num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+        self.embedding_user_model = Feature2Embedding(output_size=self.latent_dim)
         self.embedding_item = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim)
 
         self.fc_layers = torch.nn.ModuleList()
@@ -22,8 +24,8 @@ class MLP(torch.nn.Module):
         self.affine_output = torch.nn.Linear(in_features=config['layers'][-1], out_features=1)
         self.logistic = torch.nn.Sigmoid()
 
-    def forward(self, user_indices, item_indices):
-        user_embedding = self.embedding_user(user_indices)
+    def forward(self, user_features, item_indices):
+        user_embedding = self.embedding_user_model(user_features)
         item_embedding = self.embedding_item(item_indices)
         vector = torch.cat([user_embedding, item_embedding], dim=-1)  # the concat latent vector
         for idx, _ in enumerate(range(len(self.fc_layers))):
@@ -50,10 +52,10 @@ class MLP(torch.nn.Module):
 
 class MLPWrapper(MLP):
     def forward(self, features):
-        user_dict, item_dict, user_indices, item_indices = features.getData()
+        user_dict, item_dict, user_indices, item_indices, user_features = features.getData()
         c = torch.zeros(1, len(item_dict), len(user_dict))
 
-        user_embedding = self.embedding_user(user_indices)
+        user_embedding = self.embedding_user_model(user_features)
         item_embedding = self.embedding_item(item_indices)
         vector = torch.cat([user_embedding, item_embedding], dim=-1)  # the concat latent vector
         for idx, _ in enumerate(range(len(self.fc_layers))):

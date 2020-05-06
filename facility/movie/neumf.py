@@ -3,7 +3,7 @@ from movie.gmf import GMF
 from movie.mlp import MLP
 from movie.engine import Engine
 from movie.utils import use_cuda, resume_checkpoint
-
+from movie.feature2embedding import Feature2Embedding
 
 class NeuMF(torch.nn.Module):
     def __init__(self, config):
@@ -14,9 +14,9 @@ class NeuMF(torch.nn.Module):
         self.latent_dim_mf = config['latent_dim_mf']
         self.latent_dim_mlp = config['latent_dim_mlp']
 
-        self.embedding_user_mlp = torch.nn.Embedding(num_embeddings=self.num_users, embedding_dim=self.latent_dim_mlp)
+        self.embedding_user_mlp = Feature2Embedding(output_size=self.latent_dim_mlp)
         self.embedding_item_mlp = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim_mlp)
-        self.embedding_user_mf = torch.nn.Embedding(num_embeddings=self.num_users, embedding_dim=self.latent_dim_mf)
+        self.embedding_user_mf = Feature2Embedding(output_size=self.latent_dim_mf)
         self.embedding_item_mf = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim_mf)
 
         self.fc_layers = torch.nn.ModuleList()
@@ -26,10 +26,10 @@ class NeuMF(torch.nn.Module):
         self.affine_output = torch.nn.Linear(in_features=config['layers'][-1] + config['latent_dim_mf'], out_features=1)
         self.logistic = torch.nn.Sigmoid()
 
-    def forward(self, user_indices, item_indices):
-        user_embedding_mlp = self.embedding_user_mlp(user_indices)
+    def forward(self, user_features, item_indices):
+        user_embedding_mlp = self.embedding_user_mlp(user_features)
         item_embedding_mlp = self.embedding_item_mlp(item_indices)
-        user_embedding_mf = self.embedding_user_mf(user_indices)
+        user_embedding_mf = self.embedding_user_mf(user_features)
         item_embedding_mf = self.embedding_item_mf(item_indices)
 
         mlp_vector = torch.cat([user_embedding_mlp, item_embedding_mlp], dim=-1)  # the concat latent vector
@@ -75,12 +75,12 @@ class NeuMF(torch.nn.Module):
 
 class NeuMFWrapper(GMF):
     def forward(self, features):
-        user_dict, item_dict, user_indices, item_indices = features.getData()
+        user_dict, item_dict, user_indices, item_indices, user_features = features.getData()
         c = torch.zeros(1, len(item_dict), len(user_dict))
 
-        user_embedding_mlp = self.embedding_user_mlp(user_indices)
+        user_embedding_mlp = self.embedding_user_mlp(user_features)
         item_embedding_mlp = self.embedding_item_mlp(item_indices)
-        user_embedding_mf = self.embedding_user_mf(user_indices)
+        user_embedding_mf = self.embedding_user_mf(user_features)
         item_embedding_mf = self.embedding_item_mf(item_indices)
 
         mlp_vector = torch.cat([user_embedding_mlp, item_embedding_mlp], dim=-1)  # the concat latent vector

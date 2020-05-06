@@ -82,7 +82,7 @@ if __name__ == '__main__':
     # ============ DataLoader for training ==========
     n, m = args.n, args.m # n: # of facilities or movies, m: # of customers or users
     num_epochs = args.epochs
-    sample_generator = SampleGenerator(ratings=ml1m_rating, item_chunk_size=n, user_chunk_size=m)
+    sample_generator = SampleGenerator(ratings=ml1m_rating, item_size=n, user_chunk_size=m)
     train_dataset, test_dataset = sample_generator.instance_a_train_loader_chunk(num_negatives=config['num_negative'])
 
     # =============== Learning setting ==============
