@@ -318,7 +318,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
                     jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
-                    qp_solver = qpth.qp.QPFunction() # TODO unknown bug
+                    qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
                     if torch.norm(y.detach() - optimal_y) > 0.05:
