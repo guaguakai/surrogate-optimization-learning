@@ -139,10 +139,7 @@ def forward(Q, p, G, h, A, b, Q_LU, S_LU, R, eps=1e-12, verbose=0, notImprovedLi
         if nNotImproved == notImprovedLim or best['resids'].max() < eps or mu.min() > 1e32:
             if best['resids'].max() > 1. and verbose >= 0:
                 print(INACC_ERR)
-                print('No gradient is back-propagated')
-                return best['x'].detach(), best['y'].detach(), best['z'].detach(), best['s'].detach()
-            else:
-                return best['x'], best['y'], best['z'], best['s']
+            return best['x'], best['y'], best['z'], best['s']
 
         if solver == KKTSolvers.LU_FULL:
             D = bdiag(d)
@@ -206,10 +203,7 @@ def forward(Q, p, G, h, A, b, Q_LU, S_LU, R, eps=1e-12, verbose=0, notImprovedLi
 
     if best['resids'].max() > 1. and verbose >= 0:
         print(INACC_ERR)
-        print('No gradient is back-propagated')
-        return best['x'].detach(), best['y'].detach(), best['z'].detach(), best['s'].detach()
-    else:
-        return best['x'], best['y'], best['z'], best['s']
+    return best['x'], best['y'], best['z'], best['s']
 
 
 def get_step(v, dv):
