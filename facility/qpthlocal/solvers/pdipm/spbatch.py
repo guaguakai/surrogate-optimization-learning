@@ -114,7 +114,10 @@ def forward(Qi, Qv, Qsz, p, Gi, Gv, Gsz, h, Ai, Av, Asz, b,
         if nNotImproved == notImprovedLim or best['resids'].max() < eps or mu.min() > 1e32:
             if best['resids'].max() > 1. and verbose >= 0:
                 print(INACC_ERR)
-            return best['x'], best['y'], best['z'], best['s']
+                print('No gradient is back-propagated')
+                return best['x'].detach(), best['y'].detach(), best['z'].detach(), best['s'].detach()
+            else:
+                return best['x'], best['y'], best['z'], best['s']
 
         if solver == KKTSolvers.QR:
             D = z / s
@@ -171,7 +174,10 @@ def forward(Qi, Qv, Qsz, p, Gi, Gv, Gsz, h, Ai, Av, Asz, b,
 
     if best['resids'].max() > 1. and verbose >= 0:
         print(INACC_ERR)
-    return best['x'], best['y'], best['z'], best['s']
+        print('No gradient is back-propagated')
+        return best['x'].detach(), best['y'].detach(), best['z'].detach(), best['s'].detach()
+    else:
+        return best['x'], best['y'], best['z'], best['s']
 
 
 def get_step(v, dv):
