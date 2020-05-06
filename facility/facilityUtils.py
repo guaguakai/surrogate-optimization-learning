@@ -320,14 +320,18 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     p = jac - Q @ optimal_y
                     qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
-                    y = qp_solver(Q, p, newG, newh, newA, newb)[0]
-                    if torch.norm(y.detach() - optimal_y) > 0.05:
-                        # print('incorrect solution due to high mismatch {}'.format(torch.norm(y.detach() - optimal_y)))
-                        # print(y, optimal_y)
-                        # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
-                        # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
-                        # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
+                    try:
+                        y = qp_solver(Q, p, newG, newh, newA, newb)[0]
+                        if torch.norm(y.detach() - optimal_y) > 0.05:
+                            # print('incorrect solution due to high mismatch {}'.format(torch.norm(y.detach() - optimal_y)))
+                            # print(y, optimal_y)
+                            # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
+                            # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
+                            # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
+                            y = optimal_y
+                    except:
                         y = optimal_y
+                        print('qpth error! no gradient!')
                     x = T @ y
                 else:
                     raise ValueError('Not implemented method!')
