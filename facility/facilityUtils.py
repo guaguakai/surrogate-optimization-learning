@@ -211,7 +211,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     qp_solver = qpth.qp.QPFunction()
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     x = qp_solver(Q, p, G, h, A, b)[0]
-                    if torch.norm(x.detach() - optimal_x) > 0.05:
+                    if torch.norm(x.detach() - optimal_x) > 0.5:
                         # debugging message
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
                         # print('optimal x:', optimal_x)
