@@ -211,7 +211,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     qp_solver = qpth.qp.QPFunction()
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     x = qp_solver(Q, p, G, h, A, b)[0]
-                    if torch.norm(x.detach() - optimal_x) > 0.1:
+                    if torch.norm(x.detach() - optimal_x) > 0.05:
                         # debugging message
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
                         # print('optimal x:', optimal_x)
@@ -245,12 +245,12 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     pass
                 elif training_method == 'two-stage':
                     loss.backward()
-                    # for parameter in net.parameters():
-                    #     print(torch.norm(parameter.grad))
+                    for parameter in net.parameters():
+                        print(torch.norm(parameter.grad))
                 elif training_method == 'decision-focused':
                     (-objective).backward()
-                    # for parameter in net.parameters():
-                    #     parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                    for parameter in net.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
                 else:
                     raise ValueError('Not implemented method')
             except:
@@ -310,8 +310,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     optimal_y = torch.Tensor(optimize_result.x)
 
                     newA, newb = A @ T, b
-                    newG = G @ T # torch.cat((G @ T.detach(), -torch.eye(variable_size)))
-                    newh = h # torch.cat((h, torch.zeros(variable_size)))
+                    newG = torch.cat((G @ T, -torch.eye(variable_size)))
+                    newh = torch.cat((h, torch.zeros(variable_size)))
                     # newG = torch.cat((G @ T, - T, T)) # torch.eye(variable_size)))
                     # newh = torch.cat((h, torch.zeros(x_size), torch.ones(x_size)))
 
@@ -322,17 +322,19 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
                     try:
                         y = qp_solver(Q, p, newG, newh, newA, newb)[0]
-                        if torch.norm(y.detach() - optimal_y) > 0.05:
-                            # print('incorrect solution due to high mismatch {}'.format(torch.norm(y.detach() - optimal_y)))
-                            # print(y, optimal_y)
+                        x = T @ y
+                        if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
+                            # print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
+                            # print(x, T.detach() @ optimal_y)
                             # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
                             # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
                             # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
                             y = optimal_y
+                            x = T.detach() @ optimal_y
                     except:
                         y = optimal_y
+                        x = T.detach() @ optimal_y
                         print('qpth error! no gradient!')
-                    x = T @ y
                 else:
                     raise ValueError('Not implemented method!')
 
@@ -369,8 +371,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     (-objective).backward()
                     # T_loss.backward() # TODO: minimizing reparameterization loss
 
-                    # for parameter in net.parameters():
-                    #     parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                    for parameter in net.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
                     init_T.grad = torch.clamp(init_T.grad, min=-0.01, max=0.01)
                     optimizer.step()
                     T_optimizer.step()

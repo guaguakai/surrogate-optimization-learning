@@ -139,7 +139,7 @@ def forward(Q, p, G, h, A, b, Q_LU, S_LU, R, eps=1e-12, verbose=0, notImprovedLi
         if nNotImproved == notImprovedLim or best['resids'].max() < eps or mu.min() > 1e32:
             if best['resids'].max() > 1. and verbose >= 0:
                 print(INACC_ERR)
-                return None # TODO
+                # return None # TODO
             return best['x'], best['y'], best['z'], best['s']
 
         if solver == KKTSolvers.LU_FULL:
@@ -204,7 +204,7 @@ def forward(Q, p, G, h, A, b, Q_LU, S_LU, R, eps=1e-12, verbose=0, notImprovedLi
 
     if best['resids'].max() > 1. and verbose >= 0:
         print(INACC_ERR)
-        return None
+        # return None
     return best['x'], best['y'], best['z'], best['s']
 
 

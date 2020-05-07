@@ -46,7 +46,7 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None):
             ]
     options = {'maxiter': 100, 'eps':1e-12}
 
-    optimize_result = scipy.optimize.minimize(getObj, initial_y, method='SLSQP', jac=getJac, constraints=constraints, options=options)
+    optimize_result = scipy.optimize.minimize(getObj, initial_y, method='SLSQP', jac=getJac, constraints=constraints, options=options, bounds=bounds)
     # optimize_result = scipy.optimize.minimize(getObj, initial_y, method='trust-constr', jac=getJac, bounds=bounds, constraints=constraints)
 
     return optimize_result
