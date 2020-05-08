@@ -347,10 +347,10 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
                 obj = getObjective(x, n, m, label, d, f)
                 # projected_real_optimal_x = point_projection(real_optimal_x, T)
-                tmp_T_loss = 0 # torch.sum((projected_real_optimal_x - real_optimal_x) ** 2)
+                tmp_T_loss = 0 # torch.sum((projected_real_optimal_x - real_optimal_x) ** 2).item()
                 
                 objective_value_list.append(obj)
-                optimal_value_list.append(real_fun) 
+                optimal_value_list.append(real_opt) 
                 T_loss_list.append(tmp_T_loss)
             objective  = sum(objective_value_list) / batch_size
             optimal    = sum(optimal_value_list) / batch_size
@@ -389,7 +389,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             train_losses.append(loss.item())
             train_objs.append(objective.item())
             train_optimals.append(optimal)
-            train_T_losses.append(T_loss.item())
+            train_T_losses.append(T_loss)
 
             average_loss   = np.mean(train_losses)
             average_obj    = np.mean(train_objs)
