@@ -151,7 +151,7 @@ if __name__ == '__main__':
         test_opt_list.append(test_opt)
 
         # record the data every epoch
-        f_output = open('movie_results/performance/' + filepath + "{}.csv".format(training_method), 'w')
+        f_output = open('movie_results/performance/' + filepath + "-{}.csv".format(training_method), 'w')
         f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
         f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
         f_output.write('training opt,'  + ','.join([str(x) for x in train_opt_list])  + '\n')
