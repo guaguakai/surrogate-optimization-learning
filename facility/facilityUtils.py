@@ -230,11 +230,13 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     raise ValueError('Not implemented method!')
 
                 # ============= the real optimum =========
-                real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
-                obj = getObjective(x, n, m, label, d, f)
+                # real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
+                real_opt = 0 # -real_optimize_result.fun
                 
+                obj = getObjective(x, n, m, label, d, f)
+
                 objective_value_list.append(obj)
-                optimal_value_list.append(-real_optimize_result.fun) # TODO
+                optimal_value_list.append(real_opt) # TODO
             objective = sum(objective_value_list) / batch_size
             optimal   = sum(optimal_value_list) / batch_size
             # print('objective', objective)
@@ -339,15 +341,16 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     raise ValueError('Not implemented method!')
 
                 # ============= the real optimum =========
-                real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) 
-                real_optimal_x = torch.Tensor(real_optimize_result.x)
+                # real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) 
+                # real_optimal_x = torch.Tensor(real_optimize_result.x)
+                real_opt = 0 # -real_optimize_result.fun
 
                 obj = getObjective(x, n, m, label, d, f)
-                projected_real_optimal_x = point_projection(real_optimal_x, T)
-                tmp_T_loss = torch.sum((projected_real_optimal_x - real_optimal_x) ** 2)
+                # projected_real_optimal_x = point_projection(real_optimal_x, T)
+                tmp_T_loss = 0 # torch.sum((projected_real_optimal_x - real_optimal_x) ** 2)
                 
                 objective_value_list.append(obj)
-                optimal_value_list.append(-real_optimize_result.fun) 
+                optimal_value_list.append(real_fun) 
                 T_loss_list.append(tmp_T_loss)
             objective  = sum(objective_value_list) / batch_size
             optimal    = sum(optimal_value_list) / batch_size
