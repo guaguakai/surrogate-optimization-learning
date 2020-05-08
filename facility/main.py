@@ -1,5 +1,6 @@
 import sys
 import tqdm
+import time
 import numpy as np
 import pandas as pd
 import qpth
@@ -41,6 +42,7 @@ if __name__ == '__main__':
     parser.add_argument('--n', type=int, default=50, help='number of items')
     parser.add_argument('--m', type=int, default=50, help='number of users')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
+    parser.add_argument('--features', type=int, default=200, help='learning rate')
 
     args = parser.parse_args()
     method_id = args.method
@@ -57,18 +59,23 @@ if __name__ == '__main__':
     filepath = args.filepath
 
     # ============= Loading Movie Data =============
-    ml1m_dir = 'data/ml-1m/ratings.dat'
-    ml1m_rating = pd.read_csv(ml1m_dir, sep='::', header=None, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
+    ml1m_dir  = 'data/ml-1m/ratings.csv'
+    ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
+    ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
+
+    # ml25m_dir = 'data/ml-25m/ratings.csv'
+    # ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
+
     # Reindex
-    user_id = ml1m_rating[['uid']].drop_duplicates().reindex()
+    user_id = ml_rating[['uid']].drop_duplicates().reindex()
     user_id['userId'] = np.arange(len(user_id))
-    ml1m_rating = pd.merge(ml1m_rating, user_id, on=['uid'], how='left')
-    item_id = ml1m_rating[['mid']].drop_duplicates()
+    ml_rating = pd.merge(ml_rating, user_id, on=['uid'], how='left')
+    item_id = ml_rating[['mid']].drop_duplicates()
     item_id['itemId'] = np.arange(len(item_id))
-    ml1m_rating = pd.merge(ml1m_rating, item_id, on=['mid'], how='left')
-    ml1m_rating = ml1m_rating[['userId', 'itemId', 'rating', 'timestamp']]
-    print('Range of userId is [{}, {}]'.format(ml1m_rating.userId.min(), ml1m_rating.userId.max()))
-    print('Range of itemId is [{}, {}]'.format(ml1m_rating.itemId.min(), ml1m_rating.itemId.max()))
+    ml_rating = pd.merge(ml_rating, item_id, on=['mid'], how='left')
+    ml_rating = ml_rating[['userId', 'itemId', 'rating', 'timestamp']]
+    print('Range of userId is [{}, {}]'.format(ml_rating.userId.min(), ml_rating.userId.max()))
+    print('Range of itemId is [{}, {}]'.format(ml_rating.itemId.min(), ml_rating.itemId.max()))
 
     # ================= Model setup =================
     from config import gmf_config, mlp_config, neumf_config
@@ -82,7 +89,8 @@ if __name__ == '__main__':
     # ============ DataLoader for training ==========
     n, m = args.n, args.m # n: # of facilities or movies, m: # of customers or users
     num_epochs = args.epochs
-    sample_generator = SampleGenerator(ratings=ml1m_rating, item_size=n, user_chunk_size=m)
+    feature_size = args.features
+    sample_generator = SampleGenerator(ratings=ml_rating, item_size=n, user_chunk_size=m, feature_size=feature_size)
     train_dataset, test_dataset = sample_generator.instance_a_train_loader_chunk(num_negatives=config['num_negative'])
 
     # =============== Learning setting ==============
@@ -107,7 +115,9 @@ if __name__ == '__main__':
 
     train_loss_list, train_obj_list, train_opt_list = [], [], []
     test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
+    training_time_list = []
     for epoch in range(-1, num_epochs):
+        start_time = time.time()
         if training_method == 'surrogate':
             if epoch == -1:
                 print('Not training in the first epoch...')
@@ -127,6 +137,9 @@ if __name__ == '__main__':
             test_loss, test_obj, test_opt = surrogate_test_submodular(net, T, epoch, sample_instance, test_dataset)
         else:
             test_loss, test_obj, test_opt = test_submodular(net, epoch, sample_instance, test_dataset)
+        end_time = time.time()
+        training_time_list.append(end_time - start_time)
+        print("Epoch {} elapsed time: {}".format(epoch, end_time - start_time))
 
         random.shuffle(train_dataset)
 
@@ -147,3 +160,7 @@ if __name__ == '__main__':
         f_output.write('testing opt,'   + ','.join([str(x) for x in test_opt_list])   + '\n')
 
         f_output.close()
+
+        f_time = open('movie_results/time/' + filepath + "-{}.csv".format(training_method), 'w')
+        f_time.write('training time,' + ','.join([str(x) for x in training_time_list]) + '\n')
+        f_time.close()
