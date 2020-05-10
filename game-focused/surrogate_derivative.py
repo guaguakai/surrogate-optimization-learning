@@ -87,6 +87,12 @@ def surrogate_objective_function_matrix_form(small_coverage_probs, T, s, G, unbi
 
     return obj
 
+def torch_surrogate_dobj_dx_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
+    x = torch.autograd.Variable(small_coverage_probs, requires_grad=True)
+    obj = surrogate_objective_function_matrix_form(x, T, s, G, unbiased_probs, U, initial_distribution, omega=omega)
+    dobj_dx = torch.autograd.grad(obj, x, create_graph=True, retain_graph=True)[0]
+    return dobj_dx
+
 def surrogate_dobj_dx_matrix_form(small_coverage_probs, T, s, G, unbiased_probs, U, initial_distribution, omega=4, lib=torch, edge_set=[]):
     coverage_probs = torch.clamp(T @ torch.Tensor(small_coverage_probs) + torch.Tensor(s), min=0, max=1)
     n = len(G.nodes)
