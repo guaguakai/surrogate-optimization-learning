@@ -26,9 +26,9 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     sample_graph = train_data[0][0]
     T_size = 10 # sample_graph.number_of_edges() // 4
     init_T, init_s = torch.rand(sample_graph.number_of_edges(), T_size), torch.zeros(sample_graph.number_of_edges())
-    T, s = torch.tensor(normalize_matrix_positive(init_T)), torch.tensor(init_s, requires_grad=True) # bias term s can cause infeasibility. It is not yet known how to resolve it.
+    T, s = torch.tensor(normalize_matrix_positive(init_T), requires_grad=True), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
     full_T, full_s = torch.eye(sample_graph.number_of_edges(), requires_grad=False), torch.zeros(sample_graph.number_of_edges(), requires_grad=False)
-    T_lr = lr # TODO???
+    T_lr = lr
 
     if optimizer == 'adam':
         optimizer = optim.Adam(net2.parameters(), lr=lr)
@@ -276,7 +276,7 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
         try:
             qp_solver = qpth.qp.QPFunction()
             coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-            full_coverage_qp_solution = pred_optimal_coverage.clone()
+            # full_coverage_qp_solution = pred_optimal_coverage.clone()
             full_coverage_qp_solution = coverage_qp_solution
         except:
             print("QP solver fails... Usually because Q is not PSD")
