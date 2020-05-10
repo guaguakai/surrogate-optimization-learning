@@ -26,7 +26,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     sample_graph = train_data[0][0]
     T_size = 10 # sample_graph.number_of_edges() // 4
     init_T, init_s = torch.rand(sample_graph.number_of_edges(), T_size), torch.zeros(sample_graph.number_of_edges())
-    T, s = torch.tensor(normalize_matrix_positive(init_T), requires_grad=True), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
+    T, s = torch.tensor(normalize_matrix_positive(init_T), requires_grad=False), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
     full_T, full_s = torch.eye(sample_graph.number_of_edges(), requires_grad=False), torch.zeros(sample_graph.number_of_edges(), requires_grad=False)
     T_lr = lr # TODO???
 
@@ -53,7 +53,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
     pretrain_epochs = 0
     decay_rate = 0.95
-    for epoch in range(-1, n_epochs):
+    for epoch in range(0, n_epochs):
         epoch_forward_time, epoch_qp_time, epoch_backward_time = 0, 0, 0
         if epoch <= pretrain_epochs:
             ts_weight = 1
@@ -137,6 +137,15 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 loss_list.append(loss.item())
 
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
+                    # debugging part # TODO
+                    T_backward_start_time = time.time()
+                    try:
+                        T_grad = torch.autograd.grad(-def_obj, T, retain_graph=True)
+                    except:
+                        print('disable T grad')
+                        pass
+                    print("T backward time:", time.time() - T_backward_start_time)
+                    # ======================
                     backward_start_time = time.time()
                     optimizer.zero_grad()
                     T_optimizer.zero_grad()
@@ -154,6 +163,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                     except:
                         print("no grad is backpropagated...")
                     epoch_backward_time += time.time() - backward_start_time
+                    print('total backward time:', time.time() - backward_start_time)
 
                 # ============== normalize T matrix =================
                 T.data = normalize_matrix_positive(T.data)
@@ -217,7 +227,7 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
     initial_coverage_prob = initial_coverage_prob / np.sum(initial_coverage_prob) * budget
 
     forward_start_time = time.time()
-    pred_optimal_res = surrogate_get_optimal_coverage_prob(T, s, G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
+    pred_optimal_res = surrogate_get_optimal_coverage_prob(T.detach(), s, G, unbiased_probs_pred.detach(), U, initial_distribution, budget, omega=omega, options=options, method=method, initial_coverage_prob=initial_coverage_prob, tol=tol) # scipy version
     pred_optimal_coverage = torch.Tensor(pred_optimal_res['x'])
     if not pred_optimal_res['success']:
         print('optimization fails...')
