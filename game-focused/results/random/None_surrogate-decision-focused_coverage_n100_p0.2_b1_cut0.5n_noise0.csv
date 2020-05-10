@@ -1,0 +1,11 @@
+Random seed, 99812
+mode, epoch, average loss, defender utility
+Random seed, 31129
+mode, epoch, average loss, defender utility
+Random seed, 97796
+mode, epoch, average loss, defender utility
+Random seed, 93991
+mode, epoch, average loss, defender utility
+training, -1, 47.93692577907017, -6.166821023396083, 0
+validating, -1, 53.980302810668945, -6.229219102859497, 0
+testing, -1, 53.28909959793091, -6.214032292366028, 0

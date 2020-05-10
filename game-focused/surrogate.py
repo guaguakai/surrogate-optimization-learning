@@ -26,7 +26,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     sample_graph = train_data[0][0]
     T_size = 10 # sample_graph.number_of_edges() // 4
     init_T, init_s = torch.rand(sample_graph.number_of_edges(), T_size), torch.zeros(sample_graph.number_of_edges())
-    T, s = torch.tensor(normalize_matrix_positive(init_T), requires_grad=False), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
+    T, s = torch.tensor(normalize_matrix_positive(init_T)), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
     full_T, full_s = torch.eye(sample_graph.number_of_edges(), requires_grad=False), torch.zeros(sample_graph.number_of_edges(), requires_grad=False)
     T_lr = lr # TODO???
 
@@ -53,7 +53,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
     pretrain_epochs = 0
     decay_rate = 0.95
-    for epoch in range(0, n_epochs):
+    for epoch in range(1, n_epochs):
         epoch_forward_time, epoch_qp_time, epoch_backward_time = 0, 0, 0
         if epoch <= pretrain_epochs:
             ts_weight = 1
@@ -138,13 +138,13 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
                 if (iter_n%batch_size == (batch_size-1)) and (epoch > 0) and (mode == "training"):
                     # debugging part # TODO
-                    T_backward_start_time = time.time()
-                    try:
-                        T_grad = torch.autograd.grad(-def_obj, T, retain_graph=True)
-                    except:
-                        print('disable T grad')
-                        pass
-                    print("T backward time:", time.time() - T_backward_start_time)
+                    # T_backward_start_time = time.time()
+                    # try:
+                    #     T_grad = torch.autograd.grad(-def_obj, T, retain_graph=True)
+                    # except:
+                    #     print('disable T grad')
+                    #     pass
+                    # print("T backward time:", time.time() - T_backward_start_time)
                     # ======================
                     backward_start_time = time.time()
                     optimizer.zero_grad()
@@ -298,7 +298,7 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
     qp_time = time.time() - qp_start_time
 
     # ========================= Error message =========================
-    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
+    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
         print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
         print(pred_optimal_coverage)
@@ -414,18 +414,18 @@ if __name__=='__main__':
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
                                 optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, block_cut_size=CUT_SIZE)
 
-    f_save = open(filepath_data, 'a')
-    f_time = open(filepath_time, 'a')
+    # f_save = open(filepath_data, 'a')
+    # f_time = open(filepath_time, 'a')
 
-    f_save.write('Random seed, {}\n'.format(SEED))
-    f_save.write("mode, epoch, average loss, defender utility\n")
-    f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
-    for epoch in range(-1, N_EPOCHS):
-        f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
-        f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
-        f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
-    f_save.close()
-    f_time.close()
+    # f_save.write('Random seed, {}\n'.format(SEED))
+    # f_save.write("mode, epoch, average loss, defender utility\n")
+    # f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
+    # for epoch in range(-1, N_EPOCHS):
+    #     f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
+    #     f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
+    #     f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
+    # f_save.close()
+    # f_time.close()
 
     ############################# Print the summary:
     #print ("Now running: ", "Large graphs sizes")    
