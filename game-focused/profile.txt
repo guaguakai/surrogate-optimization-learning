@@ -1,92 +1,32 @@
-`bottleneck` is a tool that can be used as an initial step for debugging
-bottlenecks in your program.
-
-It summarizes runs of your script with the Python profiler and PyTorch's
-autograd profiler. Because your script will be profiled, please ensure that it
-exits in a finite amount of time.
-
-For more complicated uses of the profilers, please see
-https://docs.python.org/3/library/profile.html and
-https://pytorch.org/docs/master/autograd.html#profiler for more information.
-Running environment analysis...
-Running your script with cProfile
-Random seed: 69323
+Random seed: 21015
 N_samples:  100
-min distance: 10
-cut size: 5
-cut: [8, 19, 56, 75, 108]
-average node size: 50.0
-average edge size: 128.0
-mean: -0.26088986 std 3.7074344
+min distance: 8
+cut size: 26
+cut: [11, 27, 90, 142, 247, 263, 293, 304, 305, 306, 307, 308, 309, 310, 311, 334, 445, 467, 470, 471, 472, 473, 474, 475, 476, 477]
+average node size: 100.0
+average edge size: 533.0
+mean: -6.715686 std 30.863829
 Training method: surrogate-decision-focused
 Noise level: 0
-Node size: 50, p=0.2, budget: 1
+Node size: 100, p=0.2, budget: 1
 Block size: 0.5n
 Sample graph size: 1, sample size: 100
 omega: 4
 Data length train/test: 70 20
 Block selection: coverage
 Training...
-total backward time: 0.07677125930786133
-total backward time: 0.04407072067260742
-total backward time: 0.0562281608581543
-total backward time: 0.048575401306152344
-total backward time: 0.04830431938171387
-total backward time: 0.05168938636779785
-total backward time: 0.04623770713806152
-total backward time: 0.04890322685241699
-total backward time: 0.048862457275390625
-total backward time: 0.050458669662475586
-total backward time: 0.05088472366333008
-total backward time: 0.06129145622253418
-total backward time: 0.0491178035736084
-total backward time: 0.04711484909057617
-total backward time: 0.04835247993469238
-total backward time: 0.05973553657531738
-total backward time: 0.05432009696960449
-total backward time: 0.051833152770996094
-total backward time: 0.05207633972167969
-total backward time: 0.05119156837463379
-total backward time: 0.05010223388671875
-total backward time: 0.05311155319213867
-total backward time: 0.04872870445251465
-total backward time: 0.04877662658691406
-total backward time: 0.05598115921020508
-total backward time: 0.05215740203857422
-total backward time: 0.05341982841491699
-total backward time: 0.05147218704223633
-total backward time: 0.054924726486206055
-total backward time: 0.05243515968322754
-total backward time: 0.04913592338562012
-total backward time: 0.05192756652832031
-total backward time: 0.053258419036865234
-total backward time: 0.04548382759094238
-total backward time: 0.05022478103637695
-total backward time: 0.05136871337890625
-total backward time: 0.0571751594543457
-total backward time: 0.052332401275634766
-total backward time: 0.05112409591674805
-total backward time: 0.047345638275146484
-total backward time: 0.05983614921569824
-total backward time: 0.05715823173522949
-total backward time: 0.06151938438415527
-total backward time: 0.04927206039428711
-total backward time: 0.05257773399353027
-total backward time: 0.048125505447387695
-total backward time: 0.05120062828063965
-total backward time: 0.04971456527709961
-total backward time: 0.06323003768920898
-total backward time: 0.05410575866699219
-total backward time: 0.04705381393432617
-total backward time: 0.053412437438964844
-total backward time: 0.05198550224304199
-total backward time: 0.05044984817504883
-total backward time: 0.04948925971984863
-total backward time: 0.054167747497558594
-total backward time: 0.052520036697387695
-total backward time: 0.04905200004577637
-total backward time: 0.05464959144592285
-total backward time: 0.048098087310791016
+Mode: training/ Epoch number: -1/ Loss: 1.7711094447544643e-07/ DefU: -6.040480600084577
+Mode: validating/ Epoch number: -1/ Loss: -9.5367431640625e-08/ DefU: -6.020067977905273
+Mode: testing/ Epoch number: -1/ Loss: 6.67572021484375e-07/ DefU: -5.998267436027527
+Forward time for this epoch: 1159.9364740848541
+QP time for this epoch: 3.9848995208740234
+Backward time for this epoch: 0
+Mode: training/ Epoch number: 0/ Loss: 6.936697217396327/ DefU: -6.850294474193028
+Mode: validating/ Epoch number: 0/ Loss: 7.49387149810791/ DefU: -6.796001625061035
+Mode: testing/ Epoch number: 0/ Loss: 7.153541350364685/ DefU: -6.813496232032776
+Forward time for this epoch: 302.2754681110382
+QP time for this epoch: 5.746623516082764
+Backward time for this epoch: 0
 
 --------
 qpth warning: Returning an inaccurate and potentially incorrect solution.
@@ -103,102 +43,131 @@ You can also try to enable iterative refinement in the solver:
 https://github.com/locuslab/qpth/issues/6
 --------
 
-total backward time: 0.05789446830749512
-total backward time: 0.04716682434082031
-total backward time: 0.05410194396972656
-total backward time: 0.05037117004394531
-total backward time: 0.04804515838623047
-total backward time: 0.046237945556640625
-total backward time: 0.061498165130615234
-total backward time: 0.04729914665222168
-total backward time: 0.050138235092163086
-total backward time: 0.05103874206542969
-Mode: training/ Epoch number: 1/ Loss: 11.537563235419137/ DefU: -5.514043181283133
-Mode: validating/ Epoch number: 1/ Loss: 9.61345145702362/ DefU: -5.534164094924927
-Mode: testing/ Epoch number: 1/ Loss: 10.904462671279907/ DefU: -5.511413335800171
-Forward time for this epoch: 53.01458168029785
-QP time for this epoch: 18.951937675476074
-Backward time for this epoch: 3.6477584838867188
-Total forward time: 53.01458168029785
-Total qp time: 18.951937675476074
-Total backward time: 3.6477584838867188
-[32m{'learning model': 'empirical_distribution', 'Training method': 'surrogate-decision-focused', 'Number of Epochs: ': 2, 'Learning rate: ': 0.005, 'Batch size: ': 1, 'Optimizer': 'adam', 'Omega ': 4, 'Graph size (nodes)': (50, 51), 'Graph edge prob: ': (0.2, 0.2), 'Data size (#graphs, #samples)': (1, 100), 'Entire graph defender utility:': (-5.511413335800171, -5.511413335800171), 'Test Loss:': [10.904462671279907]}[0m
-Running your script with the autograd profiler...
-Random seed: 45156
-N_samples:  100
-min distance: 11
-cut size: 10
-cut: [15, 28, 56, 112, 113, 120, 130, 133, 135, 136]
-average node size: 50.0
-average edge size: 137.0
-mean: -0.04170801 std 0.39132
-Training method: surrogate-decision-focused
-Noise level: 0
-Node size: 50, p=0.2, budget: 1
-Block size: 0.5n
-Sample graph size: 1, sample size: 100
-omega: 4
-Data length train/test: 70 20
-Block selection: coverage
-Training...
-total backward time: 0.09713602066040039
-total backward time: 0.07126688957214355
-total backward time: 0.06480765342712402
-total backward time: 0.06652140617370605
-total backward time: 0.06375384330749512
-total backward time: 0.06359148025512695
-total backward time: 0.06390094757080078
-total backward time: 0.06511759757995605
-total backward time: 0.06325030326843262
-total backward time: 0.07364177703857422
-total backward time: 0.0712575912475586
-total backward time: 0.07535243034362793
-total backward time: 0.08385610580444336
-total backward time: 0.07816576957702637
-total backward time: 0.07317638397216797
-total backward time: 0.0657343864440918
-total backward time: 0.07677936553955078
-total backward time: 0.07338237762451172
-total backward time: 0.07476234436035156
-total backward time: 0.06592965126037598
-total backward time: 0.06723427772521973
-total backward time: 0.06490325927734375
-total backward time: 0.07118511199951172
-total backward time: 0.06288480758666992
-total backward time: 0.08917903900146484
-total backward time: 0.059242963790893555
-total backward time: 0.06608104705810547
-total backward time: 0.07038283348083496
-total backward time: 0.06861591339111328
-total backward time: 0.07667207717895508
-total backward time: 0.060868024826049805
-total backward time: 0.0647578239440918
-total backward time: 0.06462502479553223
-total backward time: 0.06544876098632812
-total backward time: 0.0689079761505127
-total backward time: 0.07322025299072266
-total backward time: 0.07070255279541016
-total backward time: 0.07501935958862305
-total backward time: 0.10355257987976074
-total backward time: 0.08281111717224121
-total backward time: 0.11182904243469238
-total backward time: 0.07272195816040039
-total backward time: 0.07529950141906738
-total backward time: 0.07261252403259277
-total backward time: 0.07157397270202637
-total backward time: 0.07740426063537598
-total backward time: 0.07415938377380371
-total backward time: 0.07319068908691406
-total backward time: 0.07198524475097656
-total backward time: 0.07346415519714355
-total backward time: 0.07325124740600586
-total backward time: 0.06510806083679199
-total backward time: 0.06394147872924805
-total backward time: 0.07629871368408203
-total backward time: 0.06508493423461914
-total backward time: 0.07410001754760742
-total backward time: 0.07946085929870605
-total backward time: 0.07478451728820801
-total backward time: 0.06474637985229492
-total backward time: 0.07538461685180664
-total backward time: 0.06694912910461426
+
+--------
+qpth warning: Returning an inaccurate and potentially incorrect solution.
+
+Some residual is large.
+Your problem may be infeasible or difficult.
+
+You can try using the CVXPY solver to see if your problem is feasible
+and you can use the verbose option to check the convergence status of
+our solver while increasing the number of iterations.
+
+Advanced users:
+You can also try to enable iterative refinement in the solver:
+https://github.com/locuslab/qpth/issues/6
+--------
+
+
+--------
+qpth warning: Returning an inaccurate and potentially incorrect solution.
+
+Some residual is large.
+Your problem may be infeasible or difficult.
+
+You can try using the CVXPY solver to see if your problem is feasible
+and you can use the verbose option to check the convergence status of
+our solver while increasing the number of iterations.
+
+Advanced users:
+You can also try to enable iterative refinement in the solver:
+https://github.com/locuslab/qpth/issues/6
+--------
+
+
+--------
+qpth warning: Returning an inaccurate and potentially incorrect solution.
+
+Some residual is large.
+Your problem may be infeasible or difficult.
+
+You can try using the CVXPY solver to see if your problem is feasible
+and you can use the verbose option to check the convergence status of
+our solver while increasing the number of iterations.
+
+Advanced users:
+You can also try to enable iterative refinement in the solver:
+https://github.com/locuslab/qpth/issues/6
+--------
+
+
+--------
+qpth warning: Returning an inaccurate and potentially incorrect solution.
+
+Some residual is large.
+Your problem may be infeasible or difficult.
+
+You can try using the CVXPY solver to see if your problem is feasible
+and you can use the verbose option to check the convergence status of
+our solver while increasing the number of iterations.
+
+Advanced users:
+You can also try to enable iterative refinement in the solver:
+https://github.com/locuslab/qpth/issues/6
+--------
+
+
+--------
+qpth warning: Returning an inaccurate and potentially incorrect solution.
+
+Some residual is large.
+Your problem may be infeasible or difficult.
+
+You can try using the CVXPY solver to see if your problem is feasible
+and you can use the verbose option to check the convergence status of
+our solver while increasing the number of iterations.
+
+Advanced users:
+You can also try to enable iterative refinement in the solver:
+https://github.com/locuslab/qpth/issues/6
+--------
+
+
+--------
+qpth warning: Returning an inaccurate and potentially incorrect solution.
+
+Some residual is large.
+Your problem may be infeasible or difficult.
+
+You can try using the CVXPY solver to see if your problem is feasible
+and you can use the verbose option to check the convergence status of
+our solver while increasing the number of iterations.
+
+Advanced users:
+You can also try to enable iterative refinement in the solver:
+https://github.com/locuslab/qpth/issues/6
+--------
+
+
+--------
+qpth warning: Returning an inaccurate and potentially incorrect solution.
+
+Some residual is large.
+Your problem may be infeasible or difficult.
+
+You can try using the CVXPY solver to see if your problem is feasible
+and you can use the verbose option to check the convergence status of
+our solver while increasing the number of iterations.
+
+Advanced users:
+You can also try to enable iterative refinement in the solver:
+https://github.com/locuslab/qpth/issues/6
+--------
+
+
+--------
+qpth warning: Returning an inaccurate and potentially incorrect solution.
+
+Some residual is large.
+Your problem may be infeasible or difficult.
+
+You can try using the CVXPY solver to see if your problem is feasible
+and you can use the verbose option to check the convergence status of
+our solver while increasing the number of iterations.
+
+Advanced users:
+You can also try to enable iterative refinement in the solver:
+https://github.com/locuslab/qpth/issues/6
+--------
+
