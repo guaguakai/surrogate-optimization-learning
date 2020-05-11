@@ -9,7 +9,7 @@ from scipy.stats.stats import pearsonr
 import matplotlib.pyplot as plt
 import tqdm
 import argparse
-import qpth
+import qpthlocal
 import numpy as np
 
 from gcn import GCNPredictionNet2
@@ -148,7 +148,11 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                             # (-def_obj * df_weight + loss * ts_weight).backward()
                         else:
                             raise TypeError("Not Implemented Method")
-                        torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                        # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+
+                        for parameter in net2.parameters():
+                            parameter.grad = torch.clamp(parameter.grad, min=-max_norm, max=max_norm)
+                        T.grad = torch.clamp(T.grad, min=-max_norm, max=max_norm)
                         optimizer.step()
                         T_optimizer.step()
                     except:
@@ -260,6 +264,9 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
         # ------------------ regularization -----------------------
         Q_regularized = Q_sym.clone()
         reg_const = 0.1
+        # eigenvalues, _ = torch.eig(Q_sym)
+        # eigenvalues = eigenvalues[:,0]
+        # Q_regularized = Q_sym + torch.eye(variable_size) * max(0, -min(eigenvalues) + reg_const)
         while True:
             # ------------------ eigen regularization -----------------------
             # Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const)
@@ -274,9 +281,9 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
         p = jac.view(1, -1) - Q_regularized @ pred_optimal_coverage
  
         try:
-            qp_solver = qpth.qp.QPFunction()
+            qp_solver = qpthlocal.qp.QPFunction()
             coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
-            # full_coverage_qp_solution = pred_optimal_coverage.clone()
+            full_coverage_qp_solution = pred_optimal_coverage.clone()
             full_coverage_qp_solution = coverage_qp_solution
         except:
             print("QP solver fails... Usually because Q is not PSD")
@@ -290,7 +297,7 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
     qp_time = time.time() - qp_start_time
 
     # ========================= Error message =========================
-    if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
+    if (torch.norm(T.detach() @ pred_optimal_coverage - T.detach() @ full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
         print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
         print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
         print(pred_optimal_coverage)
