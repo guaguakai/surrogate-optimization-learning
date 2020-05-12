@@ -1,5 +1,6 @@
 import sys
 import tqdm
+import time
 import numpy as np
 import qpth
 import qpthlocal
@@ -187,21 +188,28 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
     train_losses, train_objs = [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
+    forward_time, qp_time, backward_time = 0, 0, 0
 
     with tqdm.tqdm(dataset) as tqdm_loader:
         for batch_idx, (features, labels) in enumerate(tqdm_loader):
+            net_start_time = time.time()
             features, labels = features.to(device), labels.to(device)
             outputs = net(features)
             # two-stage loss
             loss = loss_fn(outputs, labels)
+            forward_time += time.time() - net_start_time
 
             # decision-focused loss
             objective_value_list = []
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
+                forward_start_time = time.time()
                 optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+                if training_method == 'decision-focused':
+                    forward_time += time.time() - forward_start_time
                 optimal_x = torch.Tensor(optimize_result.x).requires_grad_(True)
 
+                qp_start_time = time.time()
                 if training_method == 'decision-focused':
                     Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 10
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
@@ -222,10 +230,12 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                         # print('constraint on optimal_x: Ax-b={}, Gx-h={}'.format(A @ optimal_x - b, G @ optimal_x - h))
                         # print('constraint on x:         Ax-b={}, Gx-h={}'.format(A @ x - b, G @ x - h))
                         x = optimal_x
+                    qp_time += time.time() - qp_start_time
                 elif training_method == 'two-stage':
                     x = optimal_x
                 else:
                     raise ValueError('Not implemented method!')
+                qp_time += time.time() - qp_start_time
 
                 obj = getObjective(x, n, m, label, d, f)
 
@@ -233,6 +243,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
             objective = sum(objective_value_list) / batch_size
 
             optimizer.zero_grad()
+            backward_start_time = time.time()
             try:
                 if training_method == 'two-stage':
                     loss.backward()
@@ -248,6 +259,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 # print("no grad is backpropagated...")
                 pass
             optimizer.step()
+            backward_time += time.time() - backward_start_time
 
             train_losses.append(loss.item())
             train_objs.append(objective.item())
@@ -259,7 +271,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
-    return average_loss, average_obj
+    return average_loss, average_obj, (forward_time, qp_time, backward_time)
 
 def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     net.train()
@@ -269,9 +281,11 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
     x_size, variable_size = init_T.shape
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
+    forward_time, qp_time, backward_time = 0, 0, 0
 
     with tqdm.tqdm(dataset) as tqdm_loader:
         for batch_idx, (features, labels) in enumerate(tqdm_loader):
+            net_start_time = time.time()
             features, labels = features.to(device), labels.to(device)
             if epoch >= 0:
                 outputs = net(features)
@@ -279,6 +293,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                 outputs = labels
             # two-stage loss
             loss = loss_fn(outputs, labels)
+            forward_time += time.time() - net_start_time
 
             # decision-focused loss
             objective_value_list, T_loss_list = [], []
@@ -293,7 +308,9 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
                     # output = label # for debug only # TODO
+                    forward_start_time = time.time()
                     optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget) # end-to-end for both T and net
+                    forward_time += time.time() - forward_start_time
                     optimal_y = torch.Tensor(optimize_result.x)
 
                     newA, newb = A @ T, b
@@ -302,6 +319,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     # newG = torch.cat((G @ T, - T, T)) # torch.eye(variable_size)))
                     # newh = torch.cat((h, torch.zeros(x_size), torch.ones(x_size)))
 
+                    qp_start_time = time.time()
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
                     jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
@@ -311,7 +329,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         y = qp_solver(Q, p, newG, newh, newA, newb)[0]
                         x = T @ y
                         if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
-                            # print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
+                            print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
                             # print(x, T.detach() @ optimal_y)
                             # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
                             # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
@@ -322,6 +340,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         y = optimal_y
                         x = T.detach() @ optimal_y
                         print('qpth error! no gradient!')
+                    qp_time += time.time() - qp_start_time
                 else:
                     raise ValueError('Not implemented method!')
 
@@ -335,6 +354,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             # print('objective', objective)
 
             optimizer.zero_grad()
+            backward_start_time = time.time()
             try:
                 if training_method == 'two-stage':
                     loss.backward()
@@ -360,6 +380,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             except:
                 print("Error! No grad is backpropagated...")
                 pass
+            backward_time += time.time() - backward_start_time
 
             train_losses.append(loss.item())
             train_objs.append(objective.item())
@@ -373,7 +394,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
-    return average_loss, average_obj
+    return average_loss, average_obj, (forward_time, qp_time, backward_time)
 
 def validate_submodular(net, scheduler, epoch, sample_instance, dataset, training_method='two-stage', device='cpu'):
     net.eval()
@@ -418,7 +439,7 @@ def validate_submodular(net, scheduler, epoch, sample_instance, dataset, trainin
         if training_method == "two-stage":
             scheduler.step(average_loss)
         elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
-            scheduler.step(-np.mean(obj))
+            scheduler.step(-average_obj)
         else:
             raise TypeError("Not Implemented Method")
 

@@ -15,7 +15,7 @@ def normalize_matrix(T):
 def normalize_matrix_positive(T):
     pos_T = torch.clamp(T, min=0)
     # pos_T = T
-    return pos_T / torch.norm(pos_T, dim=0)
+    return pos_T / torch.sum(pos_T, dim=0)
 
 def normalize_matrix_qr(T):
     Q, R = np.linalg.qr(T.detach().numpy())

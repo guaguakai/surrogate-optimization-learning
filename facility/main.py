@@ -25,13 +25,6 @@ from movie.mlp import MLPWrapper
 from movie.neumf import NeuMFWrapper
 from movie.data import SampleGenerator
 
-# Random Seed Initialization
-SEED = 1289 #  random.randint(0,10000)
-print("Random seed: {}".format(SEED))
-torch.manual_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
-
 if __name__ == '__main__':
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')
@@ -45,8 +38,16 @@ if __name__ == '__main__':
     parser.add_argument('--num-samples', type=int, default=0, help='number of samples, 0 -> all')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--features', type=int, default=200, help='learning rate')
+    parser.add_argument('--seed', type=int, default=0, help='random seed')
 
     args = parser.parse_args()
+
+    SEED = args.seed #  random.randint(0,10000)
+    print("Random seed: {}".format(SEED))
+    torch.manual_seed(SEED)
+    np.random.seed(SEED)
+    random.seed(SEED)
+
     method_id = args.method
     if method_id == 0:
         training_method = 'two-stage'
@@ -80,15 +81,6 @@ if __name__ == '__main__':
     print('Range of userId is [{}, {}]'.format(ml_rating.userId.min(), ml_rating.userId.max()))
     print('Range of itemId is [{}, {}]'.format(ml_rating.itemId.min(), ml_rating.itemId.max()))
 
-    # ================= Model setup =================
-    from config import gmf_config, mlp_config, neumf_config
-    # config = gmf_config
-    # net = GMFWrapper(config=config)
-    config = mlp_config
-    net = MLPWrapper(config=mlp_config)
-    # config = neumf_config
-    # net = NeuMFWrapper(config=neumf_config)
-
     # ============ DataLoader for training ==========
     n, m = args.n, args.m # n: # of facilities or movies, m: # of customers or users
     num_samples = args.num_samples if args.num_samples != 0 else 10000000
@@ -96,8 +88,20 @@ if __name__ == '__main__':
     feature_size = args.features
     print('Initializing Sampler Generators...')
     sample_generator = SampleGenerator(ratings=ml_rating, item_size=n, user_chunk_size=m, feature_size=feature_size, num_samples=num_samples)
+
+    from config import gmf_config, mlp_config, neumf_config
+    # config = gmf_config
+    # net = GMFWrapper(config=config)
+    config = mlp_config
+    config['num_items'], config['num_users'] = sample_generator.num_items, sample_generator.num_users
+    # config = neumf_config
+    # net = NeuMFWrapper(config=neumf_config)
+
     print('Generating samples...')
     train_dataset, validate_dataset, test_dataset = sample_generator.instance_a_train_loader_chunk(num_negatives=config['num_negative'])
+
+    # ================= Model setup =================
+    net = MLPWrapper(config=config)
 
     # =============== Learning setting ==============
     budget = args.budget
@@ -126,9 +130,10 @@ if __name__ == '__main__':
     validate_loss_list,  validate_obj_list = [], []
 
     print('Start training...')
-    training_time_list = []
+    total_forward_time, total_qp_time, total_backward_time = 0, 0, 0
     for epoch in range(-1, num_epochs):
         start_time = time.time()
+        forward_time, qp_time, backward_time = 0, 0, 0
         if training_method == 'surrogate':
             if epoch == -1:
                 print('Testing the optimal solution...')
@@ -137,7 +142,7 @@ if __name__ == '__main__':
                 print('Testing the initial solution quality...')
                 train_loss, train_obj = surrogate_test_submodular(net, T, epoch, sample_instance, train_dataset)
             else:
-                train_loss, train_obj = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, train_dataset, training_method=training_method)
+                train_loss, train_obj, (forward_time, qp_time, backward_time) = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, train_dataset, training_method=training_method)
         elif training_method == 'decision-focused' or training_method == 'two-stage':
             if epoch == -1:
                 print('Testing the optimal solution...')
@@ -146,9 +151,12 @@ if __name__ == '__main__':
                 print('Testing the initial solution quality...')
                 train_loss, train_obj = test_submodular(net, epoch, sample_instance, train_dataset)
             else:
-                train_loss, train_obj = train_submodular(net, optimizer, epoch, sample_instance, train_dataset, training_method=training_method)
+                train_loss, train_obj, (forward_time, qp_time, backward_time) = train_submodular(net, optimizer, epoch, sample_instance, train_dataset, training_method=training_method)
         else:
             raise ValueError('Not implemented')
+        total_forward_time  += forward_time
+        total_qp_time       += qp_time
+        total_backward_time += backward_time
 
         # ================ validating ==================
         if training_method == 'surrogate':
@@ -176,8 +184,7 @@ if __name__ == '__main__':
 
         # ============== recording data ================
         end_time = time.time()
-        training_time_list.append(end_time - start_time)
-        print("Epoch {} elapsed time: {}".format(epoch, end_time - start_time))
+        print("Epoch {}, elapsed time: {}, forward time: {}, qp time: {}, backward time: {}".format(epoch, end_time - start_time, forward_time, qp_time, backward_time))
 
         random.shuffle(train_dataset)
 
@@ -188,15 +195,14 @@ if __name__ == '__main__':
         validate_loss_list.append(validate_loss)
         validate_obj_list.append(validate_obj)
 
-        # record the data every epoch
-        f_output = open('movie_results/performance/' + filepath + "-{}.csv".format(training_method), 'w')
-        f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
-        f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
-        f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
-        f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
+    # record the data every epoch
+    f_output = open('movie_results/performance/' + filepath + "-{}.csv".format(training_method), 'a')
+    f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
+    f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
+    f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
+    f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
+    f_output.close()
 
-        f_output.close()
-
-        f_time = open('movie_results/time/' + filepath + "-{}.csv".format(training_method), 'w')
-        f_time.write('training time,' + ','.join([str(x) for x in training_time_list]) + '\n')
-        f_time.close()
+    f_time = open('movie_results/time/' + filepath + "-{}.csv".format(training_method), 'a')
+    f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(str(SEED), forward_time, qp_time, backward_time))
+    f_time.close()

@@ -57,7 +57,7 @@ class SampleGenerator(object):
         # self.preprocess_ratings = self._binarize(ratings)
 
         self.user_list, self.item_list = ratings['userId'].unique(), ratings['itemId'].unique()
-
+        self.num_users, self.num_items = len(self.user_list), len(self.item_list)
         random.shuffle(self.user_list)
         random.shuffle(self.item_list)
 
