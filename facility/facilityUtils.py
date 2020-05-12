@@ -465,9 +465,9 @@ def surrogate_validate_submodular(net, scheduler, T_scheduler, T, epoch, sample_
             objective_value_list = []
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
-                optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
+                optimize_result = getSurrogateOptimalDecision(T.detach(), n, m, output, d, f, budget=budget)
                 optimal_y = torch.Tensor(optimize_result.x)
-                obj = getSurrogateObjective(T, optimal_y, n, m, label, d, f)
+                obj = getSurrogateObjective(T.detach(), optimal_y, n, m, label, d, f)
                 objective_value_list.append(obj)
             objective = sum(objective_value_list) / batch_size
 
@@ -554,9 +554,9 @@ def surrogate_test_submodular(net, T, epoch, sample_instance, dataset, device='c
             objective_value_list = []
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
-                optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
+                optimize_result = getSurrogateOptimalDecision(T.detach(), n, m, output, d, f, budget=budget)
                 optimal_y = torch.Tensor(optimize_result.x)
-                obj = getSurrogateObjective(T, optimal_y, n, m, label, d, f)
+                obj = getSurrogateObjective(T.detach(), optimal_y, n, m, label, d, f)
                 objective_value_list.append(obj)
             objective = sum(objective_value_list) / batch_size
 
