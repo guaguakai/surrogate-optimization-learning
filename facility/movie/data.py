@@ -43,7 +43,7 @@ class UserItemData:
 class SampleGenerator(object):
     """Construct dataset for NCF"""
 
-    def __init__(self, ratings, item_size=200, user_chunk_size=200, feature_size=200):
+    def __init__(self, ratings, item_size=200, user_chunk_size=200, feature_size=200, num_samples=1000000):
         """
         args:
             ratings: pd.DataFrame, which contains 4 columns = ['userId', 'itemId', 'rating', 'timestamp']
@@ -61,7 +61,7 @@ class SampleGenerator(object):
 
         # splitting training and testing item lists
         # self.user_list, self.item_list = list(self.user_pool), list(self.item_pool)
-        self.user_list, self.item_list = list(self.user_pool), list(self.item_pool)
+        self.user_list, self.item_list = list(self.user_pool)[:num_samples*user_chunk_size], list(self.item_pool)
 
         random.shuffle(self.user_list)
         random.shuffle(self.item_list)
@@ -69,7 +69,10 @@ class SampleGenerator(object):
         self.item_chunks = [self.item_list[:feature_size], self.item_list[feature_size:feature_size+item_size]] # existing items and new items
         self.user_chunks = [self.user_list[i*user_chunk_size: (i+1)*user_chunk_size] for i in range((len(self.user_list)) // user_chunk_size)] # ignoring the remaining
 
-        self.test_user_indices = np.random.choice(len(self.user_chunks), size=int(0.2*len(self.user_chunks)), replace=False)
+        self.indices = list(range(len(self.user_chunks)))
+        self.train_user_indices    = self.indices[:int(0.7 * len(self.user_chunks))]
+        self.validate_user_indices = self.indices[int(0.7 * len(self.user_chunks)): int(0.7 * len(self.user_chunks)) + int(0.1 * len(self.user_chunks))]
+        self.test_user_indices     = self.indices[int(0.7 * len(self.user_chunks)) + int(0.1 * len(self.user_chunks)):]
 
         # create negative item samples for NCF learning
         self.negatives = self._sample_negative(ratings)
@@ -124,7 +127,7 @@ class SampleGenerator(object):
 
     def instance_a_train_loader_chunk(self, num_negatives):
         """instance train loader for one training epoch"""
-        train_list, test_list = [], []
+        train_list, validate_list, test_list = [], [], []
 
         all_ratings = pd.merge(self.ratings, self.negatives[['userId', 'negative_items']], on='userId')
         all_ratings['negatives'] = all_ratings['negative_items'].apply(lambda x: random.sample(x, num_negatives))
@@ -164,10 +167,12 @@ class SampleGenerator(object):
             instance_data = (UserItemData(user_dict, item_dict, users[indices], items[indices], user_features[[user_dict[userId.item()] for userId in users[indices]]]), c_target)
             if userset_id in self.test_user_indices:
                 test_list.append(instance_data)
+            elif userset_id in self.validate_user_indices:
+                validate_list.append(instance_data)
             else:
                 train_list.append(instance_data)
 
-        return train_list, test_list
+        return train_list, validate_list, test_list
 
     @property
     def evaluate_data(self):

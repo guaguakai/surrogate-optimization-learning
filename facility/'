@@ -61,12 +61,12 @@ if __name__ == '__main__':
     filepath = args.filepath
 
     # ============= Loading Movie Data =============
-    # ml1m_dir  = 'data/ml-1m/ratings.csv'
-    # ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
-    # ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
+    ml1m_dir  = 'data/ml-1m/ratings.csv'
+    ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
+    ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
 
-    ml25m_dir = 'data/ml-25m/ratings.csv'
-    ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
+    # ml25m_dir = 'data/ml-25m/ratings.csv'
+    # ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
 
     # Reindex
     user_id = ml_rating[['uid']].drop_duplicates().reindex()
@@ -149,11 +149,11 @@ if __name__ == '__main__':
         # ================ validating ==================
         if training_method == 'surrogate':
             if epoch == -1:
-                validate_loss, validate_obj = surrogate_validate_submodular(net, scheduler, T_scheduler, full_T, epoch, sample_instance, validate_dataset, training_method=training_method)
+                validate_loss, validate_obj = surrogate_validate_submodular(net, scheduler, T_scheduler, full_T, epoch, sample_instance, test_dataset, training_method=training_method)
             else:
-                validate_loss, validate_obj = surrogate_validate_submodular(net, scheduler, T_scheduler, T, epoch, sample_instance, validate_dataset, training_method=training_method)
+                validate_loss, validate_obj = surrogate_validate_submodular(net, scheduler, T_scheduler, T, epoch, sample_instance, test_dataset, training_method=training_method)
         else:
-            validate_loss, validate_obj = validate_submodular(net, scheduler, epoch, sample_instance, validate_dataset, training_method=training_method)
+            validate_loss, validate_obj = validate_submodular(net, scheduler, epoch, sample_instance, test_dataset, training_method=training_method)
 
         # ================== testing ===================
         if training_method == 'surrogate':
@@ -167,7 +167,7 @@ if __name__ == '__main__':
         # =============== printing data ================
         sys.stdout.write(f'Epoch {epoch} | Train Loss:    \t {train_loss:.3f} \t | Train Objective Value:    \t {train_obj:.3f} \n')
         sys.stdout.write(f'Epoch {epoch} | Validate Loss: \t {validate_loss:.3f} \t | Validate Objective Value: \t {validate_obj:.3f} \n')
-        sys.stdout.write(f'Epoch {epoch} | Test Loss:     \t {test_loss:.3f} \t | Test Objective Value:     \t {test_obj:.3f} \n')
+        sys.stdout.write(f'Epoch {epoch} | Test Loss:     \t {test_loss:.3f} \t | Test Objective Value:    \t {test_obj:.3f} \n')
         sys.stdout.flush()
 
         # ============== recording data ================

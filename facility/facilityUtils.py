@@ -180,13 +180,11 @@ def LPCreateSurrogateConstraintMatrix(m, n):
 
     return A, b, G, h
 
-def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', disable=False):
+def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     net.train()
-    if disable:
-        net.eval()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.MSELoss()
-    train_losses, train_objs, train_optimals = [], [], []
+    train_losses, train_objs = [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
 
@@ -198,7 +196,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
             loss = loss_fn(outputs, labels)
 
             # decision-focused loss
-            objective_value_list, optimal_value_list = [], []
+            objective_value_list = []
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
                 optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
@@ -229,23 +227,14 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 else:
                     raise ValueError('Not implemented method!')
 
-                # ============= the real optimum =========
-                # real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
-                real_opt = 0 # -real_optimize_result.fun
-                
                 obj = getObjective(x, n, m, label, d, f)
 
                 objective_value_list.append(obj)
-                optimal_value_list.append(real_opt) # TODO
             objective = sum(objective_value_list) / batch_size
-            optimal   = sum(optimal_value_list) / batch_size
-            # print('objective', objective)
 
             optimizer.zero_grad()
             try:
-                if disable:
-                    pass
-                elif training_method == 'two-stage':
+                if training_method == 'two-stage':
                     loss.backward()
                     for parameter in net.parameters():
                         print(torch.norm(parameter.grad))
@@ -262,28 +251,21 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
 
             train_losses.append(loss.item())
             train_objs.append(objective.item())
-            train_optimals.append(optimal)
 
             average_loss = np.mean(train_losses)
             average_obj = np.mean(train_objs)
-            average_opt = np.mean(train_optimals)
             # Print status
-            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', opt=f'{average_opt:.3f}')
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
-    average_optimal = np.mean(train_optimals) 
-    sys.stdout.write(f'Epoch {epoch} | Train Loss: {average_loss:.3f} | Train Objective Value: {average_obj:.3f} | Train Optimal Value: {average_optimal:.3f} \n')
-    sys.stdout.flush()
-    return average_loss, average_obj, average_optimal
+    return average_loss, average_obj
 
-def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', disable=False):
+def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     net.train()
-    if disable:
-        net.eval()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.MSELoss()
-    train_losses, train_objs, train_optimals, train_T_losses = [], [], [], []
+    train_losses, train_objs, train_T_losses = [], [], []
     x_size, variable_size = init_T.shape
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
@@ -291,12 +273,15 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
     with tqdm.tqdm(dataset) as tqdm_loader:
         for batch_idx, (features, labels) in enumerate(tqdm_loader):
             features, labels = features.to(device), labels.to(device)
-            outputs = net(features)
+            if epoch >= 0:
+                outputs = net(features)
+            else:
+                outputs = labels
             # two-stage loss
             loss = loss_fn(outputs, labels)
 
             # decision-focused loss
-            objective_value_list, optimal_value_list, T_loss_list = [], [], []
+            objective_value_list, T_loss_list = [], []
             batch_size = len(labels)
 
             # randomly select column to update
@@ -340,28 +325,18 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                 else:
                     raise ValueError('Not implemented method!')
 
-                # ============= the real optimum =========
-                # real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) 
-                # real_optimal_x = torch.Tensor(real_optimize_result.x)
-                real_opt = 0 # -real_optimize_result.fun
-
                 obj = getObjective(x, n, m, label, d, f)
-                # projected_real_optimal_x = point_projection(real_optimal_x, T)
                 tmp_T_loss = 0 # torch.sum((projected_real_optimal_x - real_optimal_x) ** 2).item()
                 
                 objective_value_list.append(obj)
-                optimal_value_list.append(real_opt) 
                 T_loss_list.append(tmp_T_loss)
             objective  = sum(objective_value_list) / batch_size
-            optimal    = sum(optimal_value_list) / batch_size
             T_loss     = sum(T_loss_list) / batch_size
             # print('objective', objective)
 
             optimizer.zero_grad()
             try:
-                if disable:
-                    pass
-                elif training_method == 'two-stage':
+                if training_method == 'two-stage':
                     loss.backward()
                     optimizer.step()
                 elif training_method == 'decision-focused':
@@ -388,116 +363,195 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
             train_losses.append(loss.item())
             train_objs.append(objective.item())
-            train_optimals.append(optimal)
             train_T_losses.append(T_loss)
 
             average_loss   = np.mean(train_losses)
             average_obj    = np.mean(train_objs)
-            average_opt    = np.mean(train_optimals)
             average_T_loss = np.mean(train_T_losses)
             # Print status
-            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', opt=f'{average_opt:.3f}', T_loss=f'{average_T_loss:.3f}')
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', T_loss=f'{average_T_loss:.3f}')
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
-    average_optimal = np.mean(train_optimals) 
-    sys.stdout.write(f'Epoch {epoch} | Train Loss: {average_loss:.3f} | Train Objective Value: {average_obj:.3f} | Train Optimal Value: {average_optimal:.3f} \n')
-    sys.stdout.flush()
-    return average_loss, average_obj, average_optimal
+    return average_loss, average_obj
+
+def validate_submodular(net, scheduler, epoch, sample_instance, dataset, training_method='two-stage', device='cpu'):
+    net.eval()
+    # loss_fn = torch.nn.BCELoss()
+    loss_fn = torch.nn.MSELoss()
+    test_losses, test_objs = [], []
+    n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
+    A, b, G, h = createConstraintMatrix(m, n, budget)
+
+    with tqdm.tqdm(dataset) as tqdm_loader:
+        for batch_idx, (features, labels) in enumerate(tqdm_loader):
+            features, labels = features.to(device), labels.to(device)
+            if epoch >= 0:
+                outputs = net(features)
+            else:
+                outputs = labels
+            # two-stage loss
+            loss = loss_fn(outputs, labels)
+
+            # decision-focused loss
+            objective_value_list = []
+            batch_size = len(labels)
+            for (label, output) in zip(labels, outputs):
+                optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+                optimal_x = torch.Tensor(optimize_result.x)
+                obj = getObjective(optimal_x, n, m, label, d, f)
+                objective_value_list.append(obj)
+            objective = sum(objective_value_list) / batch_size
+
+            test_losses.append(loss.item())
+            test_objs.append(objective.item())
+
+            average_loss = np.mean(test_losses)
+            average_obj  = np.mean(test_objs)
+
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
+
+    average_loss    = np.mean(test_losses)
+    average_obj     = np.mean(test_objs)
+
+    if (epoch > 0):
+        if training_method == "two-stage":
+            scheduler.step(average_loss)
+        elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
+            scheduler.step(-np.mean(obj))
+        else:
+            raise TypeError("Not Implemented Method")
+
+    return average_loss, average_obj
+
+def surrogate_validate_submodular(net, scheduler, T_scheduler, T, epoch, sample_instance, dataset, training_method='two-stage', device='cpu'):
+    net.eval()
+    # loss_fn = torch.nn.BCELoss()
+    loss_fn = torch.nn.MSELoss()
+    test_losses, test_objs = [], []
+    n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
+    A, b, G, h = createConstraintMatrix(m, n, budget)
+
+    with tqdm.tqdm(dataset) as tqdm_loader:
+        for batch_idx, (features, labels) in enumerate(tqdm_loader):
+            features, labels = features.to(device), labels.to(device)
+            if epoch >= 0:
+                outputs = net(features)
+            else:
+                outputs = labels
+            # two-stage loss
+            loss = loss_fn(outputs, labels)
+
+            # decision-focused loss
+            objective_value_list = []
+            batch_size = len(labels)
+            for (label, output) in zip(labels, outputs):
+                optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
+                optimal_y = torch.Tensor(optimize_result.x)
+                obj = getSurrogateObjective(T, optimal_y, n, m, label, d, f)
+                objective_value_list.append(obj)
+            objective = sum(objective_value_list) / batch_size
+
+            test_losses.append(loss.item())
+            test_objs.append(objective.item())
+
+            average_loss = np.mean(test_losses)
+            average_obj  = np.mean(test_objs)
+
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
+
+    average_loss    = np.mean(test_losses)
+    average_obj     = np.mean(test_objs)
+
+    if (epoch > 0):
+        if training_method == "surrogate":
+            scheduler.step(-average_obj)
+            T_scheduler.step(-average_obj)
+        else:
+            raise TypeError("Not Implemented Method")
+
+    return average_loss, average_obj
 
 def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
     net.eval()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.MSELoss()
-    test_losses, test_objs, test_optimals = [], [], []
+    test_losses, test_objs = [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
 
-    for batch_idx, (features, labels) in enumerate(dataset):
-        features, labels = features.to(device), labels.to(device)
-        outputs = net(features)
-        # two-stage loss
-        loss = loss_fn(outputs, labels)
+    with tqdm.tqdm(dataset) as tqdm_loader:
+        for batch_idx, (features, labels) in enumerate(tqdm_loader):
+            features, labels = features.to(device), labels.to(device)
+            if epoch >= 0:
+                outputs = net(features)
+            else:
+                outputs = labels
 
-        # decision-focused loss
-        objective_value_list, optimal_value_list = [], []
-        batch_size = len(labels)
-        for (label, output) in zip(labels, outputs):
-            optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
-            optimal_x = torch.Tensor(optimize_result.x)
+            # two-stage loss
+            loss = loss_fn(outputs, labels)
 
-            # ============= the real optimum =========
-            real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
-            obj = getObjective(optimal_x, n, m, label, d, f)
-            
-            objective_value_list.append(obj)
-            optimal_value_list.append(-real_optimize_result.fun) # TODO
-        objective = sum(objective_value_list) / batch_size
-        optimal   = sum(optimal_value_list) / batch_size
-        # print('objective', objective)
+            # decision-focused loss
+            objective_value_list = []
+            batch_size = len(labels)
+            for (label, output) in zip(labels, outputs):
+                optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+                optimal_x = torch.Tensor(optimize_result.x)
+                obj = getObjective(optimal_x, n, m, label, d, f)
+                objective_value_list.append(obj)
+            objective = sum(objective_value_list) / batch_size
 
-        test_losses.append(loss.item())
-        test_objs.append(objective.item())
-        test_optimals.append(optimal)
+            test_losses.append(loss.item())
+            test_objs.append(objective.item())
 
-        average_loss = np.mean(test_losses)
-        average_obj  = np.mean(test_objs)
-        average_opt  = np.mean(test_optimals)
-        # Print status
+            average_loss = np.mean(test_losses)
+            average_obj  = np.mean(test_objs)
+
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
 
     average_loss    = np.mean(test_losses)
     average_obj     = np.mean(test_objs)
-    average_optimal = np.mean(test_optimals) 
-    sys.stdout.write(f'Epoch {epoch} | Test Loss: {average_loss:.3f}  | Test Objective Value: {average_obj:.3f}  | Test Optimal Value: {average_optimal:.3f}  \n')
-    sys.stdout.flush()
-    return average_loss, average_obj, average_optimal
+    return average_loss, average_obj
 
 def surrogate_test_submodular(net, T, epoch, sample_instance, dataset, device='cpu'):
     net.eval()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.MSELoss()
-    test_losses, test_objs, test_optimals = [], [], []
+    test_losses, test_objs = [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
 
-    for batch_idx, (features, labels) in enumerate(dataset):
-        features, labels = features.to(device), labels.to(device)
-        outputs = net(features)
-        # two-stage loss
-        loss = loss_fn(outputs, labels)
+    with tqdm.tqdm(dataset) as tqdm_loader:
+        for batch_idx, (features, labels) in enumerate(tqdm_loader):
+            features, labels = features.to(device), labels.to(device)
+            if epoch >= 0:
+                outputs = net(features)
+            else:
+                outputs = labels
+            # two-stage loss
+            loss = loss_fn(outputs, labels)
 
-        # decision-focused loss
-        objective_value_list, optimal_value_list = [], []
-        batch_size = len(labels)
-        for (label, output) in zip(labels, outputs):
-            optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
-            optimal_y = torch.Tensor(optimize_result.x)
+            # decision-focused loss
+            objective_value_list = []
+            batch_size = len(labels)
+            for (label, output) in zip(labels, outputs):
+                optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget)
+                optimal_y = torch.Tensor(optimize_result.x)
+                obj = getSurrogateObjective(T, optimal_y, n, m, label, d, f)
+                objective_value_list.append(obj)
+            objective = sum(objective_value_list) / batch_size
 
-            # ============= the real optimum =========
-            real_optimize_result = getOptimalDecision(n, m, label, d, f, budget=budget) # TODO
-            obj = getSurrogateObjective(T, optimal_y, n, m, label, d, f)
-            
-            objective_value_list.append(obj)
-            optimal_value_list.append(-real_optimize_result.fun) # TODO
-        objective = sum(objective_value_list) / batch_size
-        optimal   = sum(optimal_value_list) / batch_size
-        # print('objective', objective)
+            test_losses.append(loss.item())
+            test_objs.append(objective.item())
 
-        test_losses.append(loss.item())
-        test_objs.append(objective.item())
-        test_optimals.append(optimal)
+            average_loss = np.mean(test_losses)
+            average_obj  = np.mean(test_objs)
 
-        average_loss = np.mean(test_losses)
-        average_obj  = np.mean(test_objs)
-        average_opt  = np.mean(test_optimals)
-        # Print status
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
 
     average_loss    = np.mean(test_losses)
     average_obj     = np.mean(test_objs)
-    average_optimal = np.mean(test_optimals) 
-    sys.stdout.write(f'Epoch {epoch} | Test Loss: {average_loss:.3f}  | Test Objective Value: {average_obj:.3f}  | Test Optimal Value: {average_optimal:.3f}  \n')
-    sys.stdout.flush()
-    return average_loss, average_obj, average_optimal
+    return average_loss, average_obj
 
 def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     # train a single epoch
@@ -549,8 +603,6 @@ def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_m
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
     average_optimal = np.mean(train_optimals) 
-    sys.stdout.write(f'Epoch {epoch} | Train Loss: {average_loss:.3f} | Train Objective Value: {average_obj:.3f} | Train Optimal Value: {average_optimal:.3f} \n')
-    sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
 def surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
@@ -607,8 +659,6 @@ def surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
     average_optimal = np.mean(train_optimals) 
-    sys.stdout.write(f'Epoch {epoch} | Train Loss: {average_loss:.3f} | Train Objective Value: {average_obj:.3f} | Train Optimal Value: {average_optimal:.3f} \n')
-    sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
 def test_LP(net, optimizer, epoch, sample_instance, dataset, device='cpu'):
