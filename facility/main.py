@@ -61,6 +61,7 @@ if __name__ == '__main__':
     filepath = args.filepath
 
     # ============= Loading Movie Data =============
+    print('Loading MovieLens Dataset...')
     # ml1m_dir  = 'data/ml-1m/ratings.csv'
     # ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
     # ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
@@ -93,7 +94,9 @@ if __name__ == '__main__':
     num_samples = args.num_samples if args.num_samples != 0 else 10000000
     num_epochs = args.epochs
     feature_size = args.features
+    print('Initializing Sampler Generators...')
     sample_generator = SampleGenerator(ratings=ml_rating, item_size=n, user_chunk_size=m, feature_size=feature_size, num_samples=num_samples)
+    print('Generating samples...')
     train_dataset, validate_dataset, test_dataset = sample_generator.instance_a_train_loader_chunk(num_negatives=config['num_negative'])
 
     # =============== Learning setting ==============
@@ -122,6 +125,7 @@ if __name__ == '__main__':
     test_loss_list,  test_obj_list  = [], [] 
     validate_loss_list,  validate_obj_list = [], []
 
+    print('Start training...')
     training_time_list = []
     for epoch in range(-1, num_epochs):
         start_time = time.time()

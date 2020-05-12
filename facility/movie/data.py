@@ -52,19 +52,19 @@ class SampleGenerator(object):
         assert 'itemId' in ratings.columns
         assert 'rating' in ratings.columns
 
-        self.ratings = ratings
         # explicit feedback using _normalize and implicit using _binarize
         self.preprocess_ratings = self._normalize(ratings)
         # self.preprocess_ratings = self._binarize(ratings)
-        self.user_pool = set(self.ratings['userId'].unique())
-        self.item_pool = set(self.ratings['itemId'].unique())
 
-        # splitting training and testing item lists
-        # self.user_list, self.item_list = list(self.user_pool), list(self.item_pool)
-        self.user_list, self.item_list = list(self.user_pool)[:num_samples*user_chunk_size], list(self.item_pool)
+        self.user_list, self.item_list = ratings['userId'].unique(), ratings['itemId'].unique()
 
         random.shuffle(self.user_list)
         random.shuffle(self.item_list)
+
+        self.user_list, self.item_list = self.user_list[:num_samples*user_chunk_size], self.item_list[:feature_size+item_size]
+        self.user_pool, self.item_pool = set(self.user_list), set(self.item_list)
+
+        self.preprocess_ratings = self.preprocess_ratings[(self.preprocess_ratings['userId'].isin(self.user_pool)) & (self.preprocess_ratings['itemId'].isin(self.item_pool))]
 
         self.item_chunks = [self.item_list[:feature_size], self.item_list[feature_size:feature_size+item_size]] # existing items and new items
         self.user_chunks = [self.user_list[i*user_chunk_size: (i+1)*user_chunk_size] for i in range((len(self.user_list)) // user_chunk_size)] # ignoring the remaining
@@ -75,8 +75,8 @@ class SampleGenerator(object):
         self.test_user_indices     = self.indices[int(0.7 * len(self.user_chunks)) + int(0.1 * len(self.user_chunks)):]
 
         # create negative item samples for NCF learning
+        print('Generating negative samples...')
         self.negatives = self._sample_negative(ratings)
-        self.train_ratings, self.test_ratings = self._split_loo(self.preprocess_ratings)
 
     def _normalize(self, ratings):
         """normalize into [0, 1] from [0, max_rating], explicit feedback"""
@@ -129,7 +129,7 @@ class SampleGenerator(object):
         """instance train loader for one training epoch"""
         train_list, validate_list, test_list = [], [], []
 
-        all_ratings = pd.merge(self.ratings, self.negatives[['userId', 'negative_items']], on='userId')
+        all_ratings = pd.merge(self.preprocess_ratings, self.negatives[['userId', 'negative_items']], on='userId')
         all_ratings['negatives'] = all_ratings['negative_items'].apply(lambda x: random.sample(x, num_negatives))
         itemset_feature = self.item_chunks[0]
         item_feature_dict = {k: v for v, k in enumerate(itemset_feature)}
