@@ -196,13 +196,13 @@ if __name__ == '__main__':
         validate_obj_list.append(validate_obj)
 
     # record the data every epoch
-    f_output = open('movie_results/performance/' + filepath + "-{}.csv".format(training_method), 'a')
+    f_output = open('movie_results/performance/' + filepath + "{}.csv".format(training_method), 'a')
     f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
     f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
     f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
     f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
     f_output.close()
 
-    f_time = open('movie_results/time/' + filepath + "-{}.csv".format(training_method), 'a')
-    f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(str(SEED), forward_time, qp_time, backward_time))
+    f_time = open('movie_results/time/' + filepath + "{}.csv".format(training_method), 'a')
+    f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(str(SEED), total_forward_time, total_qp_time, total_backward_time))
     f_time.close()
