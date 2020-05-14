@@ -198,6 +198,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
             outputs = net(features)
             # two-stage loss
             loss = loss_fn(outputs, labels)
+            print(loss)
             forward_time += time.time() - net_start_time
 
             # decision-focused loss
@@ -265,12 +266,13 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
             backward_time += time.time() - backward_start_time
 
             train_losses.append(loss.item())
+            print(train_losses)
             train_objs.append(objective.item())
 
             average_loss = np.mean(train_losses)
             average_obj = np.mean(train_objs)
             # Print status
-            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
+            tqdm_loader.set_postfix(loss=f'{average_loss:.6f}', obj=f'{average_obj:.6f}')
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)

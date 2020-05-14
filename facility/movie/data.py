@@ -76,7 +76,7 @@ class SampleGenerator(object):
 
         # create negative item samples for NCF learning
         # print('Generating negative samples...')
-        # self.negatives = self._sample_negative(ratings)
+        self.negatives = self._sample_negative(ratings)
 
     def _normalize(self, ratings):
         """normalize into [0, 1] from [0, max_rating], explicit feedback"""
@@ -104,7 +104,7 @@ class SampleGenerator(object):
         interact_status = ratings.groupby('userId')['itemId'].apply(set).reset_index().rename(
             columns={'itemId': 'interacted_items'})
         interact_status['negative_items'] = interact_status['interacted_items'].apply(lambda x: self.item_pool - x)
-        interact_status['negative_samples'] = interact_status['negative_items'].apply(lambda x: random.sample(x, 8))
+        interact_status['negative_samples'] = interact_status['negative_items'].apply(lambda x: random.sample(x, 99))
         return interact_status[['userId', 'negative_items', 'negative_samples']]
 
     def instance_a_train_loader(self, num_negatives, batch_size):
@@ -130,8 +130,8 @@ class SampleGenerator(object):
         train_list, validate_list, test_list = [], [], []
 
         all_ratings = self.preprocess_ratings
-        # all_ratings = pd.merge(self.preprocess_ratings, self.negatives[['userId', 'negative_items']], on='userId')
-        # all_ratings['negatives'] = all_ratings['negative_items'].apply(lambda x: random.sample(x, num_negatives))
+        all_ratings = pd.merge(self.preprocess_ratings, self.negatives[['userId', 'negative_items']], on='userId')
+        all_ratings['negatives'] = all_ratings['negative_items'].apply(lambda x: random.sample(x, num_negatives))
         itemset_feature = self.item_chunks[0]
         item_feature_dict = {k: v for v, k in enumerate(itemset_feature)}
         itemset = self.item_chunks[1]
@@ -144,19 +144,19 @@ class SampleGenerator(object):
                 items.append(int(row.itemId))
                 ratings.append(float(row.rating))
 
-                # valid_negatives = set(row.negative_items).intersection(set(itemset))
-                # negative_items = random.sample(valid_negatives, min(num_negatives, len(valid_negatives)))
-                # for negative_item in negative_items:
-                #     users.append(int(row.userId))
-                #     items.append(int(negative_item))
-                #     ratings.append(float(0))  # negative samples get 0 rating
-            # indices = list(range(len(users)))
+                valid_negatives = set(row.negative_items).intersection(set(itemset))
+                negative_items = random.sample(valid_negatives, min(num_negatives, len(valid_negatives)))
+                for negative_item in negative_items:
+                    users.append(int(row.userId))
+                    items.append(int(negative_item))
+                    ratings.append(float(0))  # negative samples get 0 rating
+            indices = list(range(len(users)))
 
             user_dict = {k: v for v, k in enumerate(userset)}
             c_target  = torch.zeros(1, len(itemset), len(userset))
             for user_id, item_id, rating in zip(users, items, ratings):
                 c_target[0, item_dict[item_id], user_dict[user_id]] = rating
-            # random.shuffle(indices)
+            random.shuffle(indices)
             users, items = torch.LongTensor(users), torch.LongTensor(items)
 
             # retriving the features of each user
@@ -165,8 +165,7 @@ class SampleGenerator(object):
             for row in feature_chunk.itertuples():
                 user_features[user_dict[int(row.userId)], item_feature_dict[int(row.itemId)]] = row.rating
 
-            instance_data = (UserItemData(user_dict, item_dict, users, items, user_features), c_target)
-            # instance_data = (UserItemData(user_dict, item_dict, users[indices], items[indices], user_features[[user_dict[userId.item()] for userId in users[indices]]]), c_target)
+            instance_data = (UserItemData(user_dict, item_dict, users[indices], items[indices], user_features[[user_dict[userId.item()] for userId in users[indices]]]), c_target)
             if userset_id in self.test_user_indices:
                 test_list.append(instance_data)
             elif userset_id in self.validate_user_indices:

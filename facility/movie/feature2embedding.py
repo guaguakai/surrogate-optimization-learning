@@ -16,7 +16,7 @@ def linear_block(in_channels, out_channels, activation='ReLU'):
                )
 
 class Feature2Embedding(nn.Module):
-    def __init__(self, input_size=200, output_size=8):
+    def __init__(self, input_size=20, output_size=8):
         # input:  features
         # output: embedding
         super(Feature2Embedding, self).__init__()
