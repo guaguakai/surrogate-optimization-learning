@@ -4,7 +4,7 @@ import scipy
 import autograd
 from facilityDerivative import getObjective
 
-REG = 0.1
+REG = 0.0
 
 def getSurrogateObjective(T, y, n, m, c, d, f):
     x = T @ y
@@ -31,8 +31,8 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None):
         # initial_y = np.random.rand(variable_size)
         # initial_y = initial_y * budget / np.sum(initial_y)
 
-    getObj = lambda y: -getSurrogateObjective(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f).detach().item() / 100 # maximize objective
-    getJac = lambda y: -getSurrogateDerivative(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f).detach().numpy() / 100
+    getObj = lambda y: -getSurrogateObjective(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f).detach().item() # maximize objective
+    getJac = lambda y: -getSurrogateDerivative(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f).detach().numpy()
 
     bounds = [(0,np.inf)]*variable_size
     eq_fn    = lambda y: budget - sum( T.detach().numpy() @ y)
@@ -44,7 +44,7 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None):
             {'type': 'ineq', 'fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)},
             {'type': 'ineq', 'fun': ineq_fn2, 'jac': autograd.jacobian(ineq_fn2)}
             ]
-    options = {'maxiter': 100, 'eps':1e-12, 'disp': True}
+    options = {'maxiter': 100, 'disp': True, 'ftol': 1e-4}
     # options = {'maxiter': 100, 'disp': True}
     # tol = 1e-6
 
