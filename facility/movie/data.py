@@ -104,7 +104,7 @@ class SampleGenerator(object):
         interact_status = ratings.groupby('userId')['itemId'].apply(set).reset_index().rename(
             columns={'itemId': 'interacted_items'})
         interact_status['negative_items'] = interact_status['interacted_items'].apply(lambda x: self.item_pool - x)
-        interact_status['negative_samples'] = interact_status['negative_items'].apply(lambda x: random.sample(x, 99))
+        interact_status['negative_samples'] = interact_status['negative_items'].apply(lambda x: random.sample(x, 8))
         return interact_status[['userId', 'negative_items', 'negative_samples']]
 
     def instance_a_train_loader(self, num_negatives, batch_size):
@@ -129,8 +129,9 @@ class SampleGenerator(object):
         """instance train loader for one training epoch"""
         train_list, validate_list, test_list = [], [], []
 
-        all_ratings = pd.merge(self.preprocess_ratings, self.negatives[['userId', 'negative_items']], on='userId')
-        all_ratings['negatives'] = all_ratings['negative_items'].apply(lambda x: random.sample(x, num_negatives))
+        all_ratings = self.preprocess_ratings
+        # all_ratings = pd.merge(self.preprocess_ratings, self.negatives[['userId', 'negative_items']], on='userId')
+        # all_ratings['negatives'] = all_ratings['negative_items'].apply(lambda x: random.sample(x, num_negatives))
         itemset_feature = self.item_chunks[0]
         item_feature_dict = {k: v for v, k in enumerate(itemset_feature)}
         itemset = self.item_chunks[1]
@@ -143,12 +144,12 @@ class SampleGenerator(object):
                 items.append(int(row.itemId))
                 ratings.append(float(row.rating))
 
-                valid_negatives = set(row.negative_items).intersection(set(itemset))
-                negative_items = random.sample(valid_negatives, min(num_negatives, len(valid_negatives)))
-                for negative_item in negative_items:
-                    users.append(int(row.userId))
-                    items.append(int(negative_item))
-                    ratings.append(float(0))  # negative samples get 0 rating
+                # valid_negatives = set(row.negative_items).intersection(set(itemset))
+                # negative_items = random.sample(valid_negatives, min(num_negatives, len(valid_negatives)))
+                # for negative_item in negative_items:
+                #     users.append(int(row.userId))
+                #     items.append(int(negative_item))
+                #     ratings.append(float(0))  # negative samples get 0 rating
             indices = list(range(len(users)))
 
             user_dict = {k: v for v, k in enumerate(userset)}

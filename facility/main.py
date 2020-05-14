@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     print('Start training...')
     total_forward_time, total_qp_time, total_backward_time = 0, 0, 0
-    for epoch in range(-1, num_epochs):
+    for epoch in range(1, num_epochs):
         start_time = time.time()
         forward_time, qp_time, backward_time = 0, 0, 0
         if training_method == 'surrogate':

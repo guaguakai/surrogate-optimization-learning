@@ -10,6 +10,7 @@ import autograd
 import torch
 import torch.utils.data as data_utils
 from torch.utils.data.sampler import SubsetRandomSampler
+from sklearn.metrics import pairwise_distances
 
 from gurobipy import *
 from types import SimpleNamespace
@@ -347,6 +348,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                 
                 objective_value_list.append(obj)
                 T_loss_list.append(tmp_T_loss)
+
+            # print(pairwise_distances(T.t().detach().numpy()))
             objective  = sum(objective_value_list) / batch_size
             T_loss     = sum(T_loss_list) / batch_size
             # print('objective', objective)
@@ -717,66 +720,3 @@ def test_LP(net, optimizer, epoch, sample_instance, dataset, device='cpu'):
     sys.stdout.flush()
     return average_loss, average_obj, average_optimal
 
-if __name__ == '__main__':
-    n, m = 5, 10 # n: # of facilities, m: # of customers
-    sample_instance = generateInstance(n, m)
-    sample_instance.c = None
-    # print("MILP solver")
-    # MILPSolver(instance)
-
-    # print("LP solver")
-    # LPSolver(instance)
-
-    # training_method = 'two-stage'
-    # training_method = 'decision-focused'
-    training_method = 'surrogate'
-    num_instances = 200
-    feature_size = 32
-    lr = 0.001
-    dataset = generateDataset(n, m, num_instances, feature_size)
-
-    A, b, G, h = LPCreateConstraintMatrix(m, n)
-
-    net = FacilityNN(input_shape=(n,feature_size), output_shape=(n,m))
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
-
-    # surrogate setup
-    if training_method == 'surrogate':
-        # A, b, G, h = LPCreateSurrogateConstraintMatrix(m, n)
-        variable_size = n*m + n
-        T_size = 15
-        init_T = torch.rand(variable_size, T_size)
-        T = torch.Tensor(normalize_projection(init_T, A, b[:,None]), requires_grad=True)
-        T_lr = lr
-        T_optimizer = torch.optim.Adam([T], lr=T_lr)
-        new_A, new_b = torch.ones((1, T_size)), torch.ones(1)
-
-    '''
-    num_epochs = 100
-    train_loss_list, train_obj_list, train_opt_list = [], [], []
-    test_loss_list,  test_obj_list,  test_opt_list  = [], [], []
-    for epoch in range(num_epochs):
-        if training_method == 'surrogate':
-            train_loss, train_obj, train_opt = surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
-        else:
-            train_loss, train_obj, train_opt = train_LP(net, optimizer, epoch, sample_instance, dataset.train, training_method=training_method)
-        # validate(dataset.validate)
-        test_loss, test_obj, test_opt = test_LP(net, optimizer, epoch, sample_instance, dataset.test)
-
-        train_loss_list.append(train_loss)
-        train_obj_list.append(train_obj)
-        train_opt_list.append(train_opt)
-        test_loss_list.append(test_loss)
-        test_obj_list.append(test_obj)
-        test_opt_list.append(test_opt)
-
-    f_output = open("facility/results/{}.csv".format(training_method), 'w')
-    f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
-    f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
-    f_output.write('training opt,'  + ','.join([str(x) for x in train_opt_list])  + '\n')
-    f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
-    f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
-    f_output.write('testing opt,'   + ','.join([str(x) for x in test_opt_list])   + '\n')
-
-    f_output.close()
-    '''
