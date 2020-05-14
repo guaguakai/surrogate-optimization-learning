@@ -75,8 +75,8 @@ class SampleGenerator(object):
         self.test_user_indices     = self.indices[int(0.7 * len(self.user_chunks)) + int(0.1 * len(self.user_chunks)):]
 
         # create negative item samples for NCF learning
-        print('Generating negative samples...')
-        self.negatives = self._sample_negative(ratings)
+        # print('Generating negative samples...')
+        # self.negatives = self._sample_negative(ratings)
 
     def _normalize(self, ratings):
         """normalize into [0, 1] from [0, max_rating], explicit feedback"""
