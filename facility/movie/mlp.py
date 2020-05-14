@@ -14,7 +14,7 @@ class MLP(torch.nn.Module):
         self.latent_dim = config['latent_dim']
 
         # self.embedding_user = torch.nn.Embedding(num_embeddings=self.num_users, embedding_dim=self.latent_dim)
-        self.embedding_user_model = Feature2Embedding(output_size=self.latent_dim)
+        self.embedding_user_model = Feature2Embedding(input_size=config['num_features'], output_size=self.latent_dim)
         self.embedding_item = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim)
 
         self.fc_layers = torch.nn.ModuleList()

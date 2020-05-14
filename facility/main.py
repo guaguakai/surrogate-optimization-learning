@@ -94,6 +94,7 @@ if __name__ == '__main__':
     # net = GMFWrapper(config=config)
     config = mlp_config
     config['num_items'], config['num_users'] = sample_generator.num_items, sample_generator.num_users
+    config['num_features'] = feature_size
     # config = neumf_config
     # net = NeuMFWrapper(config=neumf_config)
 

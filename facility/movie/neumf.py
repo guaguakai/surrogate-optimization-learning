@@ -14,9 +14,9 @@ class NeuMF(torch.nn.Module):
         self.latent_dim_mf = config['latent_dim_mf']
         self.latent_dim_mlp = config['latent_dim_mlp']
 
-        self.embedding_user_mlp = Feature2Embedding(output_size=self.latent_dim_mlp)
+        self.embedding_user_mlp = Feature2Embedding(input_size=config['num_features'], output_size=self.latent_dim_mlp)
         self.embedding_item_mlp = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim_mlp)
-        self.embedding_user_mf = Feature2Embedding(output_size=self.latent_dim_mf)
+        self.embedding_user_mf = Feature2Embedding(input_size=config['num_features'], output_size=self.latent_dim_mf)
         self.embedding_item_mf = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim_mf)
 
         self.fc_layers = torch.nn.ModuleList()

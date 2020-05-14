@@ -10,7 +10,7 @@ class GMF(torch.nn.Module):
         self.num_items = config['num_items']
         self.latent_dim = config['latent_dim']
 
-        self.embedding_user_model = Feature2Embedding(output_size=self.latent_dim)
+        self.embedding_user_model = Feature2Embedding(input_size=config['num_features'], output_size=self.latent_dim)
         self.embedding_item = torch.nn.Embedding(num_embeddings=self.num_items, embedding_dim=self.latent_dim)
 
         self.affine_output = torch.nn.Linear(in_features=self.latent_dim, out_features=1)
