@@ -312,9 +312,9 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     forward_time += time.time() - forward_start_time
                     optimal_y = torch.Tensor(optimize_result.x)
 
-                    newA, newb = A @ T, b
-                    newG = torch.cat((G @ T, -torch.eye(variable_size)))
-                    newh = torch.cat((h, torch.zeros(variable_size)))
+                    newA, newb = torch.Tensor(), torch.Tensor()
+                    newG = torch.cat((A @ T, G @ T, -torch.eye(variable_size)))
+                    newh = torch.cat((b, h, torch.zeros(variable_size)))
                     # newG = torch.cat((G @ T, - T, T)) # torch.eye(variable_size)))
                     # newh = torch.cat((h, torch.zeros(x_size), torch.ones(x_size)))
 

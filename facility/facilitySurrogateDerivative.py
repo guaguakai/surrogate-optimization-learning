@@ -30,6 +30,7 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None):
         initial_y = np.zeros(variable_size)
         # initial_y = np.random.rand(variable_size)
         # initial_y = initial_y * budget / np.sum(initial_y)
+    initial_y = np.zeros(variable_size)
 
     getObj = lambda y: -getSurrogateObjective(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f).detach().item() # maximize objective
     getJac = lambda y: -getSurrogateDerivative(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f).detach().numpy()
@@ -40,11 +41,11 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None):
     ineq_fn2 = lambda y: 1 - T.detach().numpy() @ y
     # constraints = [{'type': 'eq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
     constraints = [
-            {'type': 'eq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}, 
+            {'type': 'ineq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}, 
             {'type': 'ineq', 'fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)},
             {'type': 'ineq', 'fun': ineq_fn2, 'jac': autograd.jacobian(ineq_fn2)}
             ]
-    options = {'maxiter': 100, 'disp': True, 'ftol': 1e-4}
+    options = {'maxiter': 100}
     # options = {'maxiter': 100, 'disp': True}
     # tol = 1e-6
 
