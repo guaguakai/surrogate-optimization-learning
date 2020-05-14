@@ -150,13 +150,13 @@ class SampleGenerator(object):
                 #     users.append(int(row.userId))
                 #     items.append(int(negative_item))
                 #     ratings.append(float(0))  # negative samples get 0 rating
-            indices = list(range(len(users)))
+            # indices = list(range(len(users)))
 
             user_dict = {k: v for v, k in enumerate(userset)}
             c_target  = torch.zeros(1, len(itemset), len(userset))
             for user_id, item_id, rating in zip(users, items, ratings):
                 c_target[0, item_dict[item_id], user_dict[user_id]] = rating
-            random.shuffle(indices)
+            # random.shuffle(indices)
             users, items = torch.LongTensor(users), torch.LongTensor(items)
 
             # retriving the features of each user
@@ -165,7 +165,8 @@ class SampleGenerator(object):
             for row in feature_chunk.itertuples():
                 user_features[user_dict[int(row.userId)], item_feature_dict[int(row.itemId)]] = row.rating
 
-            instance_data = (UserItemData(user_dict, item_dict, users[indices], items[indices], user_features[[user_dict[userId.item()] for userId in users[indices]]]), c_target)
+            instance_data = (UserItemData(user_dict, item_dict, users, items, user_features), c_target)
+            # instance_data = (UserItemData(user_dict, item_dict, users[indices], items[indices], user_features[[user_dict[userId.item()] for userId in users[indices]]]), c_target)
             if userset_id in self.test_user_indices:
                 test_list.append(instance_data)
             elif userset_id in self.validate_user_indices:
