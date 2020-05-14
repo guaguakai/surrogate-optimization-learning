@@ -212,12 +212,16 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
 
                 qp_start_time = time.time()
                 if training_method == 'decision-focused':
+                    newA, newb = torch.Tensor(), torch.Tensor()
+                    newG = torch.cat((A, G))
+                    newh = torch.cat((b, h))
+
                     Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 10
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
                     p = jac - Q @ optimal_x
                     qp_solver = qpth.qp.QPFunction()
                     # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
-                    x = qp_solver(Q, p, G, h, A, b)[0]
+                    x = qp_solver(Q, p, newG, newh, newA, newb)[0]
                     if torch.norm(x.detach() - optimal_x) > 0.5:
                         # debugging message
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
