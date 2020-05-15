@@ -162,7 +162,7 @@ if __name__ == '__main__':
         # ================ validating ==================
         if training_method == 'surrogate':
             if epoch == -1:
-                validate_loss, validate_obj = surrogate_validate_submodular(net, scheduler, T_scheduler, full_T, epoch, sample_instance, validate_dataset, training_method=training_method)
+                validate_loss, validate_obj = validate_submodular(net, scheduler, epoch, sample_instance, validate_dataset, training_method=training_method)
             else:
                 validate_loss, validate_obj = surrogate_validate_submodular(net, scheduler, T_scheduler, T, epoch, sample_instance, validate_dataset, training_method=training_method)
         else:
@@ -171,7 +171,7 @@ if __name__ == '__main__':
         # ================== testing ===================
         if training_method == 'surrogate':
             if epoch == -1:
-                test_loss, test_obj = surrogate_test_submodular(net, full_T, epoch, sample_instance, test_dataset)
+                test_loss, test_obj = test_submodular(net, epoch, sample_instance, test_dataset)
             else:
                 test_loss, test_obj = surrogate_test_submodular(net, T, epoch, sample_instance, test_dataset)
         else:
