@@ -138,7 +138,7 @@ if __name__ == '__main__':
         if training_method == 'surrogate':
             if epoch == -1:
                 print('Testing the optimal solution...')
-                train_loss, train_obj = surrogate_test_submodular(net, full_T, epoch, sample_instance, train_dataset)
+                train_loss, train_obj = test_submodular(net, epoch, sample_instance, train_dataset)
             elif epoch == 0:
                 print('Testing the initial solution quality...')
                 train_loss, train_obj = surrogate_test_submodular(net, T, epoch, sample_instance, train_dataset)
