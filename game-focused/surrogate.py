@@ -86,7 +86,6 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
             loss_list, def_obj_list = [], [] 
             for iter_n in tqdm.trange(len(dataset)):
-                time1 = time.time()
                 G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true, previous_gradient = dataset[iter_n]
                 n, m = G.number_of_nodes(), G.number_of_edges()
                 budget = G.graph['budget']
@@ -114,11 +113,14 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 if epoch == -1: # optimal solution
                     cut_size = m
                     def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, full_T, full_s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                    single_forward_time, single_qp_time = 0, 0 # testing epoch so not counting the computation time
+
                 elif mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
                     cut_size = m
                     def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                    single_forward_time, single_qp_time = 0, 0 # testing epoch so not counting the computation time
+
                 else:
-                    time2 = time.time() # including the time of computing defender utility
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
                         def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
