@@ -73,7 +73,7 @@ class NeuMF(torch.nn.Module):
         self.affine_output.bias.data = 0.5 * (mlp_model.affine_output.bias.data + gmf_model.affine_output.bias.data)
 
 
-class NeuMFWrapper(GMF):
+class NeuMFWrapper(NeuMF):
     def forward(self, features):
         user_dict, item_dict, user_indices, item_indices, user_features = features.getData()
         c = torch.zeros(1, len(item_dict), len(user_dict))
