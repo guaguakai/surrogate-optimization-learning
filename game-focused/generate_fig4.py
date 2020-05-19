@@ -85,8 +85,8 @@ def generateLineChart(xy_list, filename):
         
         if i in [2,3]:
             start = 10
-            bottom = min(ys[0]) # min(min(ys[0][start:]), min(ys[1][start:]), min(ys[2][start:]))
-            top    = max(ys[0]) # max(max(ys[0][start:]), max(ys[1][start:]), max(ys[2][start:]), max(ys[3][start:]))
+            bottom = min(min(ys[0][start:]), min(ys[1][start:])) # , min(ys[2][start:]))
+            top    = max(max(ys[0][start:]), max(ys[1][start:]), max(ys[2][start:])) # , max(ys[3][start:]))
             axs[i].set_ylim(bottom, top)
         if i == 0:
             axs[i].legend()

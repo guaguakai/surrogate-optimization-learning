@@ -8,11 +8,11 @@ from generate_time import load_time
 
 if __name__=='__main__':
 
-    labels = ['surrogate-decision-focused']
+    # labels = ['surrogate-decision-focused']
     # labels = ['two-stage', 'hybrid']
     # labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid']
-    # labels = ['two-stage', 'block-decision-focused', 'hybrid', 'surrogate-decision-focused']
-    # labels = ['two-stage', 'block-decision-focused', 'hybrid', 'surrogate-decision-focused', 'decision-focused']
+    labels = ['two-stage', 'hybrid', 'surrogate-decision-focused']
+    # labels = ['two-stage', 'hybrid', 'surrogate-decision-focused', 'decision-focused']
     print(labels)
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')
@@ -42,7 +42,7 @@ if __name__=='__main__':
     bar_list = np.zeros((5, len(labels)))
     for i, label in enumerate(labels):
         filepath = "results/random/exp1/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
-        key_list = list(set(range(1,11)) - set([6])) # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 37, 39, 40, 42, 43, 44, 45, 46, 47, 48, 49, 50] #None
+        key_list = list(set(range(1,31)) - set([])) # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 37, 39, 40, 42, 43, 44, 45, 46, 47, 48, 49, 50] #None
         if label == 'two-stage':
             loss_list, defu_list, opt_loss_list, opt_defu_list, init_loss_list, init_defu_list = read_file(filepath, 'two-stage', key_list)
         else:
@@ -61,7 +61,7 @@ if __name__=='__main__':
         bar_list[1,i] = defu_median
 
         time_filepath = "results/time/random/exp1/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, label, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
-        forward_time, qp_time, backward_time = load_time(time_filepath)
+        forward_time, qp_time, backward_time = load_time(time_filepath, key_list=key_list)
         bar_list[2,i] = forward_time
         bar_list[3,i] = qp_time
         bar_list[4,i] = backward_time
