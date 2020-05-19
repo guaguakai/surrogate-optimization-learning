@@ -110,7 +110,7 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     scheduler = ReduceLROnPlateau(optimizer, 'min')
 
-    sample_instance = SimpleNamespace(n=n, m=m, d=2*np.ones(m), f=np.ones(n), budget=budget) # dummy sample instance that is used to store the given n, m, d, f 
+    sample_instance = SimpleNamespace(n=n, m=m, d=3*np.ones(m), f=np.ones(n), budget=budget) # dummy sample instance that is used to store the given n, m, d, f 
     A, b, G, h = createConstraintMatrix(m, n, budget)
 
     # surrogate setup

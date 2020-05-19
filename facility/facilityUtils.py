@@ -319,8 +319,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     newA, newb = torch.Tensor(), torch.Tensor()
                     newG = torch.cat((A @ T, G @ T, -torch.eye(variable_size)))
                     newh = torch.cat((b, h, torch.zeros(variable_size)))
-                    # newG = torch.cat((G @ T, - T, T)) # torch.eye(variable_size)))
-                    # newh = torch.cat((h, torch.zeros(x_size), torch.ones(x_size)))
+                    # newG = torch.cat((A @ T, G @ T, -torch.eye(variable_size), torch.eye(variable_size)))
+                    # newh = torch.cat((b, h, torch.zeros(variable_size), torch.ones(variable_size)))
 
                     qp_start_time = time.time()
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10

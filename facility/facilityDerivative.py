@@ -62,7 +62,7 @@ def getOptimalDecision(n, m, c, d, f, budget, initial_x=None):
     bounds = [(0,1)]*n
     eq_fn = lambda x: budget - sum(x)
     constraints = [{'type': 'ineq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
-    options = {'maxiter': 100, 'ftol': 1e-4}
+    options = {'maxiter': 100, 'ftol': 1e-3}
 
     optimize_result = scipy.optimize.minimize(getObj, initial_x, method='SLSQP', jac=getJac, bounds=bounds, constraints=constraints, options=options)
     # optimize_result = scipy.optimize.minimize(getObj, initial_x, method='trust-constr', jac=getJac, bounds=bounds, constraints=constraints)
