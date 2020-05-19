@@ -89,20 +89,16 @@ if __name__ == '__main__':
     print('Initializing Sampler Generators...')
     sample_generator = SampleGenerator(ratings=ml_rating, item_size=n, user_chunk_size=m, feature_size=feature_size, num_samples=num_samples)
 
+    # ================= Model setup =================
     from config import gmf_config, mlp_config, neumf_config
-    # config = gmf_config
-    # net = GMFWrapper(config=config)
-    config = mlp_config
+    config = neumf_config
     config['num_items'], config['num_users'] = sample_generator.num_items, sample_generator.num_users
     config['num_features'] = feature_size
-    # config = neumf_config
-    # net = NeuMFWrapper(config=neumf_config)
+    net = NeuMFWrapper(config=config)
 
+    # ============== Generating Samples =============
     print('Generating samples...')
     train_dataset, validate_dataset, test_dataset = sample_generator.instance_a_train_loader_chunk(num_negatives=config['num_negative'])
-
-    # ================= Model setup =================
-    net = MLPWrapper(config=config)
 
     # =============== Learning setting ==============
     budget = args.budget
