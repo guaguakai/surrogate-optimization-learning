@@ -144,8 +144,9 @@ class SampleGenerator(object):
                 items.append(int(row.itemId))
                 ratings.append(float(row.rating))
 
-                valid_negatives = set(row.negative_items).intersection(set(itemset))
-                negative_items = random.sample(valid_negatives, min(num_negatives, len(valid_negatives)))
+                # valid_negatives = set(row.negative_items).intersection(set(itemset))
+                # negative_items = random.sample(valid_negatives, min(num_negatives, len(valid_negatives)))
+                negative_items = set(row.negatives).intersection(set(itemset))
                 for negative_item in negative_items:
                     users.append(int(row.userId))
                     items.append(int(negative_item))
