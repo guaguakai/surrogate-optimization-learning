@@ -11,6 +11,7 @@ import tqdm
 import argparse
 import qpthlocal
 import numpy as np
+from celluloid import Camera
 
 from gcn import GCNPredictionNet2
 from graphData import *
@@ -18,18 +19,18 @@ from surrogate_derivative import surrogate_get_optimal_coverage_prob, surrogate_
 from utils import phi2prob, prob2unbiased, normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr
 
 def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
-                          n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5):
+                          n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5, T_size=10):
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
 
     sample_graph = train_data[0][0]
-    T_size = 10 # sample_graph.number_of_edges() // 4
     init_T, init_s = torch.rand(sample_graph.number_of_edges(), T_size), torch.zeros(sample_graph.number_of_edges())
     T, s = torch.tensor(normalize_matrix_positive(init_T), requires_grad=True), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
     full_T, full_s = torch.eye(sample_graph.number_of_edges(), requires_grad=False), torch.zeros(sample_graph.number_of_edges(), requires_grad=False)
     T_lr = lr
 
+    # ================ Optimizer ================
     if optimizer == 'adam':
         optimizer = optim.Adam(net2.parameters(), lr=lr)
         T_optimizer = optim.Adam([T, s], lr=T_lr)
@@ -89,6 +90,12 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true, previous_gradient = dataset[iter_n]
                 n, m = G.number_of_nodes(), G.number_of_edges()
                 budget = G.graph['budget']
+
+                # ==================== Visualization ===================
+                if iter_n == 0 and mode == 'training':
+                    from plot_utils import plot_graph, reduce_dimension
+                    T_reduced = T.detach().numpy() # reduce_dimension(T.detach().numpy())
+                    plot_graph(G, T_reduced, epoch)
                 
                 # =============== Compute edge probabilities ===========
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
@@ -200,7 +207,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     print('Total forward time: {}'.format(forward_time))
     print('Total qp time: {}'.format(qp_time))
     print('Total backward time: {}'.format(backward_time))
-            
+
     return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, (forward_time, qp_time, backward_time)
     
 
@@ -339,6 +346,7 @@ if __name__=='__main__':
 
     parser.add_argument('--distribution', type=int, default=1, help='0 -> random walk distribution, 1 -> empirical distribution')
     parser.add_argument('--method', type=int, default=1, help='1 -> surrogate-decision-focused')
+    parser.add_argument('--T', type=int, default=10, help='Size of reparameterization')
     
     args = parser.parse_args()
 
@@ -367,6 +375,7 @@ if __name__=='__main__':
     
     N_EPOCHS = args.epochs
     LR = args.learning_rate # roughly 0.005 ~ 0.01 for two-stage; N/A for decision-focused
+    T_SIZE = args.T
     BATCH_SIZE = 1
     OPTIMIZER = 'adam'
     DEFENDER_BUDGET = args.budget # This means the budget (sum of coverage prob) is <= DEFENDER_BUDGET*Number_of_edges 
@@ -414,7 +423,7 @@ if __name__=='__main__':
                                 train_data, validate_data, test_data,
                                 learning_model=learning_model_type, block_selection=block_selection,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
-                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, block_cut_size=CUT_SIZE)
+                                optimizer=OPTIMIZER, omega=OMEGA, training_method=training_method, block_cut_size=CUT_SIZE, T_size=T_SIZE)
 
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')

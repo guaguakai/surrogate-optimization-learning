@@ -434,27 +434,13 @@ def generateSyntheticData(node_feature_size, omega=4,
 
         # COMPUTE ADJACENCY MATRIX
         edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
-        N = nx.number_of_nodes(G) 
+        N = nx.number_of_nodes(G)
         m = nx.number_of_edges(G)
 
-        # pos = nx.spring_layout(G)
-
-        # print('sources', G.graph['sources'], 'targets', G.graph['targets'])
-        # # nx.draw_networkx_nodes(G, pos, nodelist=G.nodes())
-        # nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='b')
-        # nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='g')
-
-        # nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
-        # nx.draw_networkx_edges(G, pos,
-        #                edgelist=[list(edges)[idx] for idx in cut],
-        #                width=8, alpha=0.5, edge_color='r')
-        # edge_labels = []
-        # for i in range(m):
-        #     edge_labels.append(str(i))
-        # # edge_labels = nx.draw_networkx_edge_labels(G, pos, edge_labels)
-        # nx.draw(G)
-        # plt.show()
-
+        # Visualization
+        # from plot_utils import plot_graph
+        # colors = np.random.random((m, 3))
+        # plot_graph(G, colors)
 
         '''
         # Define node features for each of the n nodes

@@ -11,8 +11,8 @@ if __name__=='__main__':
     # labels = ['surrogate-decision-focused']
     # labels = ['two-stage', 'hybrid']
     # labels = ['two-stage', 'decision-focused', 'block-decision-focused', 'hybrid']
-    labels = ['two-stage', 'hybrid', 'surrogate-decision-focused']
-    # labels = ['two-stage', 'hybrid', 'surrogate-decision-focused', 'decision-focused']
+    # labels = ['two-stage', 'hybrid', 'surrogate-decision-focused']
+    labels = ['two-stage', 'hybrid', 'surrogate-decision-focused', 'decision-focused']
     print(labels)
     # ==================== Parser setting ==========================
     parser = argparse.ArgumentParser(description='GCN Interdiction')

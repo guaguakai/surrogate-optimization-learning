@@ -91,10 +91,10 @@ if __name__ == '__main__':
 
     # ================= Model setup =================
     from config import gmf_config, mlp_config, neumf_config
-    config = neumf_config
+    config = mlp_config
     config['num_items'], config['num_users'] = sample_generator.num_items, sample_generator.num_users
     config['num_features'] = feature_size
-    net = NeuMFWrapper(config=config)
+    net = MLPWrapper(config=config)
 
     # ============== Generating Samples =============
     print('Generating samples...')
