@@ -20,6 +20,9 @@ from utils import normalize_matrix, normalize_matrix_positive, normalize_vector,
 from facilityDerivative import getObjective, getManualDerivative, getDerivative, getOptimalDecision, getHessian
 from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateManualDerivative, getSurrogateHessian, getSurrogateOptimalDecision
 
+import cvxpy as cp
+from cvxpylayers.torch import CvxpyLayer
+
 # Random Seed Initialization
 # SEED = 1289 #  random.randint(0,10000)
 # print("Random seed: {}".format(SEED))
@@ -223,7 +226,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     # qp_solver = qpth.qp.QPFunction()
                     # x = qp_solver(Q, p, newG, newh, newA, newb)[0]
 
-                    try:
+                    if True:
                         # =============== solving QP using CVXPY ===============
                         x_default = cp.Variable(n)
                         G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
@@ -234,11 +237,11 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                         problem = cp.Problem(objective, constraints)
 
                         cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
-                        coverage_qp_solution, = cvxpylayer(G_matrix, h_matrix, L, p)
-                        x = coverage_qp_solution[0]
-                    except:
-                        print("CVXPY solver fails... Usually because Q is not PSD")
-                        x = optimal_x
+                        coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
+                        x = coverage_qp_solution
+                    # except:
+                    #     print("CVXPY solver fails... Usually because Q is not PSD")
+                    #     x = optimal_x
 
 
                     if torch.norm(x.detach() - optimal_x) > 0.5:
@@ -343,6 +346,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
                     qp_start_time = time.time()
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
+                    L = torch.cholesky(Q)
                     jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
                     # qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
@@ -355,24 +359,24 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     #     x = T.detach() @ optimal_y
                     #     print('qp error! no gradient!')
 
-                    try:
+                    if True:
                         # =============== solving QP using CVXPY ===============
-                        x_default = cp.Variable(n)
+                        y_default = cp.Variable(variable_size)
                         G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
-                        L_default = cp.Parameter((n,n))
-                        p_default = cp.Parameter(n)
-                        constraints = [G_default @ x_default <= h_default]
-                        objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ x_default) + p_default.T @ x_default)
+                        L_default = cp.Parameter((variable_size, variable_size))
+                        p_default = cp.Parameter(variable_size)
+                        constraints = [G_default @ y_default <= h_default]
+                        objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ y_default) + p_default.T @ y_default)
                         problem = cp.Problem(objective, constraints)
 
-                        cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
+                        cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[y_default])
                         coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
-                        y = coverage_qp_solution[0]
+                        y = coverage_qp_solution
                         x = T @ y
-                    except:
-                        print("CVXPY solver fails... Usually because Q is not PSD")
-                        y = optimal_y
-                        x = T.detach() @ optimal_y
+                    # except:
+                    #     print("CVXPY solver fails... Usually because Q is not PSD")
+                    #     y = optimal_y
+                    #     x = T.detach() @ optimal_y
 
                     if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
@@ -435,7 +439,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             average_obj    = np.mean(train_objs)
             average_T_loss = np.mean(train_T_losses)
             # Print status
-            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', T_loss=f'{average_T_loss:.3f}')
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
+            # tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', T_loss=f'{average_T_loss:.3f}')
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
