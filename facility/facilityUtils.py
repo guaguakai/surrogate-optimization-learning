@@ -217,11 +217,30 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     newh = torch.cat((b, h))
 
                     Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 10
+                    L = torch.cholesky(Q)
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
                     p = jac - Q @ optimal_x
-                    qp_solver = qpth.qp.QPFunction()
-                    # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
-                    x = qp_solver(Q, p, newG, newh, newA, newb)[0]
+                    # qp_solver = qpth.qp.QPFunction()
+                    # x = qp_solver(Q, p, newG, newh, newA, newb)[0]
+
+                    try:
+                        # =============== solving QP using CVXPY ===============
+                        x_default = cp.Variable(n)
+                        G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
+                        L_default = cp.Parameter((n,n))
+                        p_default = cp.Parameter(n)
+                        constraints = [G_default @ x_default <= h_default]
+                        objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ x_default) + p_default.T @ x_default)
+                        problem = cp.Problem(objective, constraints)
+
+                        cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
+                        coverage_qp_solution, = cvxpylayer(G_matrix, h_matrix, L, p)
+                        x = coverage_qp_solution[0]
+                    except:
+                        print("CVXPY solver fails... Usually because Q is not PSD")
+                        x = optimal_x
+
+
                     if torch.norm(x.detach() - optimal_x) > 0.5:
                         # debugging message
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
@@ -326,23 +345,44 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
                     jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
-                    qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
-                    # qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
+                    # qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
+
+                    # try:
+                    #     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
+                    #     x = T @ y
+                    # except:
+                    #     y = optimal_y
+                    #     x = T.detach() @ optimal_y
+                    #     print('qp error! no gradient!')
+
                     try:
-                        y = qp_solver(Q, p, newG, newh, newA, newb)[0]
+                        # =============== solving QP using CVXPY ===============
+                        x_default = cp.Variable(n)
+                        G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
+                        L_default = cp.Parameter((n,n))
+                        p_default = cp.Parameter(n)
+                        constraints = [G_default @ x_default <= h_default]
+                        objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ x_default) + p_default.T @ x_default)
+                        problem = cp.Problem(objective, constraints)
+
+                        cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
+                        coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
+                        y = coverage_qp_solution[0]
                         x = T @ y
-                        if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
-                            print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
-                            # print(x, T.detach() @ optimal_y)
-                            # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
-                            # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
-                            # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
-                            y = optimal_y
-                            x = T.detach() @ optimal_y
                     except:
+                        print("CVXPY solver fails... Usually because Q is not PSD")
                         y = optimal_y
                         x = T.detach() @ optimal_y
-                        print('qpth error! no gradient!')
+
+                    if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
+                        print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
+                        # print(x, T.detach() @ optimal_y)
+                        # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
+                        # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
+                        # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
+                        y = optimal_y
+                        x = T.detach() @ optimal_y
+
                     qp_time += time.time() - qp_start_time
                 else:
                     raise ValueError('Not implemented method!')
@@ -578,149 +618,4 @@ def surrogate_test_submodular(net, T, epoch, sample_instance, dataset, device='c
     average_loss    = np.mean(test_losses)
     average_obj     = np.mean(test_objs)
     return average_loss, average_obj
-
-def train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
-    # train a single epoch
-    net.train()
-    loss_fn = torch.nn.BCELoss()
-    train_losses, train_objs, train_optimals = [], [], []
-    n, m, d, f = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f)
-    A, b, G, h = LPCreateConstraintMatrix(m, n)
-
-    for batch_idx, (features, labels) in enumerate(tqdm.tqdm(dataset)):
-        features, labels = features.to(device), labels.to(device)
-        outputs = net(features)
-        # two-stage loss
-        loss = loss_fn(outputs, labels)
-
-        # decision-focused loss
-        objective_value, optimal_value = 0, 0
-        batch_size = len(features)
-        variable_size = n * m + n
-        Q = torch.eye(variable_size) * 0.01
-        for (label, output) in zip(labels, outputs):
-            p = torch.cat(((output * d).flatten(), f))
-            qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
-            zx = qp_solver(Q, p, G, h, A, b)
-
-            real_p = torch.cat((torch.Tensor(label * d).flatten(), torch.Tensor(f)))
-            obj = zx @ real_p
-            result = LPSolver(SimpleNamespace(n=n, m=m, c=label.detach().numpy(), d=sample_instance.d, f=sample_instance.f))
-            objective_value += obj
-            optimal_value += result.obj
-        objective = objective_value / batch_size
-        optimal = optimal_value / batch_size
-
-        optimizer.zero_grad()
-        if training_method == 'two-stage':
-            loss.backward()
-        elif training_method == 'decision-focused':
-            objective.backward()
-            for parameter in net.parameters():
-                parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
-        else:
-            raise ValueError('Not implemented method')
-        optimizer.step()
-
-        train_losses.append(loss.item())
-        train_objs.append(obj.item())
-        train_optimals.append(optimal)
-
-    average_loss    = np.mean(train_losses)
-    average_obj     = np.mean(train_objs)
-    average_optimal = np.mean(train_optimals) 
-    return average_loss, average_obj, average_optimal
-
-def surrogate_train_LP(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
-    # train a single epoch
-    net.train()
-    loss_fn = torch.nn.BCELoss()
-    train_losses, train_objs, train_optimals = [], [], []
-    n, m, d, f = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f)
-    A, b, G, h = LPCreateConstraintMatrix(m, n)
-
-    for batch_idx, (features, labels) in enumerate(tqdm.tqdm(dataset)):
-        features, labels = features.to(device), labels.to(device)
-        outputs = net(features)
-        # two-stage loss
-        loss = loss_fn(outputs, labels)
-
-        # decision-focused loss
-        objective_value, optimal_value = 0, 0
-        batch_size = len(features)
-        variable_size = T_size
-        Q = torch.eye(T_size) * 0.01 # + 0.01 * (T.detach().t() @ T.detach())
-        for (label, output) in zip(labels, outputs):
-            p = torch.cat(((output * d).flatten(), f)) @ T
-            # qp_solver = qpth.qp.QPFunction()
-            qp_solver = qpthlocal.qp.QPFunction(verbose=True, solver=qpthlocal.qp.QPSolvers.GUROBI)
-            zx = T @ qp_solver(Q, p, G @ T, h, new_A, new_b)[0]
-
-            real_p = torch.cat((torch.Tensor(label * d).flatten(), torch.Tensor(f)))
-            obj = zx @ real_p
-            result = LPSolver(SimpleNamespace(n=n, m=m, c=label.detach().numpy(), d=sample_instance.d, f=sample_instance.f))
-            objective_value += obj
-            optimal_value += result.obj
-        objective = objective_value / batch_size
-        optimal = optimal_value / batch_size
-
-        optimizer.zero_grad()
-        T_optimizer.zero_grad()
-        if training_method == 'two-stage':
-            loss.backward()
-        elif training_method == 'decision-focused' or training_method == 'surrogate':
-            objective.backward()
-            for parameter in net.parameters():
-                parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
-        else:
-            raise ValueError('Not implemented method')
-        optimizer.step()
-        T_optimizer.step()
-        T.data = normalize_projection(T.data, A, b[:,None])
-
-        train_losses.append(loss.item())
-        train_objs.append(obj.item())
-        train_optimals.append(optimal)
-
-    average_loss    = np.mean(train_losses)
-    average_obj     = np.mean(train_objs)
-    average_optimal = np.mean(train_optimals) 
-    return average_loss, average_obj, average_optimal
-
-def test_LP(net, optimizer, epoch, sample_instance, dataset, device='cpu'):
-    # test a single epoch
-    net.eval()
-    loss_fn = torch.nn.BCELoss()
-    test_losses, test_objs, test_optimals = [], [], []
-    n, m, d, f = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f)
-    for batch_idx, (features, labels) in enumerate(dataset):
-        features, labels = features.to(device), labels.to(device)
-        outputs = net(features)
-        # two-stage loss
-        loss = loss_fn(outputs, labels)
-        test_losses.append(loss.item())
-        # objective value
-        objective_value, optimal_value = 0, 0
-        batch_size = len(features)
-        for (label, output) in zip(labels, outputs):
-            result = LPSolver(SimpleNamespace(n=n, m=m, c=output.detach().numpy(), d=sample_instance.d, f=sample_instance.f))
-            zx = torch.cat((torch.Tensor(result.z).flatten(), torch.Tensor(result.x)))
-            real_p = torch.cat((torch.Tensor(label * d).flatten(), torch.Tensor(f)))
-            obj = zx @ real_p
-            objective_value += obj
-
-            opt_result = LPSolver(SimpleNamespace(n=n, m=m, c=label.detach().numpy(), d=sample_instance.d, f=sample_instance.f))
-            optimal_value += opt_result.obj
-        objective = objective_value / batch_size
-        optimal = optimal_value / batch_size
-
-        test_losses.append(loss.item())
-        test_objs.append(obj.item())
-        test_optimals.append(optimal)
-    average_loss    = np.mean(test_losses)
-    average_obj     = np.mean(test_objs)
-    average_optimal = np.mean(test_optimals) 
-    sys.stdout.write(f'Epoch {epoch} | Test Loss: {average_loss:.3f}  | Test Objective Value: {average_obj:.3f}  | Test Optimal Value: {average_optimal:.3f} \n')
-    sys.stdout.flush()
-    return average_loss, average_obj, average_optimal
 
