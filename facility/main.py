@@ -206,6 +206,7 @@ if __name__ == '__main__':
         f_output.close()
 
         f_time = open('movie_results/time/' + filepath + "{}.csv".format(training_method), 'w')
+        f_time.write('Epoch, {}\n'.format(epoch))
         f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(str(SEED), total_forward_time, total_qp_time, total_backward_time))
         f_time.write('forward time,'  + ','.join([str(x) for x in forward_time_list]) + '\n')
         f_time.write('qp time,'       + ','.join([str(x) for x in qp_time_list]) + '\n')

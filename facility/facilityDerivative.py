@@ -3,9 +3,8 @@ import numpy as np
 import scipy
 import autograd
 
-REG = 0.0
-
-def getObjective(x, n, m, c, d, f):
+def getObjective(x, n, m, c, d, f, REG=0):
+    x = torch.clamp(x, max=1)
     p = torch.zeros(m)
     for j in range(m):
         # each customer selects the top d_j items
@@ -25,7 +24,7 @@ def getObjective(x, n, m, c, d, f):
     return p_value
 
 
-def getManualDerivative(x, n, m, c, d, f):
+def getManualDerivative(x, n, m, c, d, f, REG=0):
     grad = torch.zeros(n)
     for j in range(m):
         # each customer selects the top d_j items
@@ -44,22 +43,22 @@ def getManualDerivative(x, n, m, c, d, f):
 
     return grad - REG * x
 
-def getDerivative(x, n, m, c, d, f, create_graph=False):
+def getDerivative(x, n, m, c, d, f, create_graph=False, REG=0):
     x_var = x.detach().requires_grad_(True)
-    obj = getObjective(x_var, n, m, c, d, f)
+    obj = getObjective(x_var, n, m, c, d, f, REG=REG)
     x_grad = torch.autograd.grad(obj, x_var, retain_graph=True, create_graph=create_graph)[0] # TODO!! allow_unused is not known
     return x_grad
 
-def getOptimalDecision(n, m, c, d, f, budget, initial_x=None):
+def getOptimalDecision(n, m, c, d, f, budget, initial_x=None, REG=0):
     if initial_x is None:
         initial_x = np.zeros(n)
         # initial_x = np.random.rand(n)
         # initial_x = initial_x * budget / np.sum(initial_x)
 
-    getObj = lambda x: -getObjective(torch.Tensor(x), n, m, c.detach(), d, f).detach().item() # maximize objective
-    getJac = lambda x: -getManualDerivative(torch.Tensor(x), n, m, c.detach(), d, f).detach().numpy()
+    getObj = lambda x: -getObjective(torch.Tensor(x), n, m, c.detach(), d, f, REG=REG).detach().item() # maximize objective
+    getJac = lambda x: -getManualDerivative(torch.Tensor(x), n, m, c.detach(), d, f, REG=REG).detach().numpy()
 
-    bounds = [(0,1)]*n
+    bounds = [(0,np.inf)]*n
     eq_fn = lambda x: budget - sum(x)
     constraints = [{'type': 'ineq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
     options = {'maxiter': 100, 'ftol': 1e-3}
@@ -69,6 +68,6 @@ def getOptimalDecision(n, m, c, d, f, budget, initial_x=None):
 
     return optimize_result
 
-def getHessian(x, n, m, c, d, f):
+def getHessian(x, n, m, c, d, f, REG=0):
     return torch.eye(n) * REG
 

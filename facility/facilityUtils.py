@@ -156,34 +156,10 @@ def createConstraintMatrix(m, n, budget):
     variable_size = n
     A = torch.ones(1,n)
     b = torch.Tensor([budget])
-    G = torch.cat((-torch.eye(n),  torch.eye(n)))
-    h = torch.cat((torch.zeros(n), torch.ones(n)))
-
-    return A, b, G, h
-
-def LPCreateConstraintMatrix(m, n):
-    # min  1/2 x^T Q x + x^T p
-    # s.t. A x =  b
-    #      G x <= h
-    variable_size = n + n * m
-    A = torch.cat((torch.eye(m).repeat(1,n), torch.zeros(m,n)), axis=1)
-    A = torch.Tensor(A)
-    b = torch.ones(m)
-    G = torch.cat((torch.cat((torch.eye(n*m), torch.repeat_interleave(-torch.eye(n), repeats=m, dim=0)), axis=1), -torch.eye(n*m + n), torch.eye(n*m + n) ), axis=0)
-    h = torch.cat((torch.zeros(n*m), torch.zeros(n*m+n), torch.ones(n*m+n)))
-
-    return A, b, G, h
-
-def LPCreateSurrogateConstraintMatrix(m, n):
-    # min  1/2 x^T Q x + x^T p
-    # s.t. A x =  b
-    #      G x <= h
-    variable_size = n + n * m
-    A = torch.cat((torch.eye(m).repeat(1,n), torch.zeros(m,n)), axis=1)
-    A = torch.Tensor(A)
-    b = torch.ones(m)
-    G = torch.cat((torch.eye(n*m), torch.repeat_interleave(-torch.eye(n), repeats=m, dim=0)), axis=1)
-    h = torch.zeros(n*m)
+    G = -torch.eye(n) 
+    h = torch.zeros(n) 
+    # G = torch.cat((-torch.eye(n),  torch.eye(n)))
+    # h = torch.cat((torch.zeros(n), torch.ones(n)))
 
     return A, b, G, h
 
@@ -195,6 +171,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
     forward_time, qp_time, backward_time = 0, 0, 0
+    REG = 0.0
 
     with tqdm.tqdm(dataset) as tqdm_loader:
         for batch_idx, (features, labels) in enumerate(tqdm_loader):
@@ -213,7 +190,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
                 forward_start_time = time.time()
-                optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+                optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
                 if training_method == 'decision-focused':
                     forward_time += time.time() - forward_start_time
                 optimal_x = torch.Tensor(optimize_result.x).requires_grad_(True)
@@ -224,9 +201,9 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     newG = torch.cat((A, G))
                     newh = torch.cat((b, h))
 
-                    Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 10
+                    Q = getHessian(optimal_x, n, m, output, d, f, REG=REG) + torch.eye(n) * 10
                     L = torch.cholesky(Q)
-                    jac = -getManualDerivative(optimal_x, n, m, output, d, f)
+                    jac = -getDerivative(optimal_x, n, m, output, d, f, create_graph=True, REG=REG)
                     p = jac - Q @ optimal_x
                     # qp_solver = qpth.qp.QPFunction()
                     # x = qp_solver(Q, p, newG, newh, newA, newb)[0]
@@ -249,7 +226,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     #     x = optimal_x
 
 
-                    if torch.norm(x.detach() - optimal_x) > 0.05: # TODO
+                    if torch.norm(x.detach() - optimal_x) > 0.5: # TODO
                         # debugging message
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
                         # print('optimal x:', optimal_x)
@@ -269,7 +246,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     raise ValueError('Not implemented method!')
                 qp_time += time.time() - qp_start_time
 
-                obj = getObjective(x, n, m, label, d, f)
+                obj = getObjective(x, n, m, label, d, f, REG=0)
 
                 objective_value_list.append(obj)
             objective = sum(objective_value_list) / batch_size
@@ -352,7 +329,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     qp_start_time = time.time()
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
                     L = torch.cholesky(Q)
-                    jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
+                    jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f)
+                    # jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
                     # qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
 
@@ -383,7 +361,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     #     y = optimal_y
                     #     x = T.detach() @ optimal_y
 
-                    if False: #torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
+                    if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
                         # print(x, T.detach() @ optimal_y)
                         # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
