@@ -30,6 +30,8 @@ from cvxpylayers.torch import CvxpyLayer
 # np.random.seed(SEED)
 # random.seed(SEED)
 
+MAX_NORM = 0.1
+
 # uncapacitated facility location problem
 def generateInstance(n, m):
     # while True:
@@ -280,7 +282,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 elif training_method == 'decision-focused':
                     (-objective).backward()
                     for parameter in net.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
             except:
@@ -414,7 +416,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                 elif training_method == 'decision-focused':
                     (-objective).backward()
                     for parameter in net.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
+                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                     optimizer.step()
                 elif training_method == 'surrogate':
                     T_optimizer.zero_grad()
@@ -422,8 +424,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     # T_loss.backward() # TODO: minimizing reparameterization loss
 
                     for parameter in net.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-0.01, max=0.01)
-                    init_T.grad = torch.clamp(init_T.grad, min=-0.01, max=0.01)
+                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    init_T.grad = torch.clamp(init_T.grad, min=-MAX_NORM, max=MAX_NORM)
                     optimizer.step()
                     T_optimizer.step()
                     init_T.data = normalize_matrix_positive(init_T.data)
