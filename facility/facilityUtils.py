@@ -222,7 +222,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     newG = torch.cat((A, G))
                     newh = torch.cat((b, h))
 
-                    Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 1
+                    Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 10
                     L = torch.cholesky(Q)
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
                     p = jac - Q @ optimal_x
@@ -247,7 +247,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     #     x = optimal_x
 
 
-                    if False: # torch.norm(x.detach() - optimal_x) > 0.5: TODO
+                    if torch.norm(x.detach() - optimal_x) > 0.05: # TODO
                         # debugging message
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
                         # print('optimal x:', optimal_x)
@@ -348,7 +348,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     # newh = torch.cat((b, h, torch.zeros(variable_size), torch.ones(variable_size)))
 
                     qp_start_time = time.time()
-                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 1
+                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
                     L = torch.cholesky(Q)
                     jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y

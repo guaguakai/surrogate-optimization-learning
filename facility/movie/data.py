@@ -27,18 +27,19 @@ class UserItemRatingDataset(Dataset):
         return self.user_tensor.size(0)
 
 class UserItemData:
-    def __init__(self, user_dict, item_dict, users, items, user_features):
+    def __init__(self, user_dict, item_dict, users, items, user_features, id2index):
         self.user_dict     = user_dict
         self.item_dict     = item_dict
         self.users         = users
         self.items         = items
         self.user_features = user_features
+        self.id2index      = id2index
 
     def getData(self):
-        return self.user_dict, self.item_dict, self.users, self.items, self.user_features
+        return self.user_dict, self.item_dict, self.users, self.items, self.user_features, self.id2index
 
     def to(self, device):
-        return UserItemData(self.user_dict, self.item_dict, self.users.to(device), self.items.to(device), self.user_features.to(device))
+        return UserItemData(self.user_dict, self.item_dict, self.users.to(device), self.items.to(device), self.user_features.to(device), self.id2index)
 
     def __len__(self):
         return len(self.user_features)
@@ -59,13 +60,19 @@ class SampleGenerator(object):
         self.preprocess_ratings = self._normalize(ratings)
         # self.preprocess_ratings = self._binarize(ratings)
 
-        self.user_list, self.item_list = ratings['userId'].unique(), ratings['itemId'].unique()
-        self.num_users, self.num_items = len(self.user_list), len(self.item_list)
-        random.shuffle(self.user_list)
+        self.item_list = ratings['itemId'].unique()
         random.shuffle(self.item_list)
+        self.feature_list, self.item_list = self.item_list[:feature_size], self.item_list[feature_size:feature_size+item_size]
+        self.feature_pool, self.item_pool = set(self.feature_list), set(self.item_list)
+        self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(self.item_pool)]
+        self.id2index = {k: idx for idx, k in enumerate(self.item_list)}# item id to index
 
-        self.user_list, self.feature_list, self.item_list = self.user_list[:num_samples*user_chunk_size], self.item_list[:feature_size], self.item_list[feature_size:feature_size+item_size]
-        self.user_pool, self.feature_pool, self.item_pool = set(self.user_list), set(self.feature_list), set(self.item_list)
+        self.user_list = self.preprocess_ratings['userId'].unique()
+        random.shuffle(self.user_list)
+        self.user_list = self.user_list[:num_samples*user_chunk_size]
+
+        self.num_users, self.num_items = len(self.user_list), len(self.item_list)
+        self.user_pool = set(self.user_list)
 
         self.truncated_features = self.preprocess_ratings[(self.preprocess_ratings['userId'].isin(self.user_pool)) & (self.preprocess_ratings['itemId'].isin(self.feature_pool))]
         self.truncated_ratings  = self.preprocess_ratings[(self.preprocess_ratings['userId'].isin(self.user_pool)) & (self.preprocess_ratings['itemId'].isin(self.item_pool))]
@@ -161,8 +168,6 @@ class SampleGenerator(object):
             for user_id, item_id, rating in zip(users, items, ratings):
                 c_target[0, item_dict[item_id], user_dict[user_id]] = rating
             random.shuffle(indices)
-            if len(users) == 0: # this user has no data at all
-                continue
 
             users, items = torch.LongTensor(users), torch.LongTensor(items)
 
@@ -172,7 +177,7 @@ class SampleGenerator(object):
             for row in feature_chunk.itertuples():
                 user_features[user_dict[int(row.userId)], item_feature_dict[int(row.itemId)]] = row.rating
 
-            instance_data = (UserItemData(user_dict, item_dict, users[indices], items[indices], user_features[[user_dict[userId.item()] for userId in users[indices]]]), c_target)
+            instance_data = (UserItemData(user_dict, item_dict, users[indices], items[indices], user_features[[user_dict[userId.item()] for userId in users[indices]]], self.id2index), c_target)
             if userset_id in self.test_user_indices:
                 test_list.append(instance_data)
             elif userset_id in self.validate_user_indices:

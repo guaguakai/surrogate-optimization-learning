@@ -75,13 +75,13 @@ class NeuMF(torch.nn.Module):
 
 class NeuMFWrapper(NeuMF):
     def forward(self, features):
-        user_dict, item_dict, user_indices, item_indices, user_features = features.getData()
+        user_dict, item_dict, user_indices, item_indices, user_features, id2index = features.getData()
         c = torch.zeros(1, len(item_dict), len(user_dict))
 
         user_embedding_mlp = self.embedding_user_mlp(user_features)
-        item_embedding_mlp = self.embedding_item_mlp(item_indices)
+        item_embedding_mlp = self.embedding_item_mlp(torch.LongTensor([id2index[x.item()] for x in item_indices]))
         user_embedding_mf = self.embedding_user_mf(user_features)
-        item_embedding_mf = self.embedding_item_mf(item_indices)
+        item_embedding_mf = self.embedding_item_mf(torch.LongTensor([id2index[x.item()] for x in item_indices]))
 
         mlp_vector = torch.cat([user_embedding_mlp, item_embedding_mlp], dim=-1)  # the concat latent vector
         mf_vector =torch.mul(user_embedding_mf, item_embedding_mf)

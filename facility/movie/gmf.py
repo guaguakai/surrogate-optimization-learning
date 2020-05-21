@@ -29,10 +29,10 @@ class GMF(torch.nn.Module):
 
 class GMFWrapper(GMF):
     def forward(self, features):
-        user_dict, item_dict, user_indices, item_indices, user_features = features.getData()
+        user_dict, item_dict, user_indices, item_indices, user_features, id2index = features.getData()
         c = torch.zeros(1, len(item_dict), len(user_dict))
         user_embedding = self.embedding_user_model(user_features)
-        item_embedding = self.embedding_item(item_indices)
+        item_embedding = self.embedding_item(torch.LongTensor([id2index[x.item()] for x in item_indices]))
         element_product = torch.mul(user_embedding, item_embedding)
         logits = self.affine_output(element_product)
         ratings = self.logistic(logits)

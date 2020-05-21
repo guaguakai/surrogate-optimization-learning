@@ -52,11 +52,11 @@ class MLP(torch.nn.Module):
 
 class MLPWrapper(MLP):
     def forward(self, features):
-        user_dict, item_dict, user_indices, item_indices, user_features = features.getData()
+        user_dict, item_dict, user_indices, item_indices, user_features, id2index = features.getData()
         c = torch.zeros(1, len(item_dict), len(user_dict))
 
         user_embedding = self.embedding_user_model(user_features)
-        item_embedding = self.embedding_item(item_indices)
+        item_embedding = self.embedding_item(torch.LongTensor([id2index[x.item()] for x in item_indices]))
         vector = torch.cat([user_embedding, item_embedding], dim=-1)  # the concat latent vector
         for idx, _ in enumerate(range(len(self.fc_layers))):
             vector = self.fc_layers[idx](vector)
