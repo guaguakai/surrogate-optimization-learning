@@ -63,12 +63,12 @@ if __name__ == '__main__':
 
     # ============= Loading Movie Data =============
     print('Loading MovieLens Dataset...')
-    # ml1m_dir  = 'data/ml-1m/ratings.csv'
-    # ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
-    # ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
+    ml1m_dir  = 'data/ml-1m/ratings.csv'
+    ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
+    ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
 
-    ml25m_dir = 'data/ml-25m/ratings.csv'
-    ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
+    # ml25m_dir = 'data/ml-25m/ratings.csv'
+    # ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
 
     # Reindex
     user_id = ml_rating[['uid']].drop_duplicates().reindex()
@@ -91,10 +91,10 @@ if __name__ == '__main__':
 
     # ================= Model setup =================
     from config import gmf_config, mlp_config, neumf_config
-    config = neumf_config
+    config = gmf_config
     config['num_items'], config['num_users'] = sample_generator.num_items, sample_generator.num_users
     config['num_features'] = feature_size
-    net = NeuMFWrapper(config=config)
+    net = GMFWrapper(config=config)
 
     # ============== Generating Samples =============
     print('Generating samples...')
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     scheduler = ReduceLROnPlateau(optimizer, 'min')
 
-    sample_instance = SimpleNamespace(n=n, m=m, d=3*np.ones(m), f=np.ones(n), budget=budget) # dummy sample instance that is used to store the given n, m, d, f 
+    sample_instance = SimpleNamespace(n=n, m=m, d=5*np.ones(m), f=np.ones(n), budget=budget) # dummy sample instance that is used to store the given n, m, d, f 
     A, b, G, h = createConstraintMatrix(m, n, budget)
 
     # surrogate setup
