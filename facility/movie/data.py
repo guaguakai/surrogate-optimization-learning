@@ -104,7 +104,7 @@ class SampleGenerator(object):
         interact_status = ratings.groupby('userId')['itemId'].apply(set).reset_index().rename(
             columns={'itemId': 'interacted_items'})
         interact_status['negative_items'] = interact_status['interacted_items'].apply(lambda x: self.item_pool - x)
-        interact_status['negative_samples'] = interact_status['negative_items'].apply(lambda x: random.sample(x, 99))
+        interact_status['negative_samples'] = interact_status['negative_items'].apply(lambda x: random.sample(x, 32))
         return interact_status[['userId', 'negative_items', 'negative_samples']]
 
     def instance_a_train_loader(self, num_negatives, batch_size):
