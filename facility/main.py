@@ -199,6 +199,7 @@ if __name__ == '__main__':
 
         # record the data every epoch
         f_output = open('movie_results/performance/' + filepath + "{}.csv".format(training_method), 'w')
+        f_output.write('Epoch, {}\n'.format(epoch))
         f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
         f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
         f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
