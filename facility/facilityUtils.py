@@ -198,7 +198,10 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
         for batch_idx, (features, labels) in enumerate(tqdm_loader):
             net_start_time = time.time()
             features, labels = features.to(device), labels.to(device)
-            outputs = net(features)
+            if epoch >= 0:
+                outputs = net(features)
+            else:
+                outputs = labels
             # two-stage loss
             loss = loss_fn(outputs, labels)
             forward_time += time.time() - net_start_time
@@ -219,7 +222,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     newG = torch.cat((A, G))
                     newh = torch.cat((b, h))
 
-                    Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 10
+                    Q = getHessian(optimal_x, n, m, output, d, f) + torch.eye(n) * 1
                     L = torch.cholesky(Q)
                     jac = -getManualDerivative(optimal_x, n, m, output, d, f)
                     p = jac - Q @ optimal_x
@@ -244,7 +247,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     #     x = optimal_x
 
 
-                    if torch.norm(x.detach() - optimal_x) > 0.5:
+                    if False: # torch.norm(x.detach() - optimal_x) > 0.5: TODO
                         # debugging message
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
                         # print('optimal x:', optimal_x)
@@ -312,7 +315,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
         for batch_idx, (features, labels) in enumerate(tqdm_loader):
             net_start_time = time.time()
             features, labels = features.to(device), labels.to(device)
-            if epoch >= 0:
+            if epoch >= 0: 
                 outputs = net(features)
             else:
                 outputs = labels
@@ -345,7 +348,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     # newh = torch.cat((b, h, torch.zeros(variable_size), torch.ones(variable_size)))
 
                     qp_start_time = time.time()
-                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
+                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 1
                     L = torch.cholesky(Q)
                     jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
@@ -378,7 +381,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     #     y = optimal_y
                     #     x = T.detach() @ optimal_y
 
-                    if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
+                    if False: #torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
                         # print(x, T.detach() @ optimal_y)
                         # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)

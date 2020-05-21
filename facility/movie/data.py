@@ -40,6 +40,9 @@ class UserItemData:
     def to(self, device):
         return UserItemData(self.user_dict, self.item_dict, self.users.to(device), self.items.to(device), self.user_features.to(device))
 
+    def __len__(self):
+        return len(self.user_features)
+
 class SampleGenerator(object):
     """Construct dataset for NCF"""
 
@@ -61,12 +64,12 @@ class SampleGenerator(object):
         random.shuffle(self.user_list)
         random.shuffle(self.item_list)
 
-        self.user_list, self.item_list = self.user_list[:num_samples*user_chunk_size], self.item_list[:feature_size+item_size]
-        self.user_pool, self.item_pool = set(self.user_list), set(self.item_list)
+        self.user_list, self.feature_list, self.item_list = self.user_list[:num_samples*user_chunk_size], self.item_list[:feature_size], self.item_list[feature_size:feature_size+item_size]
+        self.user_pool, self.feature_pool, self.item_pool = set(self.user_list), set(self.feature_list), set(self.item_list)
 
-        self.preprocess_ratings = self.preprocess_ratings[(self.preprocess_ratings['userId'].isin(self.user_pool)) & (self.preprocess_ratings['itemId'].isin(self.item_pool))]
+        self.truncated_features = self.preprocess_ratings[(self.preprocess_ratings['userId'].isin(self.user_pool)) & (self.preprocess_ratings['itemId'].isin(self.feature_pool))]
+        self.truncated_ratings  = self.preprocess_ratings[(self.preprocess_ratings['userId'].isin(self.user_pool)) & (self.preprocess_ratings['itemId'].isin(self.item_pool))]
 
-        self.item_chunks = [self.item_list[:feature_size], self.item_list[feature_size:feature_size+item_size]] # existing items and new items
         self.user_chunks = [self.user_list[i*user_chunk_size: (i+1)*user_chunk_size] for i in range((len(self.user_list)) // user_chunk_size)] # ignoring the remaining
 
         self.indices = list(range(len(self.user_chunks)))
@@ -76,7 +79,7 @@ class SampleGenerator(object):
 
         # create negative item samples for NCF learning
         # print('Generating negative samples...')
-        self.negatives = self._sample_negative(ratings)
+        self.negatives = self._sample_negative(self.truncated_ratings)
 
     def _normalize(self, ratings):
         """normalize into [0, 1] from [0, max_rating], explicit feedback"""
@@ -104,8 +107,7 @@ class SampleGenerator(object):
         interact_status = ratings.groupby('userId')['itemId'].apply(set).reset_index().rename(
             columns={'itemId': 'interacted_items'})
         interact_status['negative_items'] = interact_status['interacted_items'].apply(lambda x: self.item_pool - x)
-        interact_status['negative_samples'] = interact_status['negative_items'].apply(lambda x: random.sample(x, 4))
-        return interact_status[['userId', 'negative_items', 'negative_samples']]
+        return interact_status[['userId', 'negative_items']]
 
     def instance_a_train_loader(self, num_negatives, batch_size):
         """instance train loader for one training epoch"""
@@ -129,12 +131,13 @@ class SampleGenerator(object):
         """instance train loader for one training epoch"""
         train_list, validate_list, test_list = [], [], []
 
-        all_ratings = self.preprocess_ratings
-        all_ratings = pd.merge(self.preprocess_ratings, self.negatives[['userId', 'negative_items']], on='userId')
-        all_ratings['negatives'] = all_ratings['negative_items'].apply(lambda x: random.sample(x, num_negatives))
-        itemset_feature = self.item_chunks[0]
+        all_ratings = self.truncated_ratings
+        all_features = self.truncated_features
+        all_negatives = self.negatives
+
+        itemset_feature = self.feature_list 
         item_feature_dict = {k: v for v, k in enumerate(itemset_feature)}
-        itemset = self.item_chunks[1]
+        itemset = self.item_list
         item_dict = {k: v for v, k in enumerate(itemset)}
         for userset_id, userset in enumerate(self.user_chunks):
             users, items, ratings = [], [], []
@@ -144,9 +147,9 @@ class SampleGenerator(object):
                 items.append(int(row.itemId))
                 ratings.append(float(row.rating))
 
-                # valid_negatives = set(row.negative_items).intersection(set(itemset))
-                # negative_items = random.sample(valid_negatives, min(num_negatives, len(valid_negatives)))
-                negative_items = set(row.negatives).intersection(set(itemset))
+            negative_rating_chunk = all_negatives[(all_negatives['userId'].isin(userset))]
+            for row in negative_rating_chunk.itertuples():
+                negative_items = set(row.negative_items).intersection(set(itemset))
                 for negative_item in negative_items:
                     users.append(int(row.userId))
                     items.append(int(negative_item))
@@ -158,6 +161,9 @@ class SampleGenerator(object):
             for user_id, item_id, rating in zip(users, items, ratings):
                 c_target[0, item_dict[item_id], user_dict[user_id]] = rating
             random.shuffle(indices)
+            if len(users) == 0: # this user has no data at all
+                continue
+
             users, items = torch.LongTensor(users), torch.LongTensor(items)
 
             # retriving the features of each user
