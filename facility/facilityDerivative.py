@@ -25,6 +25,7 @@ def getObjective(x, n, m, c, d, f, REG=0):
 
 
 def getManualDerivative(x, n, m, c, d, f, REG=0):
+    x = torch.clamp(x, max=1)
     grad = torch.zeros(n)
     for j in range(m):
         # each customer selects the top d_j items
@@ -58,7 +59,7 @@ def getOptimalDecision(n, m, c, d, f, budget, initial_x=None, REG=0):
     getObj = lambda x: -getObjective(torch.Tensor(x), n, m, c.detach(), d, f, REG=REG).detach().item() # maximize objective
     getJac = lambda x: -getManualDerivative(torch.Tensor(x), n, m, c.detach(), d, f, REG=REG).detach().numpy()
 
-    bounds = [(0,np.inf)]*n
+    bounds = [(0,1)]*n
     eq_fn = lambda x: budget - sum(x)
     constraints = [{'type': 'ineq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
     options = {'maxiter': 100, 'ftol': 1e-3}
