@@ -220,17 +220,17 @@ if __name__ == '__main__':
         # ============= early stopping criteria =============
         kk = 3
         if epoch >= kk*2 -1:
-            if method == 'two-stage':
+            if training_method == 'two-stage':
                 GL_value = 100 * (validate_loss / np.min(validate_loss_list[1:]) - 1)
                 P_value  = 1000 * (np.sum(validate_loss_list[1:][-kk:]) / (np.min(validate_loss_list[1:][-kk:]) * len(validate_obj_list[1:][-kk:])) - 1)
-                GE_counts = np.sum(validate_loss_list[1:][-kk:] > valdiate_loss_list[1:][-2*kk:-kk])
+                GE_counts = np.sum(np.array(validate_loss_list[1:][-kk:]) >= np.array(validate_loss_list[1:][-2*kk:-kk]) - 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
                 if GE_counts == kk:
                     break
             else: # surrogate or decision-focused
                 GL = 100 * (validate_obj / np.max(validate_obj_list[1:]) - 1)
-                P_value  = 1000 * (1 - np.sum(validate_obj_list[1:][-k:]) / (np.max(validate_obj_list[1:][-k:]) * len(validate_obj_list[1:][-k:]) )
-                GE_counts = np.sum(validate_obj_list[1:][-kk:] < valdiate_obj_list[1:][-2*kk:-kk])
+                P_value  = 1000 * (1 - np.sum(validate_obj_list[1:][-kk:]) / (np.max(validate_obj_list[1:][-kk:]) * len(validate_obj_list[1:][-kk:])))
+                GE_counts = np.sum(np.array(validate_obj_list[1:][-kk:]) <= np.array(validate_obj_list[1:][-2*kk:-kk]) + 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
                 if GE_counts == kk:
                     break
