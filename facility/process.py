@@ -15,7 +15,7 @@ if __name__ == '__main__':
     filename = args.filename
     T = args.T
 
-    N_list = [30, 40, 50, 60, 70, 80, 90, 100, 120]
+    N_list = [30, 40, 50, 60, 80, 100, 120, 150]
     methods = ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'movie_results/performance/'
@@ -36,6 +36,7 @@ if __name__ == '__main__':
             if method == 'surrogate':
                 method = 'T{}-'.format(str(T)) + method
             f_performance = open(performance_prefix + filename + 'N{}-'.format(N) + method + '.csv', 'r')
+            assert int(f_performance.readline().split(',')[1]) == 49, "N: {}, method: {} incorrectly finished".format(N, method)
 
             tmp_training_losses = [float(x) for x in f_performance.readline().split(',')[2:]]
             tmp_training_objs   = [float(x) for x in f_performance.readline().split(',')[2:]]

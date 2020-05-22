@@ -202,6 +202,8 @@ if __name__ == '__main__':
         f_output.write('Epoch, {}\n'.format(epoch))
         f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
         f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
+        f_output.write('validating loss,' + ','.join([str(x) for x in validate_loss_list]) + '\n')
+        f_output.write('validating obj,'  + ','.join([str(x) for x in validate_obj_list])  + '\n')
         f_output.write('testing loss,'  + ','.join([str(x) for x in test_loss_list])  + '\n')
         f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
         f_output.close()
