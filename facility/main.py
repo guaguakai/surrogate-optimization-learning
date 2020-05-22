@@ -127,6 +127,7 @@ if __name__ == '__main__':
     validate_loss_list,  validate_obj_list = [], []
 
     print('Start training...')
+    early_stop = False
     total_forward_time, total_qp_time, total_backward_time = 0, 0, 0
     forward_time_list, qp_time_list, backward_time_list = [], [], []
     for epoch in range(-1, num_epochs):
@@ -215,3 +216,22 @@ if __name__ == '__main__':
         f_time.write('qp time,'       + ','.join([str(x) for x in qp_time_list]) + '\n')
         f_time.write('backward time,' + ','.join([str(x) for x in backward_time_list]) + '\n')
         f_time.close()
+
+        # ============= early stopping criteria =============
+        kk = 3
+        if epoch >= kk*2 -1:
+            if method == 'two-stage':
+                GL_value = 100 * (validate_loss / np.min(validate_loss_list[1:]) - 1)
+                P_value  = 1000 * (np.sum(validate_loss_list[1:][-kk:]) / (np.min(validate_loss_list[1:][-kk:]) * len(validate_obj_list[1:][-kk:])) - 1)
+                GE_counts = np.sum(validate_loss_list[1:][-kk:] > valdiate_loss_list[1:][-2*kk:-kk])
+                print('Generalization error increases counts: {}'.format(GE_counts))
+                if GE_counts == kk:
+                    break
+            else: # surrogate or decision-focused
+                GL = 100 * (validate_obj / np.max(validate_obj_list[1:]) - 1)
+                P_value  = 1000 * (1 - np.sum(validate_obj_list[1:][-k:]) / (np.max(validate_obj_list[1:][-k:]) * len(validate_obj_list[1:][-k:]) )
+                GE_counts = np.sum(validate_obj_list[1:][-kk:] < valdiate_obj_list[1:][-2*kk:-kk])
+                print('Generalization error increases counts: {}'.format(GE_counts))
+                if GE_counts == kk:
+                    break
+

@@ -36,7 +36,7 @@ if __name__ == '__main__':
     for N_idx, N in enumerate(N_list):
         for method_idx, method in enumerate(methods):
             if method == 'surrogate':
-                method = 'T{}-'.format(str(N//10)) + method
+                method = 'T{}-'.format(str(10)) + method
             f_performance = open(performance_prefix + filename + 'N{}-'.format(N) + method + '.csv', 'r')
             assert int(f_performance.readline().split(',')[1]) == 49, "N: {}, method: {} incorrectly finished".format(N, method)
 
