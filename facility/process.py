@@ -16,15 +16,17 @@ if __name__ == '__main__':
     T = args.T
 
     N_list = [30, 40, 50, 60, 80, 100, 120, 150]
-    methods = ['two-stage', 'decision-focused', 'surrogate']
+    methods = ['surrogate']# ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'movie_results/performance/'
     time_prefix        = 'movie_results/time/'
 
-    testing_losses  = np.zeros((len(N_list), len(methods)))
-    testing_objs    = np.zeros((len(N_list), len(methods)))
-    training_losses = np.zeros((len(N_list), len(methods)))
-    training_objs   = np.zeros((len(N_list), len(methods)))
+    testing_losses    = np.zeros((len(N_list), len(methods) + 1))
+    testing_objs      = np.zeros((len(N_list), len(methods) + 1))
+    training_losses   = np.zeros((len(N_list), len(methods) + 1))
+    training_objs     = np.zeros((len(N_list), len(methods) + 1))
+    validating_losses = np.zeros((len(N_list), len(methods) + 1))
+    validating_objs   = np.zeros((len(N_list), len(methods) + 1))
 
 
     forward_time  = np.zeros((len(N_list), len(methods)))
@@ -34,19 +36,32 @@ if __name__ == '__main__':
     for N_idx, N in enumerate(N_list):
         for method_idx, method in enumerate(methods):
             if method == 'surrogate':
-                method = 'T{}-'.format(str(T)) + method
+                method = 'T{}-'.format(str(N//10)) + method
             f_performance = open(performance_prefix + filename + 'N{}-'.format(N) + method + '.csv', 'r')
             assert int(f_performance.readline().split(',')[1]) == 49, "N: {}, method: {} incorrectly finished".format(N, method)
 
-            tmp_training_losses = [float(x) for x in f_performance.readline().split(',')[2:]]
-            tmp_training_objs   = [float(x) for x in f_performance.readline().split(',')[2:]]
-            tmp_testing_losses  = [float(x) for x in f_performance.readline().split(',')[2:]]
-            tmp_testing_objs    = [float(x) for x in f_performance.readline().split(',')[2:]]
+            line = [float(x) for x in f_performance.readline().split(',')[1:]]
+            tmp_training_losses, training_losses[N_idx,-1] = line[1:], line[0]
+
+            line = [float(x) for x in f_performance.readline().split(',')[1:]]
+            tmp_training_objs, training_objs[N_idx,-1] = line[1:], line[0]
+
+            line = [float(x) for x in f_performance.readline().split(',')[1:]]
+            tmp_validating_losses, validating_losses[N_idx,-1] = line[1:], line[0]
+
+            line = [float(x) for x in f_performance.readline().split(',')[1:]]
+            tmp_validating_objs, validating_objs[N_idx,-1] = line[1:], line[0]
+
+            line = [float(x) for x in f_performance.readline().split(',')[1:]]
+            tmp_testing_losses, testing_losses[N_idx,-1] = line[1:], line[0]
+
+            line = [float(x) for x in f_performance.readline().split(',')[1:]]
+            tmp_testing_objs, testing_objs[N_idx,-1] = line[1:], line[0]
 
             if method == 'two-stage':
-                selected_idx = np.argmin(tmp_training_losses)
+                selected_idx = np.argmin(tmp_validating_losses)
             else:
-                selected_idx = np.argmax(tmp_training_objs)
+                selected_idx = np.argmax(tmp_validating_objs)
 
             training_losses[N_idx, method_idx] = tmp_training_losses[selected_idx]
             training_objs[N_idx, method_idx]   = tmp_training_objs[selected_idx]
