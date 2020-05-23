@@ -15,8 +15,8 @@ if __name__ == '__main__':
     filename = args.filename
     T = args.T
 
-    N_list = [30, 40, 50, 60, 80, 100, 120, 150]
-    methods = ['surrogate']# ['two-stage', 'decision-focused', 'surrogate']
+    N_list = [20, 30, 40, 50, 60, 80, 100, 120, 150]
+    methods = ['two-stage', 'surrogate']# ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'movie_results/performance/'
     time_prefix        = 'movie_results/time/'
@@ -38,7 +38,10 @@ if __name__ == '__main__':
             if method == 'surrogate':
                 method = 'T{}-'.format(str(10)) + method
             f_performance = open(performance_prefix + filename + 'N{}-'.format(N) + method + '.csv', 'r')
-            assert int(f_performance.readline().split(',')[1]) == 49, "N: {}, method: {} incorrectly finished".format(N, method)
+
+            finished_epoch = int(f_performance.readline().split(',')[1])
+            print("N: {}, finished epoch: {}".format(N, finished_epoch))
+            # assert finished_epoch == 49, "N: {}, method: {} incorrectly finished".format(N, method)
 
             line = [float(x) for x in f_performance.readline().split(',')[1:]]
             tmp_training_losses, training_losses[N_idx,-1] = line[1:], line[0]
@@ -71,7 +74,11 @@ if __name__ == '__main__':
             f_performance.close()
 
             f_time        = open(time_prefix        + filename + 'N{}-'.format(N) + method + '.csv', 'r')
-            assert int(f_time.readline().split(',')[1]) == 49, "N: {}, method: {} incorrectly finished".format(N, method)
+
+            finished_epoch = int(f_time.readline().split(',')[1])
+            print("N: {}, finished epoch: {}".format(N, finished_epoch))
+            # assert finished_epoch == 49, "N: {}, method: {} incorrectly finished".format(N, method)
+
             line = f_time.readline().split(',')
             forward_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3]), float(line[5]), float(line[7])
             f_time.close()

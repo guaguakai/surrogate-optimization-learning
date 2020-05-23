@@ -3,3 +3,5 @@ Random seed, 123, training time, 40221.33570456505, optimization time, 0
 Random seed, 100, forward time, 43.05947923660278, qp time, 44.27677297592163, backward_time, 10.614189147949219
 Random seed, 100, forward time, 47.62940788269043, qp time, 54.99096632003784, backward_time, 13.198942422866821
 Random seed, 8904, forward time, 212.26305890083313, qp time, 179.55878329277039, backward_time, 23.1126925945282
+Random seed, 13, forward time, 3.627129554748535, qp time, 7.913046360015869, backward_time, 1.8075246810913086
+Random seed, 14, forward time, 5.738563776016235, qp time, 9.157809257507324, backward_time, 2.1087706089019775

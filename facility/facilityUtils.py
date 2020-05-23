@@ -23,6 +23,8 @@ from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDeriv
 import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
 
+from plot_utils import plot_graph
+
 # Random Seed Initialization
 # SEED = 1289 #  random.randint(0,10000)
 # print("Random seed: {}".format(SEED))
@@ -311,6 +313,9 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             # T = init_T.detach().clone()
             # random_column = torch.randint(init_T.shape[1], [1])
             # T[:,random_column] = init_T[:,random_column]
+
+            # if batch_idx == 0:
+            #     plot_graph(labels.detach().numpy(), T.detach().numpy(), epoch)
 
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':

@@ -14,11 +14,11 @@ cmaps['Sequential'] = [
         cm.YlOrBr, cm.YlOrRd, cm.OrRd, cm.PuRd, cm.RdPu, cm.BuPu,
         cm.GnBu, cm.PuBu, cm.YlGnBu, cm.PuBuGn, cm.BuGn, cm.YlGn]
 
-cmaps['Sequential'] = [cm.Reds, cm.Blues]
-thresholds = [0.2, 0.1, 0.2, 0.2, 0.2]
+cmaps['Sequential'] = [cm.Blues, cm.Reds, cm.Greens]
+thresholds = [0.1, 0.1, 0.2, 0.2, 0.2]
 alphas = [0.9, 0.9, 0.9, 0.9, 0.9]
-a_maxs = [0.2, 0.2]
-a_mins = [0, 0.0]
+a_maxs = [0.1, 0.1, 0.1]
+a_mins = [0, 0.0, 0]
 
 def plot_graph(G, T, epoch):
     # colors is a #edges x 3 matrix, which represents the RGB color of the corresponding edge
@@ -29,16 +29,21 @@ def plot_graph(G, T, epoch):
 
     print('sources', G.graph['sources'], 'targets', G.graph['targets'])
     nx.draw_networkx_nodes(G, pos, nodelist=list(set(G.nodes()) - set(G.graph['sources']) - set(G.graph['targets'])), node_color='grey', node_shape='o', node_size=10, alpha=0.8)
-    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='green', node_size=80, node_shape='^', alpha=1)
-    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='green', node_size=120, node_shape='*', alpha=1)
+    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='orange', node_size=80, node_shape='^', alpha=1)
+    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='orange', node_size=120, node_shape='*', alpha=1)
 
     # edge_labels = {edge: ' '.join(['{:.3f}'.format(tt) for tt in t]) for edge, t in zip(G.edges(), T)}
     # for edge, label in zip(G.edges(), edge_labels):
     #     G[edge[0]][edge[1]]['state'] = label
 
     # edge_labels = nx.get_edge_attributes(G,'state')
-    choices = np.argmax(T, axis=1)
+    print(T)
+    T_prob = (T + 1e-3) / np.sum(T + 1e-3, axis=1, keepdims=True)
+    choices = np.array([np.random.choice(len(T_row), p=T_row) for T_row in T_prob])
+    # choices = np.argmax(T, axis=1)
     print('T shape:', T.shape)
+
+    plt.figure(figsize=(10,10))
     for t in range(T.shape[1]):
         threshold = thresholds[t]
         # alpha = alphas[t]
@@ -46,7 +51,7 @@ def plot_graph(G, T, epoch):
         cmap = cmaps['Sequential'][t]
         indices = np.where(choices == t)[0]
         intensity = np.clip(T[choices==t,t], a_min=a_min, a_max=a_max)
-        alpha = intensity / a_max * alphas[t] * 0.6 + 0.2
+        alpha = intensity / a_max * alphas[t] * 0.8 + 0.1
         edges = [list(G.edges())[index] for index in indices]
         nx.draw_networkx_edges(G, pos, edgelist=edges, edge_color=intensity, width=3.0, edge_vmin=0, edge_vmax=threshold, alpha=alpha, edge_cmap=cmap)
     # plt.show()

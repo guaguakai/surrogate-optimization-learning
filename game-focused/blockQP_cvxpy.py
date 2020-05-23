@@ -200,6 +200,20 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         qp_time       += epoch_qp_time
         backward_time += epoch_backward_time
 
+        # ============= early stopping criteria =============
+        kk = 3
+        if epoch >= kk*2 -1:
+            if training_method == 'two-stage':
+                GE_counts = np.sum(np.array(validating_loss_list[1:][-kk:]) >= np.array(validating_loss_list[1:][-2*kk:-kk]) - 1e-4)
+                print('Generalization error increases counts: {}'.format(GE_counts))
+                if GE_counts == kk:
+                    break
+            else: # surrogate or decision-focused
+                GE_counts = np.sum(np.array(validating_defender_utility_list[1:][-kk:]) <= np.array(validating_defender_utility_list[1:][-2*kk:-kk]) + 1e-4)
+                print('Generalization error increases counts: {}'.format(GE_counts))
+                if GE_counts == kk:
+                    break
+
     average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
     average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
     print('Total forward time: {}'.format(forward_time))
@@ -459,7 +473,7 @@ if __name__=='__main__':
     f_save.write('Random seed, {}\n'.format(SEED))
     f_save.write("mode, epoch, average loss, defender utility\n")
     f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
-    for epoch in range(-1, N_EPOCHS):
+    for epoch in range(-1, len(training_loss)-1):
         f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
         f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
         f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
