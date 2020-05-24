@@ -453,13 +453,27 @@ if __name__=='__main__':
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')
 
-    f_save.write('Random seed, {}\n'.format(SEED))
-    f_save.write("mode, epoch, average loss, defender utility\n")
+    # ==================== recording all the information =====================
+    # f_save.write('Random seed, {}\n'.format(SEED))
+    # f_save.write("mode, epoch, average loss, defender utility\n")
+    # f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
+    # for epoch in range(-1, len(training_loss)-1):
+    #     f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
+    #     f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
+    #     f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
+
+    # ============== recording the important information only ================
+    if training_method == 'two-stage':
+        selected_idx = np.argmin(validating_loss[1:])
+    else:
+        selected_idx = np.argmax(validating_defu[1:])
     f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
-    for epoch in range(-1, len(training_loss)-1):
-        f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
-        f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
-        f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
+    f_save.write('Random seed, {},'.format(SEED) +
+            'training loss, {}, training defu, {},'.format(training_loss[1:][selected_idx],   training_defu[1:][selected_idx]) +
+            'validating loss, {}, validating defu, {},'.format(validating_loss[1:][selected_idx], validating_defu[1:][selected_idx]) +
+            'testing loss, {}, testing defu, {}\n'.format(testing_loss[1:][selected_idx],    testing_defu[1:][selected_idx])
+            )
+
     f_save.close()
     f_time.close()
 
