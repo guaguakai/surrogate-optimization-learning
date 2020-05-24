@@ -196,9 +196,10 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         print('Forward time for this epoch: {}'.format(epoch_forward_time))
         print('QP time for this epoch: {}'.format(epoch_qp_time))
         print('Backward time for this epoch: {}'.format(epoch_backward_time))
-        forward_time  += epoch_forward_time
-        qp_time       += epoch_qp_time
-        backward_time += epoch_backward_time
+        if epoch >= 0:
+            forward_time  += epoch_forward_time
+            qp_time       += epoch_qp_time
+            backward_time += epoch_backward_time
 
         # ============= early stopping criteria =============
         kk = 3
