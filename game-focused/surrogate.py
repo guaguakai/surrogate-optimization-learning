@@ -452,13 +452,19 @@ if __name__=='__main__':
     #     f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
 
     # ============== recording the important information only ================
+    validating_loss = np.array(validating_loss)
+    validating_defu = np.array(validating_defu)
+    validating_loss[np.isnan(validating_loss)] = np.inf
+    validating_defu[np.isnan(validating_defu)] = -np.inf
+
     if training_method == 'two-stage':
         selected_idx = np.argmin(validating_loss[1:])
     else:
         selected_idx = np.argmax(validating_defu[1:])
+
     f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
     f_save.write('Random seed, {},'.format(SEED) +
-            'training loss, {}, training defu, {}, training opt, {}'.format(training_loss[1:][selected_idx], training_defu[1:][selected_idx], training_defu[0]) +
+            'training loss, {}, training defu, {}, training opt, {}, '.format(training_loss[1:][selected_idx], training_defu[1:][selected_idx], training_defu[0]) +
             'validating loss, {}, validating defu, {}, validating opt, {},'.format(validating_loss[1:][selected_idx], validating_defu[1:][selected_idx], validating_defu[0]) +
             'testing loss, {}, testing defu, {}, testing opt, {}\n'.format(testing_loss[1:][selected_idx], testing_defu[1:][selected_idx], testing_defu[0])
             )
