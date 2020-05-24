@@ -485,11 +485,12 @@ if __name__=='__main__':
         selected_idx = np.argmin(validating_loss[1:])
     else:
         selected_idx = np.argmax(validating_defu[1:])
+
     f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
     f_save.write('Random seed, {},'.format(SEED) +
-            'training loss, {}, training defu, {},'.format(training_loss[1:][selected_idx],   training_defu[1:][selected_idx]) +
-            'validating loss, {}, validating defu, {},'.format(validating_loss[1:][selected_idx], validating_defu[1:][selected_idx]) +
-            'testing loss, {}, testing defu, {}\n'.format(testing_loss[1:][selected_idx],    testing_defu[1:][selected_idx])
+            'training loss, {}, training defu, {}, training opt, {}'.format(training_loss[1:][selected_idx], training_defu[1:][selected_idx], training_defu[0]) +
+            'validating loss, {}, validating defu, {}, validating opt, {},'.format(validating_loss[1:][selected_idx], validating_defu[1:][selected_idx], validating_defu[0]) +
+            'testing loss, {}, testing defu, {}, testing opt, {}\n'.format(testing_loss[1:][selected_idx], testing_defu[1:][selected_idx], testing_defu[0])
             )
 
     f_save.close()
