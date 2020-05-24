@@ -64,7 +64,8 @@ class SampleGenerator(object):
         random.shuffle(self.item_list)
         self.feature_list, self.item_list = self.item_list[:feature_size], self.item_list[feature_size:feature_size+item_size]
         self.feature_pool, self.item_pool = set(self.feature_list), set(self.item_list)
-        self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(self.item_pool)]
+        # self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(list(self.item_list))]
+        self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(list(self.item_list) + list(self.feature_list))]
         self.id2index = {k: idx for idx, k in enumerate(self.item_list)}# item id to index
 
         self.user_list = self.preprocess_ratings['userId'].unique()
@@ -86,7 +87,7 @@ class SampleGenerator(object):
 
         # create negative item samples for NCF learning
         # print('Generating negative samples...')
-        self.negatives = self._sample_negative(self.truncated_ratings)
+        self.negatives = self._sample_negative(self.truncated_ratings, self.user_list)
 
     def _normalize(self, ratings):
         """normalize into [0, 1] from [0, max_rating], explicit feedback"""
@@ -109,10 +110,15 @@ class SampleGenerator(object):
         assert train['userId'].nunique() == test['userId'].nunique()
         return train[['userId', 'itemId', 'rating']], test[['userId', 'itemId', 'rating']]
 
-    def _sample_negative(self, ratings):
+    def _sample_negative(self, ratings, user_list):
         """return all negative items & 100 sampled negative items"""
         interact_status = ratings.groupby('userId')['itemId'].apply(set).reset_index().rename(
             columns={'itemId': 'interacted_items'})
+
+        active_users = set(interact_status['userId'])
+        inactive_users = set(user_list) - active_users
+        interact_status = interact_status.append(pd.DataFrame({'userId': list(inactive_users), 'interacted_items': [set([]) for x in range(len(inactive_users))]}))
+
         interact_status['negative_items'] = interact_status['interacted_items'].apply(lambda x: self.item_pool - x)
         return interact_status[['userId', 'negative_items']]
 

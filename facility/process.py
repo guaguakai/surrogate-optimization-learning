@@ -9,7 +9,7 @@ def customized_write(f, methods, N_list, array):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Movie Recommendation')
     parser.add_argument('--filename', type=str, help='filename under folder results')
-    parser.add_argument('--T', type=int, help='T size')
+    parser.add_argument('--T', type=int, default=10, help='T size')
 
     args = parser.parse_args()
     filename = args.filename
