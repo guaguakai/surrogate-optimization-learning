@@ -208,12 +208,12 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
             if training_method == 'two-stage':
                 GE_counts = np.sum(np.array(validating_loss_list[1:][-kk:]) >= np.array(validating_loss_list[1:][-2*kk:-kk]) - 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
-                if GE_counts == kk:
+                if GE_counts == kk or np.sum(np.isnan(np.array(validating_loss_list[1:][-kk:]))) == kk:
                     break
             else: # surrogate or decision-focused
                 GE_counts = np.sum(np.array(validating_defender_utility_list[1:][-kk:]) <= np.array(validating_defender_utility_list[1:][-2*kk:-kk]) + 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
-                if GE_counts == kk:
+                if GE_counts == kk or np.sum(np.isnan(np.array(validating_defender_utility_list[1:][-kk:]))) == kk:
                     break
         
     average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
