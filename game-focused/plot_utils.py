@@ -27,6 +27,7 @@ def plot_graph(G, T, epoch):
 
     pos = nx.get_node_attributes(G, 'pos')
 
+    plt.figure(figsize=(10,10))
     print('sources', G.graph['sources'], 'targets', G.graph['targets'])
     nx.draw_networkx_nodes(G, pos, nodelist=list(set(G.nodes()) - set(G.graph['sources']) - set(G.graph['targets'])), node_color='grey', node_shape='o', node_size=10, alpha=0.8)
     nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='orange', node_size=80, node_shape='^', alpha=1)
@@ -43,7 +44,6 @@ def plot_graph(G, T, epoch):
     # choices = np.argmax(T, axis=1)
     print('T shape:', T.shape)
 
-    plt.figure(figsize=(10,10))
     for t in range(T.shape[1]):
         threshold = thresholds[t]
         # alpha = alphas[t]

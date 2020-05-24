@@ -228,10 +228,10 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     #     x = optimal_x
 
 
-                    if torch.norm(x.detach() - optimal_x) > 0.5: # TODO
+                    if torch.norm(x.detach() - optimal_x) > 0.05: # TODO
                         # debugging message
                         print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
-                        # print('optimal x:', optimal_x)
+                        print('optimal x:', optimal_x)
                         # print('x:        ', x)
                         # scipy_obj = 0.5 * optimal_x @ Q @ optimal_x + p @ optimal_x 
                         # scipy_obj = getObjective(optimal_x, n, m, output, d, f)
