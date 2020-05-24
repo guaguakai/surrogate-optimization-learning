@@ -260,8 +260,8 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     loss.backward()
                 elif training_method == 'decision-focused':
                     (-objective).backward()
-                    for parameter in net.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    # for parameter in net.parameters():
+                    #     parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
             except:
@@ -398,16 +398,16 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     optimizer.step()
                 elif training_method == 'decision-focused':
                     (-objective).backward()
-                    for parameter in net.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    # for parameter in net.parameters():
+                    #     parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                     optimizer.step()
                 elif training_method == 'surrogate':
                     T_optimizer.zero_grad()
                     (-objective).backward()
                     # T_loss.backward() # TODO: minimizing reparameterization loss
 
-                    for parameter in net.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    # for parameter in net.parameters():
+                    #     parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                     init_T.grad = torch.clamp(init_T.grad, min=-MAX_NORM, max=MAX_NORM)
                     optimizer.step()
                     T_optimizer.step()
