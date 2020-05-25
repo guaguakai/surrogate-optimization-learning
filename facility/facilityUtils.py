@@ -207,7 +207,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     L = torch.cholesky(Q)
                     jac = -getDerivative(optimal_x, n, m, output, d, f, create_graph=True, REG=REG)
                     p = jac - Q @ optimal_x
-                    # qp_solver = qpth.qp.QPFunction()
+                    # qp_solver = qpthlocal.qp.QPFunction()
                     # x = qp_solver(Q, p, newG, newh, newA, newb)[0]
 
                     if True:
@@ -223,24 +223,25 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                         cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
                         coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
                         x = coverage_qp_solution
+
                     # except:
                     #     print("CVXPY solver fails... Usually because Q is not PSD")
                     #     x = optimal_x
 
 
-                    if torch.norm(x.detach() - optimal_x) > 0.05: # TODO
-                        # debugging message
-                        print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
-                        print('optimal x:', optimal_x)
-                        # print('x:        ', x)
-                        # scipy_obj = 0.5 * optimal_x @ Q @ optimal_x + p @ optimal_x 
-                        # scipy_obj = getObjective(optimal_x, n, m, output, d, f)
-                        # qp_obj    = 0.5 * x @ Q @ x + p @ x 
-                        # qp_obj = getObjective(x, n, m, output, d, f)
-                        # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
-                        # print('constraint on optimal_x: Ax-b={}, Gx-h={}'.format(A @ optimal_x - b, G @ optimal_x - h))
-                        # print('constraint on x:         Ax-b={}, Gx-h={}'.format(A @ x - b, G @ x - h))
-                        x = optimal_x
+                    # if torch.norm(x.detach() - optimal_x) > 0.05: # TODO
+                    #     # debugging message
+                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
+                    #     print('optimal x:', optimal_x)
+                    #     # print('x:        ', x)
+                    #     # scipy_obj = 0.5 * optimal_x @ Q @ optimal_x + p @ optimal_x 
+                    #     # scipy_obj = getObjective(optimal_x, n, m, output, d, f)
+                    #     # qp_obj    = 0.5 * x @ Q @ x + p @ x 
+                    #     # qp_obj = getObjective(x, n, m, output, d, f)
+                    #     # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
+                    #     # print('constraint on optimal_x: Ax-b={}, Gx-h={}'.format(A @ optimal_x - b, G @ optimal_x - h))
+                    #     # print('constraint on x:         Ax-b={}, Gx-h={}'.format(A @ x - b, G @ x - h))
+                    #     x = optimal_x
                     qp_time += time.time() - qp_start_time
                 elif training_method == 'two-stage':
                     x = optimal_x
@@ -337,7 +338,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f)
                     # jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
-                    qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
+                    # qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
 
                     # try:
                     #     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
@@ -361,19 +362,20 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
                         y = coverage_qp_solution
                         x = T @ y
+
                     # except:
                     #     print("CVXPY solver fails... Usually because Q is not PSD")
                     #     y = optimal_y
                     #     x = T.detach() @ optimal_y
 
-                    if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
-                        print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
-                        # print(x, T.detach() @ optimal_y)
-                        # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
-                        # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
-                        # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
-                        y = optimal_y
-                        x = T.detach() @ optimal_y
+                    # if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
+                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
+                    #     # print(x, T.detach() @ optimal_y)
+                    #     # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
+                    #     # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
+                    #     # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
+                    #     y = optimal_y
+                    #     x = T.detach() @ optimal_y
 
                     qp_time += time.time() - qp_start_time
                 else:
