@@ -104,14 +104,18 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
                 if mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
                     cut_size = m
-                    def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                    if training_method == "two-stage" and not evaluate:
+                        def_obj, def_coverage, single_forward_time, single_qp_time = torch.Tensor([-float('Inf')]), None, 0, 0
+                    else:
+                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                    single_foward_time, single_qp_time = 0, 0
                 else:
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
                         if evaluate:
                             def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
                         else
-                            def_obj, def_coverage, single_forward_time, single_qp_time = -np.inf, None, 0, 0
+                            def_obj, def_coverage, single_forward_time, single_qp_time = torch.Tensor([-float('Inf')]), None, 0, 0
                             # ignore the time of computing defender utility
                     else:
                         if training_method == 'decision-focused':
