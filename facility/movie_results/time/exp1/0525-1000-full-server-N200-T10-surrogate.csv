@@ -1,5 +1,5 @@
-Epoch, -1
-Random seed, 0, forward time, 0, qp time, 0, backward_time, 0
-forward time,0
-qp time,0
-backward time,0
+Epoch, 1
+Random seed, 0, forward time, 2036.9726445674896, qp time, 305.8506236076355, backward_time, 1217.6445553302765
+forward time,0,0,2036.9726445674896
+qp time,0,0,305.8506236076355
+backward time,0,0,1217.6445553302765
