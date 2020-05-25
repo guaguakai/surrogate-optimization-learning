@@ -38,9 +38,13 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     print ("Training...")
     forward_time, qp_time, backward_time = 0, 0, 0
 
+    evaluate = False # for two-stage only
     pretrain_epochs = 0
     decay_rate = 0.95
     for epoch in range(-1, n_epochs):
+        if epoch == n_epochs-1:
+            evaluate = True
+
         epoch_forward_time, epoch_qp_time, epoch_backward_time = 0, 0, 0
         if epoch <= pretrain_epochs:
             ts_weight = 1
@@ -102,8 +106,11 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 else:
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
-                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
-                        # ignore the time of computing defender utility
+                        if evaluate:
+                            def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
+                        else:
+                            def_obj, def_coverage, single_forward_time, single_qp_time = -np.inf, None, 0, 0
+                            # ignore the time of computing defender utility
                     else:
                         if training_method == 'decision-focused':
                             cut_size = m
@@ -119,33 +126,6 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
                         def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
                         
-                        # =============== checking gradient manually ===============
-                        # dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
-                        # for i in range(len(def_coverage)):
-                        #     grad_def_obj, grad_def_coverage, _ = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method) # most time-consuming part
-                        #     dopt_dphi[i] = torch.autograd.grad(grad_def_coverage[i], phi_pred, retain_graph=True)[0] # ith dimension
-                        #     step_size = 0.01
-
-                        # estimated_dopt_dphi = torch.Tensor(len(def_coverage), len(phi_pred))
-                        # for i in range(len(phi_pred)):
-                        #     new_phi_pred = phi_pred.clone()
-                        #     new_phi_pred[i] += step_size
-        
-                        #     # validating
-                        #     new_unbiased_probs_pred = phi2prob(G, new_phi_pred)
-                        #     _, new_def_coverage, _ = getDefUtility(single_data, new_unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False,  training_method=training_method) # most time-consuming part
-                        #     estimated_dopt_dphi[:,i] = (new_def_coverage - grad_def_coverage) / step_size
-
-                        # print('dopt_dphi abs sum: {}, estimated abs sum: {}, difference sum: {}, difference number: {}'.format(
-                        #     torch.sum(torch.abs(dopt_dphi)),
-                        #     torch.sum(torch.abs(estimated_dopt_dphi)),
-                        #     torch.sum(torch.abs(dopt_dphi - estimated_dopt_dphi)),
-                        #     torch.sum(torch.abs(torch.sign(dopt_dphi) - torch.sign(estimated_dopt_dphi))/2)))
-                        #     # torch.max(dopt_dphi - estimated_dopt_dphi)))
-                        # cos = nn.CosineSimilarity(dim=0)
-                        # print('cosine similarity:', cos(dopt_dphi.reshape(-1), estimated_dopt_dphi.reshape(-1)))
-                        # ==========================================================
-
                 epoch_forward_time += single_forward_time
                 epoch_qp_time      += single_qp_time
                 def_obj_list.append(def_obj.item())
@@ -202,11 +182,13 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         # ============= early stopping criteria =============
         kk = 3
         if epoch >= kk*2 -1:
-            if training_method == 'two-stage':
+            if evaluate:
+                break
+            elif training_method == 'two-stage':
                 GE_counts = np.sum(np.array(validating_loss_list[1:][-kk:]) >= np.array(validating_loss_list[1:][-2*kk:-kk]) - 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
                 if GE_counts == kk:
-                    break
+                    evaluate = True
             else: # surrogate or decision-focused
                 GE_counts = np.sum(np.array(validating_defender_utility_list[1:][-kk:]) <= np.array(validating_defender_utility_list[1:][-2*kk:-kk]) + 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
