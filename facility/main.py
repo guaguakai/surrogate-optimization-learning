@@ -126,6 +126,7 @@ if __name__ == '__main__':
     test_loss_list,  test_obj_list  = [], [] 
     validate_loss_list,  validate_obj_list = [], []
 
+    print('n: {}, m: {}, lr: {}'.format(n,m, lr))
     print('Start training...')
     early_stop = False
     total_forward_time, total_qp_time, total_backward_time = 0, 0, 0
