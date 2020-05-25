@@ -220,9 +220,9 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                         objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ x_default) + p_default.T @ x_default)
                         problem = cp.Problem(objective, constraints)
 
-                    #     cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
-                    #     coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
-                    #     x = coverage_qp_solution
+                        cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
+                        coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
+                        x = coverage_qp_solution
                     # except:
                     #     print("CVXPY solver fails... Usually because Q is not PSD")
                     #     x = optimal_x
@@ -357,10 +357,10 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ y_default) + p_default.T @ y_default)
                         problem = cp.Problem(objective, constraints)
 
-                    #     cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[y_default])
-                    #     coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
-                    #     y = coverage_qp_solution
-                    #     x = T @ y
+                        cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[y_default])
+                        coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
+                        y = coverage_qp_solution
+                        x = T @ y
                     # except:
                     #     print("CVXPY solver fails... Usually because Q is not PSD")
                     #     y = optimal_y
