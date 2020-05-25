@@ -52,9 +52,13 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     print ("Training...")
     forward_time, qp_time, backward_time= 0, 0, 0
 
+    evaluate = False # for two-stage only
     pretrain_epochs = 0
     decay_rate = 0.95
     for epoch in range(-1, n_epochs):
+        if epoch == n_epochs - 1:
+            evaluate = True
+
         epoch_forward_time, epoch_qp_time, epoch_backward_time = 0, 0, 0
         if epoch <= pretrain_epochs:
             ts_weight = 1
@@ -130,8 +134,11 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 else:
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
-                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
-                        # ignore the time of computing defender utility
+                        if evaluate:
+                            def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
+                        else:
+                            def_obj, def_coverage, single_forward_time, single_qp_time = -np.inf, None, 0, 0
+                            # ignore the time of computing defender utility
                     else:
                         if training_method == 'decision-focused' or training_method == 'surrogate-decision-focused':
                             cut_size = m
@@ -178,7 +185,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
             if (epoch > 0) and (mode == "validating"):
                 if training_method == "two-stage":
                     scheduler.step(np.mean(loss_list))
-                    T_scheduler.step(np.mean(loss_list))
+                    # T_scheduler.step(np.mean(loss_list))
                 elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
                     scheduler.step(-np.mean(def_obj_list))
                     T_scheduler.step(-np.mean(def_obj_list))
@@ -205,11 +212,13 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         # ============= early stopping criteria =============
         kk = 3
         if epoch >= kk*2 -1:
-            if training_method == 'two-stage':
+            if evaluate:
+                break
+            elif training_method == 'two-stage':
                 GE_counts = np.sum(np.array(validating_loss_list[1:][-kk:]) >= np.array(validating_loss_list[1:][-2*kk:-kk]) - 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
                 if GE_counts == kk or np.sum(np.isnan(np.array(validating_loss_list[1:][-kk:]))) == kk:
-                    break
+                    evaluate = True # run an additional epoch and then halt
             else: # surrogate or decision-focused
                 GE_counts = np.sum(np.array(validating_defender_utility_list[1:][-kk:]) <= np.array(validating_defender_utility_list[1:][-2*kk:-kk]) + 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
@@ -458,7 +467,7 @@ if __name__=='__main__':
     validating_defu[np.isnan(validating_defu)] = -np.inf
 
     if training_method == 'two-stage':
-        selected_idx = np.argmin(validating_loss[1:])
+        selected_idx = -1
     else:
         selected_idx = np.argmax(validating_defu[1:])
 

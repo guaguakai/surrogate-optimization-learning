@@ -15,7 +15,7 @@ if __name__ == '__main__':
     filename = args.filename
     T = args.T
 
-    N_list = [20, 30, 40, 50, 60, 80, 100, 120, 150]
+    N_list = [20, 30, 40, 50, 60] #, 80, 100, 120, 150]
     methods = ['two-stage', 'decision-focused', 'surrogate']# ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'movie_results/performance/'

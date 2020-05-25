@@ -14,7 +14,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     filename = args.filename
 
-    N_list = [20, 30, 40]
+    N_list = [20, 30, 40, 50]
     methods = ['two-stage', 'decision-focused', 'hybrid', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'results/random/'
@@ -45,7 +45,7 @@ if __name__ == '__main__':
             'qp time T', 'qp time',
             'backward time T', 'backward time']
 
-    sample_set = list(set(range(1,31)) - set([]))
+    sample_set = list(set(range(1,31)) - set([18]))
     for N_idx, N in enumerate(N_list):
         tmp_test_loss_dict     = {'n': N}
         tmp_test_obj_dict      = {'n': N}
