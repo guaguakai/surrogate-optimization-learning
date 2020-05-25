@@ -15,7 +15,7 @@ if __name__ == '__main__':
     filename = args.filename
 
     N_list = [20, 30, 40]
-    methods = ['surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
+    methods = ['two-stage', 'decision-focused', 'hybrid', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'results/random/'
     time_prefix        = 'results/time/random/'
@@ -89,26 +89,26 @@ if __name__ == '__main__':
             tmp_qp_dict[method]            = np.mean(time_pd['qp time'].astype(float))
             tmp_backward_dict[method]      = np.mean(time_pd['backward time'].astype(float))
 
-        testing_losses    = testing_losses.append(pd.DataFrame(tmp_test_loss_dict, index=[0]))
-        training_losses   = training_losses.append(pd.DataFrame(tmp_train_loss_dict, index=[0]))
-        validating_losses = validating_losses.append(pd.DataFrame(tmp_validate_loss_dict, index=[0]))
+        testing_losses    = testing_losses.append(pd.DataFrame(tmp_test_loss_dict, index=[N_idx]))
+        training_losses   = training_losses.append(pd.DataFrame(tmp_train_loss_dict, index=[N_idx]))
+        validating_losses = validating_losses.append(pd.DataFrame(tmp_validate_loss_dict, index=[N_idx]))
 
-        testing_objs      = testing_objs.append(pd.DataFrame(tmp_test_obj_dict, index=[0]))
-        training_objs     = training_objs.append(pd.DataFrame(tmp_train_obj_dict, index=[0]))
-        validating_objs   = validating_objs.append(pd.DataFrame(tmp_validate_obj_dict, index=[0]))
-        optimal_objs      = optimal_objs.append(pd.DataFrame(tmp_optimal_obj_dict, index=[0]))
+        testing_objs      = testing_objs.append(pd.DataFrame(tmp_test_obj_dict, index=[N_idx]))
+        training_objs     = training_objs.append(pd.DataFrame(tmp_train_obj_dict, index=[N_idx]))
+        validating_objs   = validating_objs.append(pd.DataFrame(tmp_validate_obj_dict, index=[N_idx]))
+        optimal_objs      = optimal_objs.append(pd.DataFrame(tmp_optimal_obj_dict, index=[N_idx]))
 
-        forward_time      = forward_time.append(pd.DataFrame(tmp_forward_dict, index=[0]))
-        qp_time           = qp_time.append(pd.DataFrame(tmp_qp_dict, index=[0]))
-        backward_time     = backward_time.append(pd.DataFrame(tmp_backward_dict, index=[0]))
+        forward_time      = forward_time.append(pd.DataFrame(tmp_forward_dict, index=[N_idx]))
+        qp_time           = qp_time.append(pd.DataFrame(tmp_qp_dict, index=[N_idx]))
+        backward_time     = backward_time.append(pd.DataFrame(tmp_backward_dict, index=[N_idx]))
 
     stats_path = 'stats/'
 
-    testing_objs.to_csv(stats_path + 'testing_objs.csv')
-    optimal_objs.to_csv(stats_path + 'optimal_objs.csv')
+    testing_objs.to_csv(stats_path + 'testing_objs.csv', index=False)
+    optimal_objs.to_csv(stats_path + 'optimal_objs.csv', index=False)
 
-    forward_time.to_csv(stats_path + 'forward_time.csv')
-    qp_time.to_csv(stats_path + 'qp_time.csv')
-    backward_time.to_csv(stats_path + 'backward_time.csv')
+    forward_time.to_csv(stats_path + 'forward_time.csv', index=False)
+    qp_time.to_csv(stats_path + 'qp_time.csv', index=False)
+    backward_time.to_csv(stats_path + 'backward_time.csv', index=False)
 
 
