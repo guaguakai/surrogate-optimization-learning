@@ -319,6 +319,7 @@ if __name__ == "__main__":
     dax_data = DAXDataLoader(dax_data_dir, "dax",
                              start_date=dt.datetime(2004, 1, 1),
                              end_date=dt.datetime(2017, 1, 1),
+                             collapse="daily",
                              overwrite=False,
                              verbose=True)
 
