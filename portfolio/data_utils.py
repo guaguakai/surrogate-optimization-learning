@@ -137,6 +137,7 @@ class IndexDataLoader(object):
         :return:
         """
         if not self.overwrite and os.path.exists(self.raw_symbol_file):
+            print("Loading dataset...")
             return pd.read_csv(self.raw_symbol_file)
         else:
             symbol_df = self._download_symbols()
@@ -150,6 +151,7 @@ class IndexDataLoader(object):
         :return:
         """
         if not self.overwrite and os.path.exists(self.price_feature_file):
+            print("Loading dataset...")
             price_feature_df = pd.read_csv(self.price_feature_file, index_col=["Date", "Symbol"])
         else:
 
@@ -159,6 +161,7 @@ class IndexDataLoader(object):
             else:
                 symbol_df = self.load_raw_symbols()
                 raw_price_df = self._download_prices(symbol_df)
+                print("saving the data...")
                 raw_price_df.to_csv(self.raw_historical_price_file)
 
             # filter out symbols without right number of timesteps
@@ -181,7 +184,9 @@ class IndexDataLoader(object):
         date names, and asset names
         :return:
         """
+        print(self.torch_file)
         if not self.overwrite and os.path.exists(self.torch_file):
+            print("Loading pytorch data...")
             feature_mat, target_mat, feature_cols, target_name, dates, symbols = torch.load(self.torch_file)
         else:
             price_feature_df = self.get_price_feature_df()
@@ -203,10 +208,12 @@ class SP500DataLoader(IndexDataLoader):
         super().__init__(data_dir, index_name, start_date, end_date, collapse, overwrite, verbose)
 
     def _download_symbols(self):
+        print("Downloading data from wiki...")
         raw_symbol_df = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", header=0)[0]
         return raw_symbol_df
 
     def _download_prices(self, symbol_df):
+        print("Downloading data from quandl...")
         # quandl.read_key(os.environ.get("QUANDL_KEY"))
 
         raw_tickers = symbol_df.Symbol
@@ -218,6 +225,7 @@ class SP500DataLoader(IndexDataLoader):
 
         raw_s_data = quandl.get(request_field,
                                 start_date=self.start_date, end_date=self.end_date, collapse=self.collapse)
+        print("processing data...")
 
         # only keep columns where data was found, and parse column names
         cols_to_keep = list(raw_s_data.columns[raw_s_data.columns.str.find(" - Not Found") == -1])
@@ -249,11 +257,13 @@ class DAXDataLoader(IndexDataLoader):
         super().__init__(data_dir, index_name, start_date, end_date, collapse, overwrite, verbose)
 
     def _download_symbols(self):
+        print("Downloading data from wiki...")
         raw_symbol_df = pd.read_html("https://en.wikipedia.org/wiki/DAX", header=0)[2]
         parsed_symbol_df = raw_symbol_df[["Ticker symbol"]].rename(columns={"Ticker symbol": "Symbol"})
         return parsed_symbol_df
 
     def _download_prices(self, symbol_df):
+        print("Downloading data from quandl...")
         # quandl.read_key(os.environ.get("QUANDL_KEY"))
 
         raw_tickers = symbol_df.Symbol
@@ -292,27 +302,27 @@ if __name__ == "__main__":
     portfolio_opt_dir = os.path.abspath(os.path.dirname(__file__))
     print("portfolio_opt_dir:", portfolio_opt_dir)
 
-    sp500_data_dir = os.path.join(portfolio_opt_dir, "data", "sp500")
-    sp500_data = SP500DataLoader(sp500_data_dir, "sp500",
-                                 start_date=dt.datetime(2004, 1, 1),
-                                 end_date=dt.datetime(2017, 1, 1),
-                                 collapse="daily",
-                                 overwrite=False,
-                                 verbose=True)
-
-    # feature_mat, target_mat, feature_cols, target_name, dates, symbols = \
-    sp500_data.load_pytorch_data()
-
-    print("loaded sp500 data")
-
-    # dax_data_dir = os.path.join(portfolio_opt_dir, "data", "dax")
-    # dax_data = DAXDataLoader(dax_data_dir, "dax",
-    #                          start_date=dt.datetime(2004, 1, 1),
-    #                          end_date=dt.datetime(2017, 1, 1),
-    #                          overwrite=False,
-    #                          verbose=True)
+    # sp500_data_dir = os.path.join(portfolio_opt_dir, "data", "sp500")
+    # sp500_data = SP500DataLoader(sp500_data_dir, "sp500",
+    #                              start_date=dt.datetime(2004, 1, 1),
+    #                              end_date=dt.datetime(2017, 1, 1),
+    #                              collapse="daily",
+    #                              overwrite=False,
+    #                              verbose=True)
 
     # # feature_mat, target_mat, feature_cols, target_name, dates, symbols = \
-    # dax_data.load_pytorch_data()
+    # sp500_data.load_pytorch_data()
 
-    # print("loaded dax data")
+    # print("loaded sp500 data")
+
+    dax_data_dir = os.path.join(portfolio_opt_dir, "data", "dax")
+    dax_data = DAXDataLoader(dax_data_dir, "dax",
+                             start_date=dt.datetime(2004, 1, 1),
+                             end_date=dt.datetime(2017, 1, 1),
+                             overwrite=False,
+                             verbose=True)
+
+    # feature_mat, target_mat, feature_cols, target_name, dates, symbols = \
+    dax_data.load_pytorch_data()
+
+    print("loaded dax data")
