@@ -129,13 +129,13 @@ if __name__ == '__main__':
     print('n: {}, m: {}, lr: {}'.format(n,m, lr))
     print('Start training...')
     evaluate = False if training_method == 'two-stage' else True
-    total_forward_time, total_qp_time, total_backward_time = 0, 0, 0
-    forward_time_list, qp_time_list, backward_time_list = [], [], []
+    total_forward_time, total_inference_time, total_qp_time, total_backward_time = 0, 0, 0, 0
+    forward_time_list, inference_time_list, qp_time_list, backward_time_list = [], [], [], []
     for epoch in range(-1, num_epochs):
         if epoch == num_epochs - 1:
             evaluate = True
         start_time = time.time()
-        forward_time, qp_time, backward_time = 0, 0, 0
+        forward_time, inference_time, qp_time, backward_time = 0, 0, 0, 0
         if training_method == 'surrogate':
             if epoch == -1:
                 print('Testing the optimal solution...')
@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 print('Testing the initial solution quality...')
                 train_loss, train_obj = surrogate_test_submodular(net, T, epoch, sample_instance, train_dataset)
             else:
-                train_loss, train_obj, (forward_time, qp_time, backward_time) = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, train_dataset, training_method=training_method)
+                train_loss, train_obj, (forward_time, inference_time, qp_time, backward_time) = surrogate_train_submodular(net, T, optimizer, T_optimizer, epoch, sample_instance, train_dataset, training_method=training_method)
         elif training_method == 'decision-focused' or training_method == 'two-stage':
             if epoch == -1:
                 print('Testing the optimal solution...')
@@ -153,14 +153,16 @@ if __name__ == '__main__':
                 print('Testing the initial solution quality...')
                 train_loss, train_obj = test_submodular(net, epoch, sample_instance, train_dataset)
             else:
-                train_loss, train_obj, (forward_time, qp_time, backward_time) = train_submodular(net, optimizer, epoch, sample_instance, train_dataset, training_method=training_method, evaluate=evaluate)
+                train_loss, train_obj, (forward_time, inference_time, qp_time, backward_time) = train_submodular(net, optimizer, epoch, sample_instance, train_dataset, training_method=training_method, evaluate=evaluate)
         else:
             raise ValueError('Not implemented')
-        total_forward_time  += forward_time
-        total_qp_time       += qp_time
-        total_backward_time += backward_time
+        total_forward_time   += forward_time
+        total_inference_time += inference_time
+        total_qp_time        += qp_time
+        total_backward_time  += backward_time
 
         forward_time_list.append(forward_time)
+        inference_time_list.append(inference_time)
         qp_time_list.append(qp_time)
         backward_time_list.append(backward_time)
 
@@ -220,10 +222,11 @@ if __name__ == '__main__':
 
         f_time = open('movie_results/time/' + filepath + "{}.csv".format(training_method), 'w')
         f_time.write('Epoch, {}\n'.format(epoch))
-        f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(str(SEED), total_forward_time, total_qp_time, total_backward_time))
-        f_time.write('forward time,'  + ','.join([str(x) for x in forward_time_list]) + '\n')
-        f_time.write('qp time,'       + ','.join([str(x) for x in qp_time_list]) + '\n')
-        f_time.write('backward time,' + ','.join([str(x) for x in backward_time_list]) + '\n')
+        f_time.write('Random seed, {}, forward time, {}, inference time, {}, qp time, {}, backward_time, {}\n'.format(str(SEED), total_forward_time, total_inference_time, total_qp_time, total_backward_time))
+        f_time.write('forward time,'   + ','.join([str(x) for x in forward_time_list]) + '\n')
+        f_time.write('inference time,' + ','.join([str(x) for x in inference_time_list]) + '\n')
+        f_time.write('qp time,'        + ','.join([str(x) for x in qp_time_list]) + '\n')
+        f_time.write('backward time,'  + ','.join([str(x) for x in backward_time_list]) + '\n')
         f_time.close()
 
         # ============= early stopping criteria =============

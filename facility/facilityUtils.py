@@ -172,7 +172,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
     train_losses, train_objs = [], []
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
-    forward_time, qp_time, backward_time = 0, 0, 0
+    forward_time, inference_time, qp_time, backward_time = 0, 0, 0, 0
     REG = 0.0
 
     with tqdm.tqdm(dataset) as tqdm_loader:
@@ -245,9 +245,11 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     qp_time += time.time() - qp_start_time
                 elif training_method == 'two-stage':
                     if evaluate:
+                        inference_start_time = time.time()
                         optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
                         x = torch.Tensor(optimize_result.x)
                         obj = getObjective(x, n, m, label, d, f, REG=0)
+                        inference_time += time.time() - inference_start_time
                         qp_time = 0
                     else:
                         obj = torch.Tensor([0])
@@ -285,7 +287,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
-    return average_loss, average_obj, (forward_time, qp_time, backward_time)
+    return average_loss, average_obj, (forward_time, inference_time, qp_time, backward_time)
 
 def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
     net.train()
@@ -295,11 +297,11 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
     x_size, variable_size = init_T.shape
     n, m, d, f, budget = sample_instance.n, sample_instance.m, torch.Tensor(sample_instance.d), torch.Tensor(sample_instance.f), sample_instance.budget
     A, b, G, h = createConstraintMatrix(m, n, budget)
-    forward_time, qp_time, backward_time = 0, 0, 0
+    forward_time, inference_time, qp_time, backward_time = 0, 0, 0, 0
 
     with tqdm.tqdm(dataset) as tqdm_loader:
         for batch_idx, (features, labels) in enumerate(tqdm_loader):
-            net_start_time = time.time()
+            forward_start_time = time.time()
             features, labels = features.to(device), labels.to(device)
             if epoch >= 0: 
                 outputs = net(features)
@@ -307,7 +309,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                 outputs = labels
             # two-stage loss
             loss = loss_fn(outputs, labels)
-            forward_time += time.time() - net_start_time
+            forward_time += time.time() - forward_start_time
 
             # decision-focused loss
             objective_value_list, T_loss_list = [], []
@@ -325,9 +327,9 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
                     # output = label # for debug only # TODO
-                    forward_start_time = time.time()
+                    inference_start_time = time.time()
                     optimize_result = getSurrogateOptimalDecision(T, n, m, output, d, f, budget=budget) # end-to-end for both T and net
-                    forward_time += time.time() - forward_start_time
+                    inference_time += time.time() - inference_start_time
                     optimal_y = torch.Tensor(optimize_result.x)
 
                     newA, newb = torch.Tensor(), torch.Tensor()
@@ -438,7 +440,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
-    return average_loss, average_obj, (forward_time, qp_time, backward_time)
+    return average_loss, average_obj, (forward_time, inference_time, qp_time, backward_time)
 
 def validate_submodular(net, scheduler, epoch, sample_instance, dataset, training_method='two-stage', device='cpu', evaluate=True):
     net.eval()
