@@ -14,8 +14,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     filename = args.filename
 
-    N_list = [20, 30, 40, 50, 60, 80, 100, 120]
-    methods = ['two-stage', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
+    N_list = [30, 40, 50, 60] #, 80, 100, 120]
+    methods = ['two-stage', 'hybrid', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'results/random/'
     time_prefix        = 'results/time/random/'
@@ -32,9 +32,10 @@ if __name__ == '__main__':
     optimal_objs      = pd.DataFrame(columns=column_names)
 
     time_column_names = ['n'] + methods
-    forward_time  = pd.DataFrame(columns=time_column_names) 
-    qp_time       = pd.DataFrame(columns=time_column_names)
-    backward_time = pd.DataFrame(columns=time_column_names)
+    forward_time      = pd.DataFrame(columns=time_column_names) 
+    inference_time    = pd.DataFrame(columns=time_column_names) 
+    qp_time           = pd.DataFrame(columns=time_column_names)
+    backward_time     = pd.DataFrame(columns=time_column_names)
 
     performance_header = ['random seed T', 'random seed',
             'train loss T', 'train loss', 'train defu T', 'train defu', 'train opt T', 'train opt',
@@ -42,10 +43,12 @@ if __name__ == '__main__':
             'test loss T', 'test loss', 'test defu T', 'test defu', 'test opt T', 'test opt']
     time_header        = ['random seed T', 'random seed', 
             'forward time T', 'forward time',
+            'inference time T', 'inference time',
             'qp time T', 'qp time',
-            'backward time T', 'backward time']
+            'backward time T', 'backward time',
+            'epoch T', 'epoch']
 
-    sample_set = list(set(range(1,31)) - set([]))
+    sample_set = list(set(range(1,31)) - set([11,4,5]))
     for N_idx, N in enumerate(N_list):
         tmp_test_loss_dict     = {'n': N}
         tmp_test_obj_dict      = {'n': N}
@@ -56,6 +59,7 @@ if __name__ == '__main__':
         tmp_optimal_obj_dict   = {'n': N}
 
         tmp_forward_dict       = {'n': N}
+        tmp_inference_dict     = {'n': N}
         tmp_qp_dict            = {'n': N}
         tmp_backward_dict      = {'n': N}
 
@@ -86,6 +90,10 @@ if __name__ == '__main__':
             tmp_optimal_obj_dict[method]   = np.mean(performance_pd['test opt'].astype(float))
 
             tmp_forward_dict[method]       = np.mean(time_pd['forward time'].astype(float))
+            if method == 'two-stage':
+                tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float))
+            else:
+                tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float) / time_pd['epoch'].astype(float))
             tmp_qp_dict[method]            = np.mean(time_pd['qp time'].astype(float))
             tmp_backward_dict[method]      = np.mean(time_pd['backward time'].astype(float))
 
@@ -99,6 +107,7 @@ if __name__ == '__main__':
         optimal_objs      = optimal_objs.append(pd.DataFrame(tmp_optimal_obj_dict, index=[N_idx]))
 
         forward_time      = forward_time.append(pd.DataFrame(tmp_forward_dict, index=[N_idx]))
+        inference_time    = inference_time.append(pd.DataFrame(tmp_inference_dict, index=[N_idx]))
         qp_time           = qp_time.append(pd.DataFrame(tmp_qp_dict, index=[N_idx]))
         backward_time     = backward_time.append(pd.DataFrame(tmp_backward_dict, index=[N_idx]))
 
@@ -108,6 +117,7 @@ if __name__ == '__main__':
     optimal_objs.to_csv(stats_path + 'optimal_objs.csv', index=False)
 
     forward_time.to_csv(stats_path + 'forward_time.csv', index=False)
+    inference_time.to_csv(stats_path + 'inference_time.csv', index=False)
     qp_time.to_csv(stats_path + 'qp_time.csv', index=False)
     backward_time.to_csv(stats_path + 'backward_time.csv', index=False)
 
