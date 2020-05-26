@@ -128,7 +128,6 @@ if __name__ == '__main__':
 
     print('n: {}, m: {}, lr: {}'.format(n,m, lr))
     print('Start training...')
-    early_stop = False
     evaluate = False if training_method == 'two-stage' else True
     total_forward_time, total_qp_time, total_backward_time = 0, 0, 0
     forward_time_list, qp_time_list, backward_time_list = [], [], []
@@ -149,7 +148,7 @@ if __name__ == '__main__':
         elif training_method == 'decision-focused' or training_method == 'two-stage':
             if epoch == -1:
                 print('Testing the optimal solution...')
-                train_loss, train_obj = test_submodular(net, epoch, sample_instance, train_dataset)
+                train_loss, train_obj = test_submodular(net, epoch, sample_instance, train_dataset, evaluate=True)
             elif epoch == 0:
                 print('Testing the initial solution quality...')
                 train_loss, train_obj = test_submodular(net, epoch, sample_instance, train_dataset)
@@ -172,7 +171,10 @@ if __name__ == '__main__':
             else:
                 validate_loss, validate_obj = surrogate_validate_submodular(net, scheduler, T_scheduler, T, epoch, sample_instance, validate_dataset, training_method=training_method)
         else:
-            validate_loss, validate_obj = validate_submodular(net, scheduler, epoch, sample_instance, validate_dataset, training_method=training_method, evaluate=evaluate)
+            if epoch == -1:
+                validate_loss, validate_obj = validate_submodular(net, scheduler, epoch, sample_instance, validate_dataset, training_method=training_method, evaluate=True)
+            else:
+                validate_loss, validate_obj = validate_submodular(net, scheduler, epoch, sample_instance, validate_dataset, training_method=training_method, evaluate=evaluate)
 
         # ================== testing ===================
         if training_method == 'surrogate':
@@ -181,7 +183,10 @@ if __name__ == '__main__':
             else:
                 test_loss, test_obj = surrogate_test_submodular(net, T, epoch, sample_instance, test_dataset)
         else:
-            test_loss, test_obj = test_submodular(net, epoch, sample_instance, test_dataset, evaluate=evaluate)
+            if epoch == -1:
+                test_loss, test_obj = test_submodular(net, epoch, sample_instance, test_dataset, evaluate=True)
+            else:
+                test_loss, test_obj = test_submodular(net, epoch, sample_instance, test_dataset, evaluate=evaluate)
 
         # =============== printing data ================
         sys.stdout.write(f'Epoch {epoch} | Train Loss:    \t {train_loss:.3f} \t | Train Objective Value:    \t {train_obj:.3f} \n')
