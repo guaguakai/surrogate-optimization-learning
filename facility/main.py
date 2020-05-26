@@ -198,7 +198,7 @@ if __name__ == '__main__':
 
         # ============== recording data ================
         end_time = time.time()
-        print("Epoch {}, elapsed time: {}, forward time: {}, qp time: {}, backward time: {}".format(epoch, end_time - start_time, forward_time, qp_time, backward_time))
+        print("Epoch {}, elapsed time: {}, forward time: {}, inference time: {}, qp time: {}, backward time: {}".format(epoch, end_time - start_time, forward_time, inference_time, qp_time, backward_time))
 
         random.shuffle(train_dataset)
 

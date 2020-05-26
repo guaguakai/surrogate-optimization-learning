@@ -193,8 +193,9 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
             for (label, output) in zip(labels, outputs):
                 forward_start_time = time.time()
                 if training_method == 'decision-focused':
+                    inference_start_time = time.time()
                     optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
-                    forward_time += time.time() - forward_start_time
+                    inference_time += time.time() - inference_start_time
                     optimal_x = torch.Tensor(optimize_result.x).requires_grad_(True)
 
                     qp_start_time = time.time()
