@@ -15,8 +15,8 @@ if __name__ == '__main__':
     filename = args.filename
     T = args.T
 
-    N_list = [20, 30, 40, 50, 60, 80, 100, 120]
-    methods = ['two-stage'] #, 'decision-focused', 'surrogate']# ['two-stage', 'decision-focused', 'surrogate']
+    N_list = [20, 30, 40, 50, 60] #, 80, 100, 120, 150]
+    methods = ['two-stage', 'decision-focused', 'surrogate']# ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'movie_results/performance/'
     time_prefix        = 'movie_results/time/'
@@ -80,7 +80,7 @@ if __name__ == '__main__':
             # assert finished_epoch == 49, "N: {}, method: {} incorrectly finished".format(N, method)
 
             line = f_time.readline().split(',')
-            forward_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3]), float(line[5]), float(line[7])
+            forward_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3])/finished_epoch, float(line[5])/finished_epoch, float(line[7])/finished_epoch
             f_time.close()
 
 

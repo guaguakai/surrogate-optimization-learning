@@ -208,7 +208,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     print('Total qp time: {}'.format(qp_time))
     print('Total backward time: {}'.format(backward_time))
 
-    return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, (forward_time, qp_time, backward_time)
+    return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, (forward_time, qp_time, backward_time), epoch
     
 
 def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='surrogate-decision-focused', block_selection='coverage'):
@@ -428,7 +428,7 @@ if __name__=='__main__':
 
     ############################## Training the ML models:    
     # Learn the neural networks:
-    net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, (forward_time, qp_time, backward_time) = train_model(
+    net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, (forward_time, qp_time, backward_time), epoch = train_model(
                                 train_data, validate_data, test_data,
                                 learning_model=learning_model_type, block_selection=block_selection,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE, 
@@ -454,7 +454,7 @@ if __name__=='__main__':
 
     selected_idx = np.argmax(validating_defu[1:])
 
-    f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
+    f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}, epoch, {}\n'.format(SEED, forward_time, qp_time, backward_time, epoch))
     f_save.write('Random seed, {},'.format(SEED) +
             'training loss, {}, training defu, {}, training opt, {},'.format(training_loss[1:][selected_idx], training_defu[1:][selected_idx], training_defu[0]) +
             'validating loss, {}, validating defu, {}, validating opt, {},'.format(validating_loss[1:][selected_idx], validating_defu[1:][selected_idx], validating_defu[0]) +

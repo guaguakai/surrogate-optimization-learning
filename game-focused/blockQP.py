@@ -36,7 +36,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list = [], [], []
     
     print ("Training...")
-    forward_time, qp_time, backward_time = 0, 0, 0
+    forward_time, inference_time, qp_time, backward_time = 0, 0, 0, 0
 
     evaluate = False if training_method == 'two-stage' else True # for two-stage only
     pretrain_epochs = 0
@@ -45,7 +45,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         if epoch == n_epochs-1:
             evaluate = True
 
-        epoch_forward_time, epoch_qp_time, epoch_backward_time = 0, 0, 0
+        epoch_forward_time, epoch_qp_time, epoch_backward_time, epoch_inference_time = 0, 0, 0, 0
         if epoch <= pretrain_epochs:
             ts_weight = 1
             df_weight = 0
@@ -98,7 +98,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 log_prob_pred /= len(path_list)
                 loss = (log_prob_pred - log_prob)[0]
 
-                single_fowrad_time = time.time() - forward_start_time
+                single_forward_time = time.time() - forward_start_time
                 single_qp_time     = 0
 
                 # ============== COMPUTE DEFENDER UTILITY ==============
@@ -107,15 +107,14 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 if mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
                     cut_size = m
                     if evaluate or epoch <= 0:
-                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                        def_obj, def_coverage, (single_inference_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
                     else:
                         def_obj, def_coverage = torch.Tensor([-float('Inf')]), None
-                    single_forward_time, single_qp_time = 0, 0
                 else:
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
                         cut_size = m
                         if evaluate:
-                            def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
+                            def_obj, def_coverage, (single_inference_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
                         else:
                             def_obj, def_coverage = torch.Tensor([-float('Inf')]), None
                             # ignore the time of computing defender utility
@@ -132,11 +131,12 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                         else:
                             raise TypeError('Not defined method')
 
-                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
+                        def_obj, def_coverage, (single_inference_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
                 
                 if epoch > 0 and mode == "training":
-                    epoch_forward_time += single_forward_time
-                    epoch_qp_time      += single_qp_time
+                    epoch_forward_time   += single_forward_time
+                    epoch_inference_time += single_inference_time
+                    epoch_qp_time        += single_qp_time
 
                 def_obj_list.append(def_obj.item())
                 loss_list.append(loss.item())
@@ -185,9 +185,10 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         print('QP time for this epoch: {}'.format(epoch_qp_time))
         print('Backward time for this epoch: {}'.format(epoch_backward_time))
         if epoch >= 0:
-            forward_time  += epoch_forward_time
-            qp_time       += epoch_qp_time
-            backward_time += epoch_backward_time
+            forward_time   += epoch_forward_time
+            inference_time += epoch_inference_time
+            qp_time        += epoch_qp_time
+            backward_time  += epoch_backward_time
 
         # ============= early stopping criteria =============
         kk = 3
@@ -211,7 +212,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     print('Total qp time: {}'.format(qp_time))
     print('Total backward time: {}'.format(backward_time))
             
-    return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, (forward_time, qp_time, backward_time)
+    return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, (forward_time, inference_time, qp_time, backward_time), epoch
     
 
 def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='coverage'):
@@ -239,7 +240,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
     if not pred_optimal_res['success']:
         print(pred_optimal_res)
         print('optimization fails...')
-    forward_time = time.time() - forward_start_time
+    inference_time = time.time() - forward_start_time
 
     # ======================== edge set choice =====================
     qp_start_time = time.time()
@@ -342,7 +343,7 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         full_coverage_qp_solution = pred_optimal_coverage.clone()
         pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
-    return pred_defender_utility, full_coverage_qp_solution, (forward_time, qp_time)
+    return pred_defender_utility, full_coverage_qp_solution, (inference_time, qp_time)
 
 if __name__=='__main__':
     # ==================== Parser setting ==========================
@@ -443,7 +444,7 @@ if __name__=='__main__':
 
     ############################## Training the ML models:
     # Learn the neural networks:
-    net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, (forward_time, qp_time, backward_time) = train_model(
+    net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, (forward_time, inference_time, qp_time, backward_time), epoch = train_model(
                                 train_data, validate_data, test_data,
                                 learning_model=learning_model_type, block_selection=block_selection,
                                 lr=LR, n_epochs=N_EPOCHS,batch_size=BATCH_SIZE,
@@ -472,7 +473,7 @@ if __name__=='__main__':
     else:
         selected_idx = np.argmax(validating_defu[1:])
 
-    f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
+    f_time.write('Random seed, {}, forward time, {}, inference time, {}, qp time, {}, backward_time, {}, epoch, {}\n'.format(SEED, forward_time, inference_time, qp_time, backward_time, epoch))
     f_save.write('Random seed, {},'.format(SEED) +
             'training loss, {}, training defu, {}, training opt, {}, '.format(training_loss[1:][selected_idx], training_defu[1:][selected_idx], training_defu[0]) +
             'validating loss, {}, validating defu, {}, validating opt, {},'.format(validating_loss[1:][selected_idx], validating_defu[1:][selected_idx], validating_defu[0]) +

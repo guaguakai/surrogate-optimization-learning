@@ -4,7 +4,7 @@ import datetime as dt
 
 import quandl
 import torch
-
+quandl.ApiConfig.api_key = 'RfHTTH7wuRVARMNz8nyC'
 
 def compute_monthly_cols(symbol_df):
     returns = symbol_df.Close.pct_change() + 1
@@ -207,7 +207,7 @@ class SP500DataLoader(IndexDataLoader):
         return raw_symbol_df
 
     def _download_prices(self, symbol_df):
-        quandl.read_key(os.environ.get("QUANDL_KEY"))
+        # quandl.read_key(os.environ.get("QUANDL_KEY"))
 
         raw_tickers = symbol_df.Symbol
         tickers = "WIKI/" + raw_tickers.str.replace(".", "_")
@@ -254,7 +254,7 @@ class DAXDataLoader(IndexDataLoader):
         return parsed_symbol_df
 
     def _download_prices(self, symbol_df):
-        quandl.read_key(os.environ.get("QUANDL_KEY"))
+        # quandl.read_key(os.environ.get("QUANDL_KEY"))
 
         raw_tickers = symbol_df.Symbol
         tickers = "FSE/" + raw_tickers + "_X"
