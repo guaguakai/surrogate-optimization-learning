@@ -117,6 +117,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                             def_obj, def_coverage, (single_inference_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
                         else:
                             def_obj, def_coverage = torch.Tensor([-float('Inf')]), None
+                            single_inference_time, single_qp_time = 0, 0
                             # ignore the time of computing defender utility
                     else:
                         if training_method == 'decision-focused':
@@ -209,6 +210,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
     average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
     print('Total forward time: {}'.format(forward_time))
+    print('Total inference time: {}'.format(inference_time))
     print('Total qp time: {}'.format(qp_time))
     print('Total backward time: {}'.format(backward_time))
             
