@@ -77,6 +77,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
             loss_list, def_obj_list = [], []
             for iter_n in tqdm.trange(len(dataset)):
+                forward_start_time = time.time()
                 G, Fv, coverage_prob, phi_true, path_list, cut, log_prob, unbiased_probs_true, previous_gradient = dataset[iter_n]
                 n, m = G.number_of_nodes(), G.number_of_edges()
                 
@@ -97,6 +98,9 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 log_prob_pred /= len(path_list)
                 loss = (log_prob_pred - log_prob)[0]
 
+                single_fowrad_time = time.time() - forward_start_time
+                single_qp_time     = 0
+
                 # ============== COMPUTE DEFENDER UTILITY ==============
                 single_data = dataset[iter_n]
 
@@ -105,7 +109,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                     if evaluate or epoch <= 0:
                         def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
                     else:
-                        def_obj, def_coverage, single_forward_time, single_qp_time = torch.Tensor([-float('Inf')]), None, 0, 0
+                        def_obj, def_coverage = torch.Tensor([-float('Inf')]), None
                     single_forward_time, single_qp_time = 0, 0
                 else:
                     if training_method == "two-stage" or epoch <= pretrain_epochs:
@@ -113,7 +117,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                         if evaluate:
                             def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
                         else:
-                            def_obj, def_coverage, single_forward_time, single_qp_time = torch.Tensor([-float('Inf')]), None, 0, 0
+                            def_obj, def_coverage = torch.Tensor([-float('Inf')]), None
                             # ignore the time of computing defender utility
                     else:
                         if training_method == 'decision-focused':
@@ -129,9 +133,11 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                             raise TypeError('Not defined method')
 
                         def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
-                        
-                epoch_forward_time += single_forward_time
-                epoch_qp_time      += single_qp_time
+                
+                if epoch > 0 and mode == "training":
+                    epoch_forward_time += single_forward_time
+                    epoch_qp_time      += single_qp_time
+
                 def_obj_list.append(def_obj.item())
                 loss_list.append(loss.item())
 
@@ -186,9 +192,9 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         # ============= early stopping criteria =============
         kk = 3
         if epoch >= kk*2 -1:
-            if evaluate and training_method == 'two-stage':
-                break
-            elif training_method == 'two-stage':
+            if training_method == 'two-stage':
+                if evaluate:
+                    break
                 GE_counts = np.sum(np.array(validating_loss_list[1:][-kk:]) >= np.array(validating_loss_list[1:][-2*kk:-kk]) - 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
                 if GE_counts == kk:

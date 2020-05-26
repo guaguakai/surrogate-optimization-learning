@@ -188,9 +188,9 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         # ============= early stopping criteria =============
         kk = 3
         if epoch >= kk*2 -1:
-            if evaluate:
-                break
-            elif training_method == 'two-stage':
+            if training_method == 'two-stage':
+                if evaluate:
+                    break
                 GE_counts = np.sum(np.array(validating_loss_list[1:][-kk:]) >= np.array(validating_loss_list[1:][-2*kk:-kk]) - 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
                 if GE_counts == kk:

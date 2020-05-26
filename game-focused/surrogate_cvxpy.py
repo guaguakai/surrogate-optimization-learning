@@ -21,7 +21,7 @@ import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
 
 def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='random_walk_distribution', block_selection='coverage',
-                          n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='two-stage', max_norm=0.1, block_cut_size=0.5, T_size=10):
+                          n_epochs=150, batch_size=100, optimizer='adam', omega=4, training_method='surrogate-decision-focused', max_norm=0.1, block_cut_size=0.5, T_size=10):
     
     net2= GCNPredictionNet2(feature_size)
     net2.train()
@@ -54,13 +54,9 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     print ("Training...")
     forward_time, qp_time, backward_time= 0, 0, 0
 
-    evaluate = False
     pretrain_epochs = 0
     decay_rate = 0.95
     for epoch in range(-1, n_epochs):
-        if epoch == n_epochs - 1:
-            evaluate = True
-
         epoch_forward_time, epoch_qp_time, epoch_backward_time = 0, 0, 0
         if epoch <= pretrain_epochs:
             ts_weight = 1
@@ -128,29 +124,18 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                     def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, full_T, full_s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
                     single_forward_time, single_qp_time = 0, 0 # testing epoch so not counting the computation time
 
-                elif mode == 'testing' or mode == "validating" or epoch <= 0: # or training_method == "two-stage" or epoch <= 0:
+                elif mode == 'testing' or mode == "validating" or epoch <= 0:
                     cut_size = m
-                    if training_method == "two-stage" and not evaluate:
-                        def_obj, def_coverage, single_forward_time, single_qp_time = torch.Tensor([-float('Inf')]), None, 0, 0
-                    else:
-                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
+                    def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # feed forward only
                     single_forward_time, single_qp_time = 0, 0 # testing epoch so not counting the computation time
 
                 else:
-                    if training_method == "two-stage" or epoch <= pretrain_epochs:
+                    if training_method == 'decision-focused' or training_method == 'surrogate-decision-focused':
                         cut_size = m
-                        if evaluate:
-                            def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=False, training_method=training_method, block_selection=block_selection) # most time-consuming part
-                        else:
-                            def_obj, def_coverage, single_forward_time, single_qp_time = torch.Tensor([-float('Inf')]), None, 0, 0
-                            # ignore the time of computing defender utility
                     else:
-                        if training_method == 'decision-focused' or training_method == 'surrogate-decision-focused':
-                            cut_size = m
-                        else:
-                            raise TypeError('Not defined method')
+                        raise TypeError('Not defined method')
 
-                        def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
+                    def_obj, def_coverage, (single_forward_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
                 
                 epoch_forward_time += single_forward_time
                 epoch_qp_time      += single_qp_time
@@ -162,9 +147,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                     optimizer.zero_grad()
                     T_optimizer.zero_grad()
                     try:
-                        if training_method == "two-stage" or epoch <= pretrain_epochs:
-                            loss.backward()
-                        elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
+                        if training_method == "decision-focused" or training_method == "surrogate-decision-focused":
                             (-def_obj).backward()
                             # (-def_obj * df_weight + loss * ts_weight).backward()
                         else:
@@ -188,10 +171,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
             # ========= scheduler using validation set ==========
             if (epoch > 0) and (mode == "validating"):
-                if training_method == "two-stage":
-                    scheduler.step(np.mean(loss_list))
-                    T_scheduler.step(np.mean(loss_list))
-                elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
+                if training_method == "decision-focused" or training_method == "surrogate-decision-focused":
                     scheduler.step(-np.mean(def_obj_list))
                     T_scheduler.step(-np.mean(def_obj_list))
                 else:
@@ -217,18 +197,10 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
         # ============= early stopping criteria =============
         kk = 3
         if epoch >= kk*2 -1:
-            if evaluate:
+            GE_counts = np.sum(np.array(validating_defender_utility_list[1:][-kk:]) <= np.array(validating_defender_utility_list[1:][-2*kk:-kk]) + 1e-4)
+            print('Generalization error increases counts: {}'.format(GE_counts))
+            if GE_counts == kk:
                 break
-            elif training_method == 'two-stage':
-                GE_counts = np.sum(np.array(validating_loss_list[1:][-kk:]) >= np.array(validating_loss_list[1:][-2*kk:-kk]) - 1e-4)
-                print('Generalization error increases counts: {}'.format(GE_counts))
-                if GE_counts == kk:
-                    evaluate = True
-            else: # surrogate or decision-focused
-                GE_counts = np.sum(np.array(validating_defender_utility_list[1:][-kk:]) <= np.array(validating_defender_utility_list[1:][-2*kk:-kk]) + 1e-4)
-                print('Generalization error increases counts: {}'.format(GE_counts))
-                if GE_counts == kk:
-                    break
         
     average_nodes = np.mean([x[0].number_of_nodes() for x in train_data] + [x[0].number_of_nodes() for x in validate_data] + [x[0].number_of_nodes() for x in test_data])
     average_edges = np.mean([x[0].number_of_edges() for x in train_data] + [x[0].number_of_edges() for x in validate_data] + [x[0].number_of_edges() for x in test_data])
@@ -239,7 +211,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     return net2, training_loss_list, validating_loss_list, testing_loss_list, training_defender_utility_list, validating_defender_utility_list, testing_defender_utility_list, (forward_time, qp_time, backward_time)
     
 
-def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='two-stage', block_selection='coverage'):
+def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, omega=4, verbose=False, initial_coverage_prob=None, training_mode=True, training_method='surrogate-decision-focused', block_selection='coverage'):
     G, Fv, coverage_prob, phi_true, path_list, min_cut, log_prob, unbiased_probs_true, previous_gradient = single_data
     
     n, m, variable_size = G.number_of_nodes(), G.number_of_edges(), T.shape[1]
@@ -480,10 +452,8 @@ if __name__=='__main__':
     validating_loss[np.isnan(validating_loss)] = np.inf
     validating_defu[np.isnan(validating_defu)] = -np.inf
 
-    if training_method == 'two-stage':
-        selected_idx = np.argmin(validating_loss[1:])
-    else:
-        selected_idx = np.argmax(validating_defu[1:])
+    selected_idx = np.argmax(validating_defu[1:])
+
     f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
     f_save.write('Random seed, {},'.format(SEED) +
             'training loss, {}, training defu, {}, training opt, {},'.format(training_loss[1:][selected_idx], training_defu[1:][selected_idx], training_defu[0]) +

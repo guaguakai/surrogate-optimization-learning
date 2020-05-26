@@ -129,9 +129,12 @@ if __name__ == '__main__':
     print('n: {}, m: {}, lr: {}'.format(n,m, lr))
     print('Start training...')
     early_stop = False
+    evaluate = False if training_method == 'two-stage' else True
     total_forward_time, total_qp_time, total_backward_time = 0, 0, 0
     forward_time_list, qp_time_list, backward_time_list = [], [], []
     for epoch in range(-1, num_epochs):
+        if epoch == num_epochs - 1:
+            evaluate = True
         start_time = time.time()
         forward_time, qp_time, backward_time = 0, 0, 0
         if training_method == 'surrogate':
@@ -151,7 +154,7 @@ if __name__ == '__main__':
                 print('Testing the initial solution quality...')
                 train_loss, train_obj = test_submodular(net, epoch, sample_instance, train_dataset)
             else:
-                train_loss, train_obj, (forward_time, qp_time, backward_time) = train_submodular(net, optimizer, epoch, sample_instance, train_dataset, training_method=training_method)
+                train_loss, train_obj, (forward_time, qp_time, backward_time) = train_submodular(net, optimizer, epoch, sample_instance, train_dataset, training_method=training_method, evaluate=evaluate)
         else:
             raise ValueError('Not implemented')
         total_forward_time  += forward_time
@@ -169,7 +172,7 @@ if __name__ == '__main__':
             else:
                 validate_loss, validate_obj = surrogate_validate_submodular(net, scheduler, T_scheduler, T, epoch, sample_instance, validate_dataset, training_method=training_method)
         else:
-            validate_loss, validate_obj = validate_submodular(net, scheduler, epoch, sample_instance, validate_dataset, training_method=training_method)
+            validate_loss, validate_obj = validate_submodular(net, scheduler, epoch, sample_instance, validate_dataset, training_method=training_method, evaluate=evaluate)
 
         # ================== testing ===================
         if training_method == 'surrogate':
@@ -178,7 +181,7 @@ if __name__ == '__main__':
             else:
                 test_loss, test_obj = surrogate_test_submodular(net, T, epoch, sample_instance, test_dataset)
         else:
-            test_loss, test_obj = test_submodular(net, epoch, sample_instance, test_dataset)
+            test_loss, test_obj = test_submodular(net, epoch, sample_instance, test_dataset, evaluate=evaluate)
 
         # =============== printing data ================
         sys.stdout.write(f'Epoch {epoch} | Train Loss:    \t {train_loss:.3f} \t | Train Objective Value:    \t {train_obj:.3f} \n')
@@ -222,12 +225,14 @@ if __name__ == '__main__':
         kk = 3
         if epoch >= kk*2 -1:
             if training_method == 'two-stage':
+                if evaluate:
+                    break
                 GL_value = 100 * (validate_loss / np.min(validate_loss_list[1:]) - 1)
                 P_value  = 1000 * (np.sum(validate_loss_list[1:][-kk:]) / (np.min(validate_loss_list[1:][-kk:]) * len(validate_obj_list[1:][-kk:])) - 1)
                 GE_counts = np.sum(np.array(validate_loss_list[1:][-kk:]) >= np.array(validate_loss_list[1:][-2*kk:-kk]) - 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
                 if GE_counts == kk or np.sum(np.isnan(validate_loss_list[1:][-kk:])) == kk:
-                    break
+                    evaluate = True
             else: # surrogate or decision-focused
                 GL = 100 * (validate_obj / np.max(validate_obj_list[1:]) - 1)
                 P_value  = 1000 * (1 - np.sum(validate_obj_list[1:][-kk:]) / (np.max(validate_obj_list[1:][-kk:]) * len(validate_obj_list[1:][-kk:])))

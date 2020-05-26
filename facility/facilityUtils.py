@@ -165,7 +165,7 @@ def createConstraintMatrix(m, n, budget):
 
     return A, b, G, h
 
-def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu'):
+def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', evaluate=True):
     net.train()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.MSELoss()
@@ -192,13 +192,12 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
                 forward_start_time = time.time()
-                optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
                 if training_method == 'decision-focused':
+                    optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
                     forward_time += time.time() - forward_start_time
-                optimal_x = torch.Tensor(optimize_result.x).requires_grad_(True)
+                    optimal_x = torch.Tensor(optimize_result.x).requires_grad_(True)
 
-                qp_start_time = time.time()
-                if training_method == 'decision-focused':
+                    qp_start_time = time.time()
                     newA, newb = torch.Tensor(), torch.Tensor()
                     newG = torch.cat((A, G, torch.eye(n)))
                     newh = torch.cat((b, h, torch.ones(n)))
@@ -242,14 +241,19 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     #     # print('constraint on optimal_x: Ax-b={}, Gx-h={}'.format(A @ optimal_x - b, G @ optimal_x - h))
                     #     # print('constraint on x:         Ax-b={}, Gx-h={}'.format(A @ x - b, G @ x - h))
                     #     x = optimal_x
+                    obj = getObjective(x, n, m, label, d, f, REG=0)
                     qp_time += time.time() - qp_start_time
                 elif training_method == 'two-stage':
-                    x = optimal_x
+                    if evaluate:
+                        optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
+                        x = torch.Tensor(optimize_result.x)
+                        obj = getObjective(x, n, m, label, d, f, REG=0)
+                        qp_time = 0
+                    else:
+                        obj = torch.Tensor([0])
+                        qp_time = 0
                 else:
                     raise ValueError('Not implemented method!')
-                qp_time += time.time() - qp_start_time
-
-                obj = getObjective(x, n, m, label, d, f, REG=0)
 
                 objective_value_list.append(obj)
             objective = sum(objective_value_list) / batch_size
@@ -436,7 +440,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
     average_obj     = np.mean(train_objs)
     return average_loss, average_obj, (forward_time, qp_time, backward_time)
 
-def validate_submodular(net, scheduler, epoch, sample_instance, dataset, training_method='two-stage', device='cpu'):
+def validate_submodular(net, scheduler, epoch, sample_instance, dataset, training_method='two-stage', device='cpu', evaluate=True):
     net.eval()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.MSELoss()
@@ -458,9 +462,12 @@ def validate_submodular(net, scheduler, epoch, sample_instance, dataset, trainin
             objective_value_list = []
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
-                optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
-                optimal_x = torch.Tensor(optimize_result.x)
-                obj = getObjective(optimal_x, n, m, label, d, f)
+                if evaluate:
+                    optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+                    optimal_x = torch.Tensor(optimize_result.x)
+                    obj = getObjective(optimal_x, n, m, label, d, f)
+                else:
+                    obj = torch.Tensor([0])
                 objective_value_list.append(obj)
             objective = sum(objective_value_list) / batch_size
 
@@ -533,7 +540,7 @@ def surrogate_validate_submodular(net, scheduler, T_scheduler, T, epoch, sample_
 
     return average_loss, average_obj
 
-def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
+def test_submodular(net, epoch, sample_instance, dataset, device='cpu', evaluate=True):
     net.eval()
     # loss_fn = torch.nn.BCELoss()
     loss_fn = torch.nn.MSELoss()
@@ -556,9 +563,12 @@ def test_submodular(net, epoch, sample_instance, dataset, device='cpu'):
             objective_value_list = []
             batch_size = len(labels)
             for (label, output) in zip(labels, outputs):
-                optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
-                optimal_x = torch.Tensor(optimize_result.x)
-                obj = getObjective(optimal_x, n, m, label, d, f)
+                if evaluate:
+                    optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget)
+                    optimal_x = torch.Tensor(optimize_result.x)
+                    obj = getObjective(optimal_x, n, m, label, d, f)
+                else:
+                    obj = torch.Tensor([0])
                 objective_value_list.append(obj)
             objective = sum(objective_value_list) / batch_size
 
