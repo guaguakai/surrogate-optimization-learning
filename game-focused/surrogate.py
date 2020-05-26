@@ -133,7 +133,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                     else:
                         raise TypeError('Not defined method')
 
-                        def_obj, def_coverage, (single_inference_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
+                    def_obj, def_coverage, (single_inference_time, single_qp_time) = getDefUtility(single_data, T, s, unbiased_probs_pred, learning_model, cut_size=cut_size, omega=omega, verbose=False, training_mode=True,  training_method=training_method, block_selection=block_selection) # most time-consuming part
                 
                 if epoch > 0 and mode == 'training':
                     epoch_forward_time   += single_forward_time
@@ -147,21 +147,21 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                     backward_start_time = time.time()
                     optimizer.zero_grad()
                     T_optimizer.zero_grad()
-                    try:
-                        if training_method == "decision-focused" or training_method == "surrogate-decision-focused":
-                            (-def_obj).backward()
-                            # (-def_obj * df_weight + loss * ts_weight).backward()
-                        else:
-                            raise TypeError("Not Implemented Method")
-                        # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
+                    # try:
+                    if training_method == "decision-focused" or training_method == "surrogate-decision-focused":
+                        (-def_obj).backward()
+                        # (-def_obj * df_weight + loss * ts_weight).backward()
+                    else:
+                        raise TypeError("Not Implemented Method")
+                    # torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
 
-                        for parameter in net2.parameters():
-                            parameter.grad = torch.clamp(parameter.grad, min=-max_norm, max=max_norm)
-                        T.grad = torch.clamp(T.grad, min=-max_norm, max=max_norm)
-                        optimizer.step()
-                        T_optimizer.step()
-                    except:
-                        print("no grad is backpropagated...")
+                    for parameter in net2.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-max_norm, max=max_norm)
+                    T.grad = torch.clamp(T.grad, min=-max_norm, max=max_norm)
+                    optimizer.step()
+                    T_optimizer.step()
+                    # except:
+                    #     print("no grad is backpropagated...")
                     epoch_backward_time += time.time() - backward_start_time
 
                 # ============== normalize T matrix =================
