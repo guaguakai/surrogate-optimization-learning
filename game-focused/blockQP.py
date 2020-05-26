@@ -470,8 +470,8 @@ if __name__=='__main__':
     validating_loss[np.isnan(validating_loss)] = np.inf
     validating_defu[np.isnan(validating_defu)] = -np.inf
 
-    if training_method == 'two-stage':
-        selected_idx = np.argmin(validating_loss[1:])
+    if training_method == 'two-stage': # using the last index
+        selected_idx = -1 # np.argmin(validating_loss[1:])
     else:
         selected_idx = np.argmax(validating_defu[1:])
 
