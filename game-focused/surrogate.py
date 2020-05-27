@@ -244,13 +244,15 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
     qp_start_time = time.time()
     scale_constant = 1 # cut_size
     A_original, b_original = torch.ones(1, cut_size)/scale_constant, torch.Tensor([budget])
-    A_matrix, b_matrix = A_original @ T, b_original # - A_original @ s
-    G_original = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
-    h_original = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
+    A_matrix, b_matrix = torch.Tensor(), torch.Tensor() # - A_original @ s
+    G_original = torch.eye(cut_size)
+    h_original = torch.ones(cut_size)
+    # G_original = torch.cat((-torch.eye(cut_size), torch.eye(cut_size)))
+    # h_original = torch.cat((torch.zeros(cut_size), torch.ones(cut_size)))
     # G_matrix = torch.cat((G_original, A_original)) @ T
     # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), b_original)) # - G_original @ s
-    G_matrix = torch.cat((G_original @ T, -torch.eye(variable_size)))
-    h_matrix = torch.cat((h_original, torch.zeros(variable_size))) # - G_original @ s
+    G_matrix = torch.cat((G_original @ T, A_original @ T, -torch.eye(variable_size)))
+    h_matrix = torch.cat((h_original, b_original, torch.zeros(variable_size))) # - G_original @ s
 
     if training_mode and pred_optimal_res['success']:
         solver_option = 'default'
