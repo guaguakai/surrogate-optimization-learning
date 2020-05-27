@@ -168,8 +168,8 @@ def createSurrogateConstraintMatrix(m, n, budget):
     variable_size = n
     A = torch.ones(1,n)
     b = torch.Tensor([budget])
-    G = -torch.eye(n) 
-    h = torch.zeros(n) 
+    G = torch.eye(n) 
+    h = torch.ones(n) 
     return A, b, G, h
 
 def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', evaluate=True):
@@ -204,7 +204,6 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
                     inference_time += time.time() - inference_start_time
                     optimal_x = torch.Tensor(optimize_result.x)
-                    real_obj = getObjective(optimal_x, n, m, label, d, f)
 
                     qp_start_time = time.time()
                     newA, newb = torch.Tensor(), torch.Tensor()
@@ -252,6 +251,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     #     x = optimal_x
                     obj = getObjective(x, n, m, label, d, f, REG=0)
                     qp_time += time.time() - qp_start_time
+
                 elif training_method == 'two-stage':
                     if evaluate:
                         inference_start_time = time.time()
