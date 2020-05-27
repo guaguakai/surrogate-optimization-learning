@@ -275,8 +275,8 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 if training_method == 'two-stage':
                     loss.backward()
                 elif training_method == 'decision-focused':
-                    # (-objective).backward()
-                    (-objective + loss).backward() # TODO
+                    (-objective).backward()
+                    # (-objective + loss).backward() # TODO
                     for parameter in net.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
@@ -351,7 +351,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     qp_start_time = time.time()
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 1
                     L = torch.cholesky(Q)
-                    jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f)
+                    jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f, create_graph=True)
                     p = jac - Q @ optimal_y
                     # qp_solver = qpth.qp.QPFunction() # TODO unknown bug
 
@@ -377,6 +377,17 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
                         y = coverage_qp_solution
                         x = T @ y
+
+                    # time test...
+                    # time_test_start = time.time()
+                    # for i in range(20):
+                    #    _ = getDerivative(x, n, m, output, d, f)
+                    # print('original gradient time:', time.time() - time_test_start)
+
+                    # time_test_start = time.time()
+                    # for i in range(20):
+                    #    _ = getSurrogateDerivative(T, y, n, m, output, d, f, create_graph=False)
+                    # print('surrogate gradient time:', time.time() - time_test_start)
 
                     # except:
                     #     print("CVXPY solver fails... Usually because Q is not PSD")

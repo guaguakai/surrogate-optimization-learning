@@ -118,7 +118,7 @@ if __name__ == '__main__':
         # init_T = normalize_matrix(torch.rand(variable_size, T_size))
         init_T = normalize_matrix_positive(torch.rand(variable_size, T_size))
         T = torch.tensor(init_T, requires_grad=True)
-        T_lr = lr * 0.1
+        T_lr = lr
         T_optimizer = torch.optim.Adam([T], lr=T_lr)
         T_scheduler = ReduceLROnPlateau(T_optimizer, 'min')
 

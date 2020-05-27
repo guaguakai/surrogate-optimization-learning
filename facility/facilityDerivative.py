@@ -6,6 +6,7 @@ import autograd
 import qpth
 import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
+import time
 
 # def getObjective(x_value, n, m, c, d, f, REG=0):
 #     x_value = torch.clamp(x_value, max=1)
@@ -46,7 +47,15 @@ from cvxpylayers.torch import CvxpyLayer
 #     p_value = torch.sum(p) - 0.5 * REG * x @ x
 #     return p_value
 
+def binary_search(weigths, sums, budget, low, high):
+    if high > low:
+        mid = (high + low) // 2
+    else:
+        return -1
+
+
 def getObjective(x, n, m, c, d, f, REG=0):
+    start_time = time.time()
     x = torch.clamp(x, max=1)
     p = torch.zeros(m)
     for j in range(m):
@@ -54,10 +63,10 @@ def getObjective(x, n, m, c, d, f, REG=0):
         preference_ordering = torch.argsort(c[:,j], descending=True)
         remaining = float(d[j])
         selected_amount = torch.zeros(n)
-        for i in preference_ordering:
-            if remaining - x[i] < 0:
+        for idx, i in enumerate(preference_ordering):
+            if remaining - x[i] <= 0:
                 selected_amount[i] = remaining
-                break
+                remaining = 0
             else:
                 selected_amount[i] = x[i]
                 remaining -= x[i]
@@ -87,16 +96,18 @@ def getOldManualDerivative(x, n, m, c, d, f, REG=0):
     return grad - REG * x
 
 def getDerivative(x, n, m, c, d, f, create_graph=False, REG=0):
+    start_time = time.time()
     x_var = x.detach().requires_grad_(True)
     obj = getObjective(x_var, n, m, c, d, f, REG=REG)
     x_grad = torch.autograd.grad(obj, x_var, retain_graph=True, create_graph=create_graph)[0] # TODO!! allow_unused is not known
     return x_grad
 
 def getOptimalDecision(n, m, c, d, f, budget, initial_x=None, REG=0):
+    start_time = time.time()
     if initial_x is None:
-        initial_x = np.zeros(n)
-        # initial_x = np.random.rand(n)
-        # initial_x = initial_x * budget / np.sum(initial_x)
+        # initial_x = np.zeros(n)
+        initial_x = np.random.rand(n)
+        initial_x = initial_x * budget / np.sum(initial_x)
 
     getObj = lambda x: -getObjective(torch.Tensor(x), n, m, c.detach(), d, f, REG=REG).detach().item() # maximize objective
     getJac = lambda x: -getDerivative(torch.Tensor(x), n, m, c.detach(), d, f, REG=REG).detach().numpy()
@@ -104,11 +115,11 @@ def getOptimalDecision(n, m, c, d, f, budget, initial_x=None, REG=0):
     bounds = [(0,1)]*n
     eq_fn = lambda x: budget - sum(x)
     constraints = [{'type': 'ineq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
-    options = {'maxiter': 100}
+    options = {'maxiter': 100, 'disp': False}
     # options = {'maxiter': 100, 'ftol': 1e-3}
 
     optimize_result = scipy.optimize.minimize(getObj, initial_x, method='SLSQP', jac=getJac, bounds=bounds, constraints=constraints, options=options)
-    # optimize_result = scipy.optimize.minimize(getObj, initial_x, method='trust-constr', jac=getJac, bounds=bounds, constraints=constraints)
+    # optimize_result = scipy.optimize.minimize(getObj, initial_x, method='trust-constr', jac=getJac, bounds=bounds, constraints=constraints, options=options, hess=np.zeros((n,n)))
 
     return optimize_result
 
