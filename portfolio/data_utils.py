@@ -7,7 +7,7 @@ import torch
 quandl.ApiConfig.api_key = 'RfHTTH7wuRVARMNz8nyC'
 
 def compute_monthly_cols(symbol_df):
-    returns = symbol_df.Close.pct_change() + 1
+    returns = symbol_df.Close.pct_change()
     # prev_12_returns = symbol_df.Close.pct_change(12) + 1
     # prev_6_returns = symbol_df.Close.pct_change(6) + 1
     # prev_3_returns = symbol_df.Close.pct_change(3) + 1
@@ -19,37 +19,66 @@ def compute_monthly_cols(symbol_df):
 
     # rolling_returns = returns.rolling(12)
 
-    prev_12_returns = symbol_df.Close.pct_change(30) + 1
-    prev_6_returns = symbol_df.Close.pct_change(7) + 1
-    prev_3_returns = symbol_df.Close.pct_change(5) + 1
+    prev_365_returns = symbol_df.Close.pct_change(365)
+    prev_120_returns = symbol_df.Close.pct_change(120)
+    prev_30_returns = symbol_df.Close.pct_change(30)
+    prev_7_returns = symbol_df.Close.pct_change(7)
+    prev_3_returns = symbol_df.Close.pct_change(3)
 
-    rolling_12 = symbol_df.Close.rolling(window=120)
-    # rolling_6 = symbol_df.Close.rolling(window=30)
-    rolling_3 = symbol_df.Close.rolling(window=30)
-    # rolling_2 = symbol_df.Close.rolling(window=5)
+    rolling_365 = symbol_df.Close.rolling(window=365)
+    rolling_120 = symbol_df.Close.rolling(window=120)
+    rolling_30 = symbol_df.Close.rolling(window=30)
+    rolling_7 = symbol_df.Close.rolling(window=7)
+    rolling_3 = symbol_df.Close.rolling(window=3)
 
     rolling_returns = returns.rolling(7)
 
 
     result_data = {
-        "next_return": returns.shift(-1),
+        "next10_return": returns.shift(-10),
+        "next9_return": returns.shift(-9),
+        "next8_return": returns.shift(-8),
+        "next7_return": returns.shift(-7),
+        "next6_return": returns.shift(-6),
+        "next5_return": returns.shift(-5),
+        "next4_return": returns.shift(-4),
+        "next3_return": returns.shift(-3),
+        "next2_return": returns.shift(-2),
+        "next1_return": returns.shift(-1),
         "cur_return": returns,
-        "prev_return": returns.shift(1),
-        "prev_year_return": prev_12_returns,
-        "prev_qtr_returns": prev_3_returns,
+        "prev1_return": returns.shift(1),
+        "prev2_return": returns.shift(2),
+        "prev3_return": returns.shift(3),
+        "prev4_return": returns.shift(4),
+        "prev5_return": returns.shift(5),
+        "prev6_return": returns.shift(6),
+        "prev7_return": returns.shift(7),
+        "prev8_return": returns.shift(8),
+        "prev9_return": returns.shift(9),
+        "prev10_return": returns.shift(10),
+        "prev_year_return": prev_365_returns,
+        "prev_qtr_return": prev_120_returns,
+        "prev_month_returns": prev_30_returns,
+        "prev_week_returns": prev_7_returns,
 
-        "return_rolling_12_mean": rolling_returns.mean(),
-        "return_rolling_12_var": rolling_returns.var(),
+        "return_rolling_mean": rolling_returns.mean(),
+        "return_rolling_var": rolling_returns.var(),
         #         "return_rolling_12_min": rolling_returns.min(),
         #         "return_rolling_12_max": rolling_returns.max(),
 
-        "rolling_12_mean": rolling_12.mean(),
-        "rolling_12_var": rolling_12.var(),
+        "rolling_365_mean": rolling_365.mean(),
+        "rolling_365_var": rolling_365.var(),
+
+        "rolling_120_mean": rolling_120.mean(),
+        "rolling_120_var": rolling_120.var(),
+
+        "rolling_30_mean": rolling_30.mean(),
+        "rolling_30_var": rolling_30.var(),
         #         "rolling_12_min": rolling_12.min(),
         #         "rolling_12_max": rolling_12.max(),
 
-        #         "rolling_6_mean": rolling_6.mean(),
-        #         "rolling_6_var": rolling_6.var(),
+        "rolling_7_mean": rolling_7.mean(),
+        "rolling_7_var": rolling_7.var(),
         #         "rolling_6_min": rolling_6.min(),
         #         "rolling_6_max": rolling_6.max(),
 

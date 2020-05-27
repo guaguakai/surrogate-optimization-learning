@@ -14,7 +14,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     filename = args.filename
 
-    N_list = [20, 30, 40, 50, 60, 80, 100]
+    N_list = [120] # [20, 30, 40, 50] #, 60, 80, 100]
     methods = ['two-stage', 'hybrid', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'results/random/'
@@ -47,7 +47,7 @@ if __name__ == '__main__':
             'backward time T', 'backward time',
             'epoch T', 'epoch']
 
-    sample_set = list(set(range(1,31)) - set([19,1,13]))
+    sample_set = list(set(range(1,31)) - set([14,8]))
     for N_idx, N in enumerate(N_list):
         postfix            = 'p0.2_b3.0_cut{}_noise0.2.csv'.format(N//10)
 
@@ -94,8 +94,8 @@ if __name__ == '__main__':
             if method == 'two-stage':
                 tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float))
             else:
-                # tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float))
-                tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float) / time_pd['epoch'].astype(float))
+                tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float))
+                # tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float) / time_pd['epoch'].astype(float))
             tmp_qp_dict[method]            = np.mean(time_pd['qp time'].astype(float))
             tmp_backward_dict[method]      = np.mean(time_pd['backward time'].astype(float))
 

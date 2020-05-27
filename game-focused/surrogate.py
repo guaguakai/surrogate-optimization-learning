@@ -28,7 +28,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     init_T, init_s = torch.rand(sample_graph.number_of_edges(), T_size), torch.zeros(sample_graph.number_of_edges())
     T, s = torch.tensor(normalize_matrix_positive(init_T), requires_grad=True), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
     full_T, full_s = torch.eye(sample_graph.number_of_edges(), requires_grad=False), torch.zeros(sample_graph.number_of_edges(), requires_grad=False)
-    T_lr = lr
+    T_lr = lr * 0.1
 
     # ================ Optimizer ================
     if optimizer == 'adam':
@@ -309,14 +309,14 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
     qp_time = time.time() - qp_start_time
 
     # ========================= Error message =========================
-    # if (torch.norm(T.detach() @ pred_optimal_coverage - T.detach() @ full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
-    #     print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
-    #     print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-    #     print(pred_optimal_coverage)
-    #     print("objective value (QP): {}".format(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-    #     print(full_coverage_qp_solution)
-    #     full_coverage_qp_solution = pred_optimal_coverage.clone()
-    #     pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+    if (torch.norm(T.detach() @ pred_optimal_coverage - T.detach() @ full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
+        print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
+        print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+        print(pred_optimal_coverage)
+        print("objective value (QP): {}".format(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+        print(full_coverage_qp_solution)
+        full_coverage_qp_solution = pred_optimal_coverage.clone()
+        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
     return pred_defender_utility, full_coverage_qp_solution, (inference_time, qp_time)
 

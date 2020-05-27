@@ -15,7 +15,7 @@ if __name__ == '__main__':
     filename = args.filename
     T = args.T
 
-    N_list = [30, 40, 50, 60] #, 80, 100, 120, 150]
+    N_list = [30, 40, 50, 60, 80, 100, 120]#, 150]
     methods = ['two-stage', 'decision-focused', 'surrogate']# ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'movie_results/performance/'
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     for N_idx, N in enumerate(N_list):
         for method_idx, method in enumerate(methods):
             if method == 'surrogate':
-                method = 'T{}-'.format(str(10)) + method
+                method = 'T{}-'.format(str(N//10)) + method
             f_performance = open(performance_prefix + filename + 'N{}-'.format(N) + method + '.csv', 'r')
 
             finished_epoch = int(f_performance.readline().split(',')[1])
@@ -82,9 +82,9 @@ if __name__ == '__main__':
 
             line = f_time.readline().split(',')
             if method == 'two-stage':
-                forward_time[N_idx, method_idx], inference_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3]), float(line[5]), float(line[7]), float(line[9])
+                forward_time[N_idx, method_idx], inference_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3])/finished_epoch, float(line[5]), float(line[7])/finished_epoch, float(line[9])/finished_epoch
             else:
-                forward_time[N_idx, method_idx], inference_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3]), float(line[5])/finished_epoch, float(line[7]), float(line[9])
+                forward_time[N_idx, method_idx], inference_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3])/finished_epoch, float(line[5])/finished_epoch, float(line[7])/finished_epoch, float(line[9])/finished_epoch
             f_time.close()
 
 
