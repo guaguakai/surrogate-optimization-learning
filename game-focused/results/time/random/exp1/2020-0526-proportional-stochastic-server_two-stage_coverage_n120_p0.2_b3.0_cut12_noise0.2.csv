@@ -28,3 +28,12 @@ Random seed, 27, forward time, 15.485816717147827, inference time, 793.809330224
 Random seed, 15, forward time, 40.4745192527771, inference time, 1094.5500092506409, qp time, 12.299047470092773, backward_time, 45.42432880401611, epoch, 36
 Random seed, 13, forward time, 11.398576736450195, inference time, 781.8193650245667, qp time, 13.399723291397095, backward_time, 13.873271465301514, epoch, 9
 Random seed, 28, forward time, 10.4744553565979, inference time, 1258.7879986763, qp time, 13.27116322517395, backward_time, 11.742019176483154, epoch, 8
+Random seed, 26, forward time, 29.27437400817871, inference time, 547.5399644374847, qp time, 9.780126094818115, backward_time, 33.45818638801575, epoch, 27
+Random seed, 21, forward time, 66.98776865005493, inference time, 569.6695010662079, qp time, 11.315463304519653, backward_time, 75.8829243183136, epoch, 63
+Random seed, 2, forward time, 28.870317697525024, inference time, 517.9122886657715, qp time, 11.798882484436035, backward_time, 31.09683108329773, epoch, 28
+Random seed, 11, forward time, 22.758620500564575, inference time, 662.2874202728271, qp time, 12.85480809211731, backward_time, 21.74738836288452, epoch, 22
+Random seed, 9, forward time, 23.700973987579346, inference time, 611.9318218231201, qp time, 11.933120965957642, backward_time, 30.8952374458313, epoch, 19
+Random seed, 6, forward time, 13.023451566696167, inference time, 672.4953820705414, qp time, 10.426766633987427, backward_time, 13.876602172851562, epoch, 13
+Random seed, 30, forward time, 35.899752378463745, inference time, 652.0038733482361, qp time, 11.38164234161377, backward_time, 40.80407929420471, epoch, 29
+Random seed, 16, forward time, 49.31186604499817, inference time, 629.7980184555054, qp time, 12.596798181533813, backward_time, 64.69053077697754, epoch, 37
+Random seed, 17, forward time, 64.91737294197083, inference time, 645.613089799881, qp time, 12.572545766830444, backward_time, 77.10869812965393, epoch, 54
