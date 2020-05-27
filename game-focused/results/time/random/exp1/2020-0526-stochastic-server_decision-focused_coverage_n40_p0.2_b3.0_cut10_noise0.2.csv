@@ -26,3 +26,5 @@ Random seed, 6, forward time, 13.087710618972778, inference time, 645.5702390670
 Random seed, 25, forward time, 13.133150815963745, inference time, 488.54063844680786, qp time, 7248.986580133438, backward_time, 70.8936116695404, epoch, 34
 Random seed, 9, forward time, 15.379749298095703, inference time, 575.3513913154602, qp time, 7172.978269577026, backward_time, 73.13571119308472, epoch, 35
 Random seed, 20, forward time, 11.425670146942139, inference time, 486.3084990978241, qp time, 7522.790903568268, backward_time, 73.10744404792786, epoch, 32
+Random seed, 2, forward time, 27.798733472824097, inference time, 793.605307340622, qp time, 12306.222791671753, backward_time, 117.70328402519226, epoch, 50
+Random seed, 19, forward time, 20.17593741416931, inference time, 742.6718196868896, qp time, 13580.031943321228, backward_time, 110.6807644367218, epoch, 37
