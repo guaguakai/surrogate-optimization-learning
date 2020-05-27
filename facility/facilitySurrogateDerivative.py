@@ -33,7 +33,7 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None, REG=0)
     getObj = lambda y: -getSurrogateObjective(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f, REG=REG).detach().item() # maximize objective
     getJac = lambda y: -getSurrogateDerivative(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f, REG=REG).detach().numpy()
 
-    bounds = [(0,np.inf)]*variable_size
+    bounds = [(0,budget)]*variable_size
     eq_fn    = lambda y: budget - sum( T.detach().numpy() @ y)
     # ineq_fn  = lambda y: T.detach().numpy() @ y
     # ineq_fn2 = lambda y: 1 - T.detach().numpy() @ y
