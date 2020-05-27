@@ -15,7 +15,7 @@ if __name__ == '__main__':
     filename = args.filename
     T = args.T
 
-    N_list = [20, 30, 40, 50, 60, 80, 100, 120, 150]
+    N_list = [30, 40, 50, 60] #, 80, 100, 120, 150]
     methods = ['two-stage', 'decision-focused', 'surrogate']# ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'movie_results/performance/'
@@ -30,6 +30,7 @@ if __name__ == '__main__':
 
 
     forward_time  = np.zeros((len(N_list), len(methods)))
+    inference_time  = np.zeros((len(N_list), len(methods)))
     qp_time       = np.zeros((len(N_list), len(methods)))
     backward_time = np.zeros((len(N_list), len(methods)))
 
@@ -62,7 +63,7 @@ if __name__ == '__main__':
             tmp_testing_objs, testing_objs[N_idx,-1] = line[1:], line[0]
 
             if method == 'two-stage':
-                selected_idx = np.argmin(tmp_validating_losses)
+                selected_idx = -1 # np.argmin(tmp_validating_losses)
             else:
                 selected_idx = np.argmax(tmp_validating_objs)
 
@@ -80,7 +81,10 @@ if __name__ == '__main__':
             # assert finished_epoch == 49, "N: {}, method: {} incorrectly finished".format(N, method)
 
             line = f_time.readline().split(',')
-            forward_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3]), float(line[5]), float(line[7])
+            if method == 'two-stage':
+                forward_time[N_idx, method_idx], inference_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3]), float(line[5]), float(line[7]), float(line[9])
+            else:
+                forward_time[N_idx, method_idx], inference_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3]), float(line[5])/finished_epoch, float(line[7]), float(line[9])
             f_time.close()
 
 
@@ -90,6 +94,7 @@ if __name__ == '__main__':
 
     customized_write(f_stats_objs, methods, N_list, testing_objs)
     customized_write(f_stats_time, methods, N_list, forward_time)
+    customized_write(f_stats_time, methods, N_list, inference_time)
     customized_write(f_stats_time, methods, N_list, qp_time)
     customized_write(f_stats_time, methods, N_list, backward_time)
 

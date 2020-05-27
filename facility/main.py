@@ -15,8 +15,8 @@ from gurobipy import *
 from types import SimpleNamespace
 
 from facilityUtils import createConstraintMatrix
-from facilityDerivative import getObjective, getDerivative, getManualDerivative, getHessian, getOptimalDecision
-from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateManualDerivative, getSurrogateHessian, getSurrogateOptimalDecision
+from facilityDerivative import getObjective, getDerivative, getHessian, getOptimalDecision
+from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateHessian, getSurrogateOptimalDecision
 from facilityUtils import train_submodular, test_submodular, validate_submodular, surrogate_train_submodular, surrogate_test_submodular, surrogate_validate_submodular
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
@@ -63,12 +63,12 @@ if __name__ == '__main__':
 
     # ============= Loading Movie Data =============
     print('Loading MovieLens Dataset...')
-    # ml1m_dir  = 'data/ml-1m/ratings.csv'
-    # ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
-    # ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
+    ml1m_dir  = 'data/ml-1m/ratings.csv'
+    ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
+    ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
 
-    ml25m_dir = 'data/ml-25m/ratings.csv'
-    ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
+    # ml25m_dir = 'data/ml-25m/ratings.csv'
+    # ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
 
     # Reindex
     user_id = ml_rating[['uid']].drop_duplicates().reindex()
