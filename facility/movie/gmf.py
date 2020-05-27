@@ -35,6 +35,7 @@ class GMFWrapper(GMF):
         item_embedding = self.embedding_item(torch.LongTensor([id2index[x.item()] for x in item_indices]))
         element_product = torch.mul(user_embedding, item_embedding)
         logits = self.affine_output(element_product)
+        logits = (logits - torch.mean(logits)) / (torch.std(logits) + 1e-5)
         ratings = self.logistic(logits)
         for user_id, item_id, rating in zip(user_indices, item_indices, ratings):
             c[0, item_dict[item_id.item()], user_dict[user_id.item()]] = rating

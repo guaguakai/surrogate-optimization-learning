@@ -210,7 +210,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                     newG = torch.cat((A, G))
                     newh = torch.cat((b, h))
 
-                    Q = getHessian(optimal_x, n, m, output, d, f, REG=REG) + torch.eye(n) * 10
+                    Q = getHessian(optimal_x, n, m, output, d, f, REG=REG) + torch.eye(n) * 1
                     L = torch.cholesky(Q)
                     jac = -getDerivative(optimal_x, n, m, output, d, f, create_graph=True, REG=REG)
                     p = jac - Q @ optimal_x
@@ -275,7 +275,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 if training_method == 'two-stage':
                     loss.backward()
                 elif training_method == 'decision-focused':
-                    (-objective).backward()
+                    (-objective + loss).backward()
                     for parameter in net.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
@@ -348,7 +348,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     # newh = torch.cat((b, h, torch.zeros(variable_size), torch.ones(variable_size)))
 
                     qp_start_time = time.time()
-                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
+                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 1
                     L = torch.cholesky(Q)
                     jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
