@@ -275,7 +275,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 if training_method == 'two-stage':
                     loss.backward()
                 elif training_method == 'decision-focused':
-                    (-objective + loss).backward()
+                    (-objective + loss).backward() # TODO
                     for parameter in net.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
