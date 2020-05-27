@@ -1,0 +1,13 @@
+Random seed, 21, forward time, 4.042065858840942, inference time, 139.1794192790985, qp time, 3708.7417051792145, backward_time, 30.175562143325806, epoch, 7
+Random seed, 17, forward time, 3.7358920574188232, inference time, 209.41082215309143, qp time, 5757.287129640579, backward_time, 43.604249715805054, epoch, 9
+Random seed, 5, forward time, 3.720717191696167, inference time, 142.59668135643005, qp time, 6669.264789819717, backward_time, 44.621344327926636, epoch, 7
+Random seed, 10, forward time, 5.082891941070557, inference time, 293.7555248737335, qp time, 7108.54249382019, backward_time, 56.99829864501953, epoch, 13
+Random seed, 29, forward time, 5.306172132492065, inference time, 200.51225447654724, qp time, 7450.437794923782, backward_time, 50.930352449417114, epoch, 9
+Random seed, 25, forward time, 4.5877296924591064, inference time, 287.17914843559265, qp time, 8012.326741695404, backward_time, 61.54501175880432, epoch, 13
+Random seed, 16, forward time, 6.033778429031372, inference time, 306.8597114086151, qp time, 10251.39770269394, backward_time, 64.09541368484497, epoch, 9
+Random seed, 8, forward time, 5.509268283843994, inference time, 251.85040593147278, qp time, 10424.834250450134, backward_time, 71.68461608886719, epoch, 12
+Random seed, 26, forward time, 6.094092607498169, inference time, 403.0825033187866, qp time, 10195.204590082169, backward_time, 71.80426907539368, epoch, 13
+Random seed, 3, forward time, 6.054481029510498, inference time, 277.6309971809387, qp time, 11584.981513023376, backward_time, 76.87200808525085, epoch, 12
+Random seed, 22, forward time, 6.494362831115723, inference time, 344.5970561504364, qp time, 12322.564185380936, backward_time, 77.33960008621216, epoch, 11
+Random seed, 7, forward time, 8.303205251693726, inference time, 476.86511039733887, qp time, 13441.684845209122, backward_time, 98.34683847427368, epoch, 19
+Random seed, 23, forward time, 8.772110939025879, inference time, 445.75602412223816, qp time, 15777.2337038517, backward_time, 101.9158387184143, epoch, 15
