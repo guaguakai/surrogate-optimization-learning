@@ -302,28 +302,28 @@ if __name__ == "__main__":
     portfolio_opt_dir = os.path.abspath(os.path.dirname(__file__))
     print("portfolio_opt_dir:", portfolio_opt_dir)
 
-    # sp500_data_dir = os.path.join(portfolio_opt_dir, "data", "sp500")
-    # sp500_data = SP500DataLoader(sp500_data_dir, "sp500",
-    #                              start_date=dt.datetime(2004, 1, 1),
-    #                              end_date=dt.datetime(2017, 1, 1),
-    #                              collapse="daily",
-    #                              overwrite=False,
-    #                              verbose=True)
-
-    # # feature_mat, target_mat, feature_cols, target_name, dates, symbols = \
-    # sp500_data.load_pytorch_data()
-
-    # print("loaded sp500 data")
-
-    dax_data_dir = os.path.join(portfolio_opt_dir, "data", "dax")
-    dax_data = DAXDataLoader(dax_data_dir, "dax",
-                             start_date=dt.datetime(2004, 1, 1),
-                             end_date=dt.datetime(2017, 1, 1),
-                             collapse="daily",
-                             overwrite=False,
-                             verbose=True)
+    sp500_data_dir = os.path.join(portfolio_opt_dir, "data", "sp500")
+    sp500_data = SP500DataLoader(sp500_data_dir, "sp500",
+                                 start_date=dt.datetime(2004, 1, 1),
+                                 end_date=dt.datetime(2017, 1, 1),
+                                 collapse="daily",
+                                 overwrite=False,
+                                 verbose=True)
 
     # feature_mat, target_mat, feature_cols, target_name, dates, symbols = \
-    dax_data.load_pytorch_data()
+    sp500_data.load_pytorch_data()
 
-    print("loaded dax data")
+    print("loaded sp500 data")
+
+    # dax_data_dir = os.path.join(portfolio_opt_dir, "data", "dax")
+    # dax_data = DAXDataLoader(dax_data_dir, "dax",
+    #                          start_date=dt.datetime(2004, 1, 1),
+    #                          end_date=dt.datetime(2017, 1, 1),
+    #                          collapse="daily",
+    #                          overwrite=False,
+    #                          verbose=True)
+
+    # # feature_mat, target_mat, feature_cols, target_name, dates, symbols = \
+    # dax_data.load_pytorch_data()
+
+    # print("loaded dax data")

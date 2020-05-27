@@ -2,19 +2,19 @@ import torch
 import numpy as np
 import scipy
 import autograd
-from facilityDerivative import getObjective, getManualDerivative
+from facilityDerivative import getObjective
 
 def getSurrogateObjective(T, y, n, m, c, d, f, REG=0):
     x = T @ y
     p_value = getObjective(x, n, m, c, d, f, REG=REG)
     return p_value
 
-def getSurrogateManualDerivative(T, y, n, m, c, d, f, REG=0):
-    y_var = y.detach().requires_grad_(True)
-    x_var = T @ y_var
-    x_grad = getManualDerivative(x_var, n, m, c, d, f, REG=REG)
-    y_grad = T.t() @ x_grad
-    return y_grad
+# def getSurrogateManualDerivative(T, y, n, m, c, d, f, REG=0):
+#     y_var = y.detach().requires_grad_(True)
+#     x_var = T @ y_var
+#     x_grad = getManualDerivative(x_var, n, m, c, d, f, REG=REG)
+#     y_grad = T.t() @ x_grad
+#     return y_grad
 
 def getSurrogateDerivative(T, y, n, m, c, d, f, REG=0):
     y_var = y.detach().requires_grad_(True)
@@ -31,7 +31,7 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None, REG=0)
         # initial_y = initial_y * budget / np.sum(initial_y)
 
     getObj = lambda y: -getSurrogateObjective(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f, REG=REG).detach().item() # maximize objective
-    getJac = lambda y: -getSurrogateManualDerivative(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f, REG=REG).detach().numpy()
+    getJac = lambda y: -getSurrogateDerivative(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f, REG=REG).detach().numpy()
 
     bounds = [(0,np.inf)]*variable_size
     eq_fn    = lambda y: budget - sum( T.detach().numpy() @ y)

@@ -17,8 +17,8 @@ from types import SimpleNamespace
 
 from facilityNN import FacilityNN, FeatureNN
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection, point_projection
-from facilityDerivative import getObjective, getManualDerivative, getDerivative, getOptimalDecision, getHessian
-from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateManualDerivative, getSurrogateHessian, getSurrogateOptimalDecision
+from facilityDerivative import getObjective, getDerivative, getOptimalDecision, getHessian
+from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateHessian, getSurrogateOptimalDecision
 
 import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
@@ -343,7 +343,6 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
                     L = torch.cholesky(Q)
                     jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f)
-                    # jac = -getSurrogateManualDerivative(T, optimal_y, n, m, output, d, f)
                     p = jac - Q @ optimal_y
                     # qp_solver = qpthlocal.qp.QPFunction() # TODO unknown bug
 
