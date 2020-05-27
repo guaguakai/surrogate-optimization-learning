@@ -43,7 +43,7 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None, REG=0)
             {'type': 'ineq', 'fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)},
             # {'type': 'ineq', 'fun': ineq_fn2, 'jac': autograd.jacobian(ineq_fn2)}
             ]
-    options = {'maxiter': 100, 'ftol': 1e-3}
+    options = {'maxiter': 100}
     # options = {'maxiter': 100, 'disp': True}
     # tol = 1e-6
 
