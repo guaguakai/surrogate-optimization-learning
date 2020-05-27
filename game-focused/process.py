@@ -14,8 +14,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     filename = args.filename
 
-    N_list = [20, 30, 40, 50, 60] #, 80, 100, 120]
-    methods = ['two-stage', 'hybrid', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
+    N_list = [20, 30, 40, 50, 60, 80, 100, 120]
+    methods = ['two-stage', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'results/random/'
     time_prefix        = 'results/time/random/'

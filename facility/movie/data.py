@@ -64,8 +64,8 @@ class SampleGenerator(object):
         random.shuffle(self.item_list)
         self.feature_list, self.item_list = self.item_list[:feature_size], self.item_list[feature_size:feature_size+item_size]
         self.feature_pool, self.item_pool = set(self.feature_list), set(self.item_list)
-        self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(list(self.item_list))]
-        # self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(list(self.item_list) + list(self.feature_list))]
+        # self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(list(self.item_list))]
+        self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(list(self.item_list) + list(self.feature_list))]
         self.id2index = {k: idx for idx, k in enumerate(self.item_list)}# item id to index
 
         self.user_list = self.preprocess_ratings['userId'].unique()
@@ -178,7 +178,7 @@ class SampleGenerator(object):
             users, items = torch.LongTensor(users), torch.LongTensor(items)
 
             # retriving the features of each user
-            feature_chunk = all_ratings[(all_ratings['userId'].isin(userset)) & (all_ratings['itemId'].isin(itemset_feature))]
+            feature_chunk = all_features[(all_features['userId'].isin(userset)) & (all_features['itemId'].isin(itemset_feature))]
             user_features  = torch.zeros(len(userset), len(itemset_feature))
             for row in feature_chunk.itertuples():
                 user_features[user_dict[int(row.userId)], item_feature_dict[int(row.itemId)]] = row.rating

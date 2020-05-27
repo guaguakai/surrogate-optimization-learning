@@ -309,14 +309,14 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
     qp_time = time.time() - qp_start_time
 
     # ========================= Error message =========================
-    if (torch.norm(T.detach() @ pred_optimal_coverage - T.detach() @ full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
-        print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
-        print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-        print(pred_optimal_coverage)
-        print("objective value (QP): {}".format(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
-        print(full_coverage_qp_solution)
-        full_coverage_qp_solution = pred_optimal_coverage.clone()
-        pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
+    # if (torch.norm(T.detach() @ pred_optimal_coverage - T.detach() @ full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
+    #     print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
+    #     print("objective value (SLSQP): {}".format(surrogate_objective_function_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+    #     print(pred_optimal_coverage)
+    #     print("objective value (QP): {}".format(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega)))
+    #     print(full_coverage_qp_solution)
+    #     full_coverage_qp_solution = pred_optimal_coverage.clone()
+    #     pred_defender_utility  = -(surrogate_objective_function_matrix_form(full_coverage_qp_solution, T, s, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), omega=omega))
 
     return pred_defender_utility, full_coverage_qp_solution, (inference_time, qp_time)
 
