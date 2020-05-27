@@ -68,7 +68,7 @@ class SampleGenerator(object):
         self.preprocess_ratings = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(list(self.item_list) + list(self.feature_list))]
         self.id2index = {k: idx for idx, k in enumerate(self.item_list)}# item id to index
 
-        self.user_list = self.preprocess_ratings['userId'].unique()
+        self.user_list = self.preprocess_ratings[self.preprocess_ratings['itemId'].isin(list(self.item_list))]['userId'].unique()
         random.shuffle(self.user_list)
         self.user_list = self.user_list[:num_samples*user_chunk_size]
 
