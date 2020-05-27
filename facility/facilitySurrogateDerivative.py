@@ -36,12 +36,12 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None, REG=0)
     bounds = [(0,np.inf)]*variable_size
     eq_fn    = lambda y: budget - sum( T.detach().numpy() @ y)
     # ineq_fn  = lambda y: T.detach().numpy() @ y
-    ineq_fn2 = lambda y: 1 - T.detach().numpy() @ y
+    # ineq_fn2 = lambda y: 1 - T.detach().numpy() @ y
     # constraints = [{'type': 'eq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
     constraints = [
             {'type': 'ineq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}, 
             # {'type': 'ineq', 'fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)},
-            {'type': 'ineq', 'fun': ineq_fn2, 'jac': autograd.jacobian(ineq_fn2)}
+            # {'type': 'ineq', 'fun': ineq_fn2, 'jac': autograd.jacobian(ineq_fn2)}
             ]
     options = {'maxiter': 100}
     # options = {'maxiter': 100, 'disp': True}
