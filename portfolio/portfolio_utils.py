@@ -201,12 +201,13 @@ def surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, data
             try:
                 if training_method == 'surrogate':
                     covariance = computeCovariance(T.t())
-                    T_weight = 0.00001
+                    T_weight = 0.0
                     T_loss     = torch.sum(covariance) - torch.sum(torch.diag(covariance))
 
                     (-obj + T_loss * T_weight).backward()
                     for parameter in model.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    T.grad = torch.clamp(T.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
             except:

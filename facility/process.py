@@ -82,7 +82,7 @@ if __name__ == '__main__':
             # assert finished_epoch == 49, "N: {}, method: {} incorrectly finished".format(N, method)
 
             line = f_time.readline().split(',')
-            training_time[N_idx, method_idx] = float(line[3]) + float(line[5]) + float(line[7]) + float(line[9])
+            training_time[N_idx, method_idx] = (float(line[3]) + float(line[5]) + float(line[7]) + float(line[9])) / finished_epoch
             if method == 'two-stage':
                 line = f_time.readline().split(',')
                 forward_time[N_idx, method_idx] = float(line[selected_idx])
