@@ -43,10 +43,12 @@ def computeCovariance(covariance_mat):
 
 def generateDataset(data_loader, n=200, num_samples=100):
     feature_mat, target_mat, feature_cols, covariance_mat, target_name, dates, symbols = data_loader.load_pytorch_data()
-    feature_mat    = feature_mat[:num_samples,:n]
-    target_mat     = target_mat[:num_samples,:n]
-    covariance_mat = covariance_mat[:num_samples,:n]
-    symbols = symbols[:n]
+    np.random.seed(0)
+    symbol_indices = np.random.choice(n, len(symbols), replace=False)
+    feature_mat    = feature_mat[:num_samples,symbol_indices]
+    target_mat     = target_mat[:num_samples,symbol_indices]
+    covariance_mat = covariance_mat[:num_samples,symbol_indices]
+    symbols = symbols[symbol_indices]
     dates = dates[:num_samples]
 
     num_samples = len(dates)
@@ -60,7 +62,7 @@ def generateDataset(data_loader, n=200, num_samples=100):
     dataset = data_utils.TensorDataset(feature_mat, covariance_mat, target_mat)
 
     indices = list(range(num_samples))
-    np.random.shuffle(indices)
+    # np.random.shuffle(indices)
 
     train_size, validate_size = int(num_samples * 0.7), int(num_samples * 0.1)
     train_indices    = indices[:train_size]

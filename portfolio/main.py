@@ -127,7 +127,7 @@ if __name__ == '__main__':
         # ================ validating ==================
         if training_method == 'surrogate':
             if epoch == -1:
-                validate_loss, validate_obj = validate_portfolio(model, covariance_model, scheduler, epoch, validate_dataset, training_method=training_method)
+                validate_loss, validate_obj = validate_portfolio(model, covariance_model, scheduler, epoch, validate_dataset, training_method=training_method, evaluate=True)
             else:
                 validate_loss, validate_obj = surrogate_validate_portfolio(model, covariance_model, T.detach(), scheduler, epoch, validate_dataset, training_method=training_method)
         else:
@@ -139,7 +139,7 @@ if __name__ == '__main__':
         # ================== testing ===================
         if training_method == 'surrogate':
             if epoch == -1:
-                test_loss, test_obj = test_portfolio(model, covariance_model, epoch, test_dataset)
+                test_loss, test_obj = test_portfolio(model, covariance_model, epoch, test_dataset, evaluate=True)
             else:
                 test_loss, test_obj = surrogate_test_portfolio(model, covariance_model, T.detach(), epoch, test_dataset)
         else:
