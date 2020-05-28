@@ -28,7 +28,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
     init_T, init_s = torch.rand(sample_graph.number_of_edges(), T_size), torch.zeros(sample_graph.number_of_edges())
     T, s = torch.tensor(normalize_matrix_positive(init_T), requires_grad=True), torch.tensor(init_s, requires_grad=False) # bias term s can cause infeasibility. It is not yet known how to resolve it.
     full_T, full_s = torch.eye(sample_graph.number_of_edges(), requires_grad=False), torch.zeros(sample_graph.number_of_edges(), requires_grad=False)
-    T_lr = lr * 0.1
+    T_lr = lr
 
     # ================ Optimizer ================
     if optimizer == 'adam':

@@ -1,0 +1,50 @@
+import torch
+import torch.nn as nn
+from utils import computeCovariance
+
+def linear_block(in_channels, out_channels, activation='ReLU'):
+    if activation == 'ReLU':
+        return nn.Sequential(
+               nn.Linear(in_channels, out_channels),
+               nn.BatchNorm1d(out_channels),
+               nn.ReLU()
+               )
+    elif activation == 'Sigmoid':
+        return nn.Sequential(
+               nn.Linear(in_channels, out_channels),
+               nn.BatchNorm1d(out_channels),
+               nn.Sigmoid()
+               )
+
+class PortfolioModel(nn.Module):
+    def __init__(self, input_size=20, output_size=1):
+        # input:  features
+        # output: embedding
+        super(PortfolioModel, self).__init__()
+        self.input_size, self.output_size = input_size, output_size
+        self.model = nn.Sequential(
+                linear_block(input_size, 512),
+                linear_block(512, 512),
+                linear_block(512, 256),
+                # linear_block(256, output_size, activation='Sigmoid')
+                )
+        self.linear = nn.Linear(256, output_size)
+
+    def forward(self, x):
+        y = self.model(x)
+        z = self.linear(y)
+        return z
+
+class CovarianceModel(nn.Module):
+    def __init__(self, n):
+        super(CovarianceModel, self).__init__()
+        self.n = n
+        self.latent_dim = 32
+        self.embedding = nn.Embedding(num_embeddings=self.n, embedding_dim=self.latent_dim)
+
+    def forward(self):
+        security_embeddings = self.embedding(torch.LongTensor(range(self.n)))
+        cov = computeCovariance(security_embeddings)
+        return cov
+
+

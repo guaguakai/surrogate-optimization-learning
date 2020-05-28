@@ -15,7 +15,7 @@ if __name__ == '__main__':
     filename = args.filename
 
     N_list = [120] # [20, 30, 40, 50] #, 60, 80, 100]
-    methods = ['two-stage', 'hybrid', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
+    methods = ['two-stage', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'results/random/'
     time_prefix        = 'results/time/random/'
@@ -47,7 +47,7 @@ if __name__ == '__main__':
             'backward time T', 'backward time',
             'epoch T', 'epoch']
 
-    sample_set = list(set(range(1,31)) - set([14,8]))
+    sample_set = list(set(range(1,31)) - set([23,28]))
     for N_idx, N in enumerate(N_list):
         postfix            = 'p0.2_b3.0_cut{}_noise0.2.csv'.format(N//10)
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
             # assert the right number of samples
             random_seeds = sorted(list(performance_pd['random seed']))
-            assert random_seeds == sample_set, 'Random seed does not match: N {}, method {}'.format(N, method)
+            assert random_seeds == sample_set, 'Random seed does not match: N {}, method {}, {}'.format(N, method, sorted(list(performance_pd['random seed'])))
 
             # computing losses and objs
             tmp_test_loss_dict[method]     = np.mean(performance_pd['test loss'].astype(float))

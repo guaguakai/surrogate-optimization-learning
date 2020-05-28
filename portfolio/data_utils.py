@@ -216,17 +216,19 @@ class IndexDataLoader(object):
         print(self.torch_file)
         if not self.overwrite and os.path.exists(self.torch_file):
             print("Loading pytorch data...")
-            feature_mat, target_mat, feature_cols, target_name, dates, symbols = torch.load(self.torch_file)
+            feature_mat, target_mat, feature_cols, covariance_mat, target_names, dates, symbols = torch.load(self.torch_file)
         else:
             price_feature_df = self.get_price_feature_df()
-            target_name = "next_return"
-            feature_cols = [c for c in price_feature_df.columns if c not in ["next_return", "Volume"]]
-            target_mat = torch.tensor(get_price_feature_matrix(price_feature_df[target_name]))
+            target_names = ["next1_return"]
+            covariance_names = ["next{}_return".format(i) for i in range(2,11)]
+            feature_cols = [c for c in price_feature_df.columns if c not in target_names + covariance_names + ["Volume"]]
+            target_mat = torch.tensor(get_price_feature_matrix(price_feature_df[target_names]))
+            covariance_mat = torch.tensor(get_price_feature_matrix(price_feature_df[covariance_names]))
             feature_mat = torch.tensor(get_price_feature_matrix(price_feature_df[feature_cols]))
             dates = list(price_feature_df.index.levels[0])
             symbols = list(price_feature_df.index.levels[1])
-            torch.save([feature_mat, target_mat, feature_cols, target_name, dates, symbols], self.torch_file)
-        return feature_mat, target_mat, feature_cols, target_name, dates, symbols
+            torch.save([feature_mat, target_mat, feature_cols, covariance_mat, target_names, dates, symbols], self.torch_file)
+        return feature_mat, target_mat, feature_cols, covariance_mat, target_names, dates, symbols
 
 
 class SP500DataLoader(IndexDataLoader):
