@@ -158,10 +158,10 @@ def createConstraintMatrix(m, n, budget):
     variable_size = n
     A = torch.ones(1,n)
     b = torch.Tensor([budget])
-    # G = -torch.eye(n) 
-    # h = torch.zeros(n) 
-    G = torch.cat((-torch.eye(n),  torch.eye(n)))
-    h = torch.cat((torch.zeros(n), torch.ones(n)))
+    G = -torch.eye(n) 
+    h = torch.zeros(n) 
+    # G = torch.cat((-torch.eye(n),  torch.eye(n)))
+    # h = torch.cat((torch.zeros(n), torch.ones(n)))
     return A, b, G, h
 
 def createSurrogateConstraintMatrix(m, n, budget):
@@ -169,7 +169,7 @@ def createSurrogateConstraintMatrix(m, n, budget):
     A = torch.ones(1,n)
     b = torch.Tensor([budget])
     G = torch.eye(n) 
-    h = torch.ones(n) 
+    h = torch.ones(n)
     return A, b, G, h
 
 def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, training_method='two-stage', device='cpu', evaluate=True):
@@ -201,54 +201,49 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 forward_start_time = time.time()
                 if training_method == 'decision-focused':
                     inference_start_time = time.time()
-                    optimize_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
+                    min_fun = -np.inf
+                    for _ in range(1):
+                        tmp_result = getOptimalDecision(n, m, output, d, f, budget=budget, REG=REG)
+                        if tmp_result.fun > min_fun:
+                            optimize_result = tmp_result
+                            min_fun = tmp_result.fun
                     inference_time += time.time() - inference_start_time
                     optimal_x = torch.Tensor(optimize_result.x)
+                    if optimize_result.success:
+                        qp_start_time = time.time()
+                        newA, newb = torch.Tensor(), torch.Tensor()
+                        newG = torch.cat((A, G))
+                        newh = torch.cat((b, h))
 
-                    qp_start_time = time.time()
-                    newA, newb = torch.Tensor(), torch.Tensor()
-                    newG = torch.cat((A, G))
-                    newh = torch.cat((b, h))
+                        Q = getHessian(optimal_x, n, m, output, d, f, REG=REG) + torch.eye(n) * 10
+                        L = torch.cholesky(Q)
+                        jac = -getDerivative(optimal_x, n, m, output, d, f, create_graph=True, REG=REG)
+                        p = jac - Q @ optimal_x
+                        # qp_solver = qpth.qp.QPFunction()
+                        # x = qp_solver(Q, p, G, h, A, b)[0]
 
-                    Q = getHessian(optimal_x, n, m, output, d, f, REG=REG) + torch.eye(n) * 1
-                    L = torch.cholesky(Q)
-                    jac = -getDerivative(optimal_x, n, m, output, d, f, create_graph=True, REG=REG)
-                    p = jac - Q @ optimal_x
-                    # qp_solver = qpth.qp.QPFunction()
-                    # x = qp_solver(Q, p, G, h, A, b)[0]
+                        if True:
+                            # =============== solving QP using CVXPY ===============
+                            x_default = cp.Variable(n)
+                            G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
+                            L_default = cp.Parameter((n,n))
+                            p_default = cp.Parameter(n)
+                            constraints = [G_default @ x_default <= h_default]
+                            objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ x_default) + p_default.T @ x_default)
+                            problem = cp.Problem(objective, constraints)
 
-                    if True:
-                        # =============== solving QP using CVXPY ===============
-                        x_default = cp.Variable(n)
-                        G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
-                        L_default = cp.Parameter((n,n))
-                        p_default = cp.Parameter(n)
-                        constraints = [G_default @ x_default <= h_default]
-                        objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ x_default) + p_default.T @ x_default)
-                        problem = cp.Problem(objective, constraints)
+                            cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
+                            coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
+                            x = coverage_qp_solution
 
-                        cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
-                        coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
-                        x = coverage_qp_solution
-
-                    # except:
-                    #     print("CVXPY solver fails... Usually because Q is not PSD")
-                    #     x = optimal_x
+                        # except:
+                        #     print("CVXPY solver fails... Usually because Q is not PSD")
+                        #     x = optimal_x
 
 
-                    # if torch.norm(x.detach() - optimal_x) > 0.05: # TODO
-                    #     # debugging message
-                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - optimal_x)))
-                    #     print('optimal x:', optimal_x)
-                    #     print('x:        ', x)
-                    #     # scipy_obj = 0.5 * optimal_x @ Q @ optimal_x + p @ optimal_x 
-                    #     # scipy_obj = getObjective(optimal_x, n, m, output, d, f)
-                    #     # qp_obj    = 0.5 * x @ Q @ x + p @ x 
-                    #     # qp_obj = getObjective(x, n, m, output, d, f)
-                    #     # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
-                    #     # print('constraint on optimal_x: Ax-b={}, Gx-h={}'.format(A @ optimal_x - b, G @ optimal_x - h))
-                    #     # print('constraint on x:         Ax-b={}, Gx-h={}'.format(A @ x - b, G @ x - h))
-                    #     x = optimal_x
+                    else: 
+                        print('Optimization failed...')
+                        x = optimal_x
                     obj = getObjective(x, n, m, label, d, f, REG=0)
                     qp_time += time.time() - qp_start_time
 
@@ -275,8 +270,8 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                 if training_method == 'two-stage':
                     loss.backward()
                 elif training_method == 'decision-focused':
-                    # (-objective).backward()
-                    (-objective + loss).backward() # TODO
+                    (-objective).backward()
+                    # (-objective + loss).backward() # TODO
                     for parameter in net.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
@@ -342,66 +337,64 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     inference_time += time.time() - inference_start_time
                     optimal_y = torch.Tensor(optimize_result.x)
 
-                    newA, newb = torch.Tensor(), torch.Tensor()
-                    newG = torch.cat((A @ T, G @ T, -torch.eye(variable_size)))
-                    newh = torch.cat((b, h, torch.zeros(variable_size)))
-                    # newG = torch.cat((A @ T, G @ T, -torch.eye(variable_size), torch.eye(variable_size)))
-                    # newh = torch.cat((b, h, torch.zeros(variable_size), torch.ones(variable_size)))
+                    if optimize_result.success:
+                        optimal_y = torch.Tensor(optimize_result.x)
+                        newA, newb = torch.Tensor(), torch.Tensor()
+                        newG = torch.cat((A @ T, G @ T, -torch.eye(variable_size)))
+                        newh = torch.cat((b, h, torch.zeros(variable_size)))
+                        # newG = torch.cat((A @ T, G @ T, -torch.eye(variable_size), torch.eye(variable_size)))
+                        # newh = torch.cat((b, h, torch.zeros(variable_size), torch.ones(variable_size)))
 
-                    qp_start_time = time.time()
-                    Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 1
-                    L = torch.cholesky(Q)
-                    jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f, create_graph=True)
-                    p = jac - Q @ optimal_y
-                    # qp_solver = qpth.qp.QPFunction() # TODO unknown bug
+                        qp_start_time = time.time()
+                        Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
+                        L = torch.cholesky(Q)
+                        jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f, create_graph=True)
+                        p = jac - Q @ optimal_y
+                        # qp_solver = qpth.qp.QPFunction() # TODO unknown bug
 
-                    # try:
-                    #     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
-                    #     x = T @ y
-                    # except:
-                    #     y = optimal_y
-                    #     x = T.detach() @ optimal_y
-                    #     print('qp error! no gradient!')
+                        # try:
+                        #     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
+                        #     x = T @ y
+                        # except:
+                        #     y = optimal_y
+                        #     x = T.detach() @ optimal_y
+                        #     print('qp error! no gradient!')
 
-                    if True:
-                        # =============== solving QP using CVXPY ===============
-                        y_default = cp.Variable(variable_size)
-                        G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
-                        L_default = cp.Parameter((variable_size, variable_size))
-                        p_default = cp.Parameter(variable_size)
-                        constraints = [G_default @ y_default <= h_default]
-                        objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ y_default) + p_default.T @ y_default)
-                        problem = cp.Problem(objective, constraints)
+                        if True:
+                            # =============== solving QP using CVXPY ===============
+                            y_default = cp.Variable(variable_size)
+                            G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
+                            L_default = cp.Parameter((variable_size, variable_size))
+                            p_default = cp.Parameter(variable_size)
+                            constraints = [G_default @ y_default <= h_default]
+                            objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ y_default) + p_default.T @ y_default)
+                            problem = cp.Problem(objective, constraints)
 
-                        cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[y_default])
-                        coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
-                        y = coverage_qp_solution
-                        x = T @ y
+                            cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[y_default])
+                            coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
+                            y = coverage_qp_solution
+                            x = T @ y
 
-                    # time test...
-                    # time_test_start = time.time()
-                    # for i in range(20):
-                    #    _ = getDerivative(x, n, m, output, d, f)
-                    # print('original gradient time:', time.time() - time_test_start)
+                        # time test...
+                        # time_test_start = time.time()
+                        # for i in range(20):
+                        #    _ = getDerivative(x, n, m, output, d, f)
+                        # print('original gradient time:', time.time() - time_test_start)
 
-                    # time_test_start = time.time()
-                    # for i in range(20):
-                    #    _ = getSurrogateDerivative(T, y, n, m, output, d, f, create_graph=False)
-                    # print('surrogate gradient time:', time.time() - time_test_start)
+                        # time_test_start = time.time()
+                        # for i in range(20):
+                        #    _ = getSurrogateDerivative(T, y, n, m, output, d, f, create_graph=False)
+                        # print('surrogate gradient time:', time.time() - time_test_start)
 
-                    # except:
-                    #     print("CVXPY solver fails... Usually because Q is not PSD")
-                    #     y = optimal_y
-                    #     x = T.detach() @ optimal_y
+                        # except:
+                        #     print("CVXPY solver fails... Usually because Q is not PSD")
+                        #     y = optimal_y
+                        #     x = T.detach() @ optimal_y
 
-                    # if torch.norm(x.detach() - T.detach() @ optimal_y) > 0.05: # TODO
-                    #     print('incorrect solution due to high mismatch {}'.format(torch.norm(x.detach() - T.detach() @ optimal_y)))
-                    #     # print(x, T.detach() @ optimal_y)
-                    #     # scipy_obj = getSurrogateObjective(T.detach(), optimal_y, n, m, output, d, f)
-                    #     # qp_obj = getSurrogateObjective(T.detach(), y, n, m, output, d, f)
-                    #     # print('objective values scipy: {}, QP: {}'.format(scipy_obj, qp_obj))
-                    #     y = optimal_y
-                    #     x = T.detach() @ optimal_y
+                    else: # torch.norm(y.detach() - optimal_y) > 0.05: # TODO
+                        print('Optimization failed...')
+                        y = optimal_y
+                        x = T.detach() @ optimal_y
 
                     qp_time += time.time() - qp_start_time
                 else:

@@ -36,9 +36,9 @@ import time
 #         selected_amount = floor
 #         for i in preference_ordering:
 #             prob = x[i] - floor[i]
-#             if remaining - prob < 0:
+#             if remaining - prob <= 0:
 #                 selected_amount[i] += remaining
-#                 break
+#                 remaining = 0
 #             else:
 #                 selected_amount[i] += prob
 #                 remaining -= prob
@@ -54,9 +54,9 @@ def binary_search(weigths, sums, budget, low, high):
         return -1
 
 
-def getObjective(x, n, m, c, d, f, REG=0):
+def getObjective(x_var, n, m, c, d, f, REG=0):
     start_time = time.time()
-    x = torch.clamp(x, max=1)
+    x = torch.clamp(x_var, max=1)
     p = torch.zeros(m)
     for j in range(m):
         # each customer selects the top d_j items
@@ -75,8 +75,8 @@ def getObjective(x, n, m, c, d, f, REG=0):
     p_value = torch.sum(p) #- 0.5 * REG * torch.var(x)
     return p_value
 
-def getOldManualDerivative(x, n, m, c, d, f, REG=0):
-    x = torch.clamp(x, max=1)
+def getOldManualDerivative(x_var, n, m, c, d, f, REG=0):
+    x = torch.clamp(x_var, max=1)
     grad = torch.zeros(n)
     for j in range(m):
         # each customer selects the top d_j items
@@ -112,10 +112,10 @@ def getOptimalDecision(n, m, c, d, f, budget, initial_x=None, REG=0):
     getObj = lambda x: -getObjective(torch.Tensor(x), n, m, c.detach(), d, f, REG=REG).detach().item() # maximize objective
     getJac = lambda x: -getDerivative(torch.Tensor(x), n, m, c.detach(), d, f, REG=REG).detach().numpy()
 
-    bounds = [(0,1)]*n
+    bounds = [(0,np.inf)]*n
     eq_fn = lambda x: budget - sum(x)
     constraints = [{'type': 'ineq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
-    options = {'maxiter': 100, 'disp': False}
+    options = {'maxiter': 20, 'ftol': 1e-2, 'disp': False}
     # options = {'maxiter': 100, 'ftol': 1e-3}
 
     optimize_result = scipy.optimize.minimize(getObj, initial_x, method='SLSQP', jac=getJac, bounds=bounds, constraints=constraints, options=options)

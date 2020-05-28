@@ -34,6 +34,10 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None, REG=0)
     start_time = time.time()
     variable_size = T.shape[1]
     if initial_y is None:
+        # initial_x = torch.rand(n)
+        # initial_x = initial_x * budget / torch.sum(initial_x)
+        # initial_y = (torch.pinverse(T) @ initial_x).detach().numpy()
+
         # initial_y = np.zeros(variable_size)
         initial_y = np.random.rand(variable_size)
         initial_y = initial_y * budget / np.sum(initial_y)
@@ -42,8 +46,8 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None, REG=0)
     getJac = lambda y: -getSurrogateDerivative(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f, REG=REG, create_graph=False).detach().numpy()
 
     bounds = [(0,np.inf)]*variable_size
-    eq_fn    = lambda y: budget - sum( y)
-    # eq_fn    = lambda y: budget - sum( T.detach().numpy() @ y)
+    # eq_fn    = lambda y: budget - sum( y)
+    eq_fn    = lambda y: budget - sum( T.detach().numpy() @ y)
     # ineq_fn  = lambda y: T.detach().numpy() @ y
     # ineq_fn2 = lambda y: 1 - T.detach().numpy() @ y
     # constraints = [{'type': 'eq', 'fun': eq_fn, 'jac': autograd.jacobian(eq_fn)}]
@@ -52,7 +56,7 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None, REG=0)
             # {'type': 'ineq', 'fun': ineq_fn, 'jac': autograd.jacobian(ineq_fn)},
             # {'type': 'ineq', 'fun': ineq_fn2, 'jac': autograd.jacobian(ineq_fn2)}
             ]
-    options = {'maxiter': 100, 'disp': False}
+    options = {'maxiter': 20, 'ftol': 1e-2, 'disp': False}
     # options = {'maxiter': 100, 'disp': True}
     # tol = 1e-6
 
