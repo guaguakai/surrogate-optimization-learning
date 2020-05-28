@@ -44,7 +44,7 @@ def computeCovariance(covariance_mat):
 def generateDataset(data_loader, n=200, num_samples=100):
     feature_mat, target_mat, feature_cols, covariance_mat, target_name, dates, symbols = data_loader.load_pytorch_data()
     np.random.seed(0)
-    symbol_indices = np.random.choice(n, len(symbols), replace=False)
+    symbol_indices = np.random.choice(len(symbols), n, replace=False)
     feature_mat    = feature_mat[:num_samples,symbol_indices]
     target_mat     = target_mat[:num_samples,symbol_indices]
     covariance_mat = covariance_mat[:num_samples,symbol_indices]

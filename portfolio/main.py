@@ -48,7 +48,7 @@ if __name__ == '__main__':
     filepath = args.filepath
     seed = 0
     n = args.n
-    num_samples = args.num_samples if args.num_samples != 0 else 10000000
+    num_samples = args.num_samples if args.num_samples != 0 else 4010
     num_epochs = args.epochs
     lr = args.lr
     method_id = args.method
