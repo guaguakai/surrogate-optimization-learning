@@ -16,7 +16,7 @@ from gurobipy import *
 from types import SimpleNamespace
 
 from facilityNN import FacilityNN, FeatureNN
-from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection, point_projection
+from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection, point_projection, computeCovariance
 from facilityDerivative import getObjective, getDerivative, getOptimalDecision, getHessian
 from facilitySurrogateDerivative import getSurrogateObjective, getSurrogateDerivative, getSurrogateHessian, getSurrogateOptimalDecision
 
@@ -423,7 +423,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                     optimizer.step()
                 elif training_method == 'surrogate':
-                    T_loss     = computeCovariance(T.t())
+                    covariance = computeCovariance(T.t())
+                    T_loss     = torch.sum(covariance) - torch.sum(torch.diag(covariance))
                     T_optimizer.zero_grad()
                     (-objective - T_loss).backward()
                     # T_loss.backward() # TODO: minimizing reparameterization loss
