@@ -449,8 +449,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             average_obj    = np.mean(train_objs)
             average_T_loss = np.mean(train_T_losses)
             # Print status
-            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
-            # tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', T_loss=f'{average_T_loss:.3f}')
+            # tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}')
+            tqdm_loader.set_postfix(loss=f'{average_loss:.3f}', obj=f'{average_obj:.3f}', T_loss=f'{average_T_loss:.3f}')
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
