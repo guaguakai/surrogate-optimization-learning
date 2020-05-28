@@ -38,9 +38,9 @@ def getSurrogateOptimalDecision(T, n, m, c, d, f, budget, initial_y=None, REG=0)
         # initial_x = initial_x * budget / torch.sum(initial_x)
         # initial_y = (torch.pinverse(T) @ initial_x).detach().numpy()
 
-        # initial_y = np.zeros(variable_size)
-        initial_y = np.random.rand(variable_size)
-        initial_y = initial_y * budget / np.sum(initial_y)
+        initial_y = np.zeros(variable_size)
+        # initial_y = np.random.rand(variable_size)
+        # initial_y = initial_y * budget / np.sum(initial_y)
 
     getObj = lambda y: -getSurrogateObjective(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f, REG=REG).detach().item() # maximize objective
     getJac = lambda y: -getSurrogateDerivative(T.detach(), torch.Tensor(y), n, m, c.detach(), d, f, REG=REG, create_graph=False).detach().numpy()
