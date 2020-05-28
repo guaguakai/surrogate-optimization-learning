@@ -33,7 +33,7 @@ class PortfolioModel(nn.Module):
 
     def forward(self, x):
         y = self.model(x)
-        return y - 0.5
+        return (y - 0.5) * 10
 
 class CovarianceModel(nn.Module):
     def __init__(self, n):
