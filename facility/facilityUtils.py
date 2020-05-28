@@ -408,7 +408,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
             # print(pairwise_distances(T.t().detach().numpy()))
             objective  = sum(objective_value_list) / batch_size
-            T_loss     = 0
+            T_loss     = torch.Tensor([0])
             # print('objective', objective)
 
             optimizer.zero_grad()
@@ -443,7 +443,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
             train_losses.append(loss.item())
             train_objs.append(objective.item())
-            train_T_losses.append(T_loss)
+            train_T_losses.append(T_loss.item())
 
             average_loss   = np.mean(train_losses)
             average_obj    = np.mean(train_objs)
