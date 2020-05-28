@@ -7,12 +7,14 @@ def linear_block(in_channels, out_channels, activation='ReLU'):
         return nn.Sequential(
                nn.Linear(in_channels, out_channels),
                nn.BatchNorm1d(out_channels),
+               torch.nn.Dropout(p=0.5),
                nn.ReLU()
                )
     elif activation == 'Sigmoid':
         return nn.Sequential(
                nn.Linear(in_channels, out_channels),
                nn.BatchNorm1d(out_channels),
+               torch.nn.Dropout(p=0.5),
                nn.Sigmoid()
                )
 
@@ -23,10 +25,10 @@ class PortfolioModel(nn.Module):
         super(PortfolioModel, self).__init__()
         self.input_size, self.output_size = input_size, output_size
         self.model = nn.Sequential(
-                linear_block(input_size, 512),
-                linear_block(512, 512),
-                linear_block(512, 256),
-                linear_block(256, output_size, activation='Sigmoid')
+                linear_block(input_size, 100),
+                linear_block(100, 100),
+                linear_block(100, 100),
+                linear_block(100, output_size, activation='Sigmoid')
                 )
 
     def forward(self, x):
