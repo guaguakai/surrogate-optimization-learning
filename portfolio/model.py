@@ -26,14 +26,12 @@ class PortfolioModel(nn.Module):
                 linear_block(input_size, 512),
                 linear_block(512, 512),
                 linear_block(512, 256),
-                # linear_block(256, output_size, activation='Sigmoid')
+                linear_block(256, output_size, activation='Sigmoid')
                 )
-        self.linear = nn.Linear(256, output_size)
 
     def forward(self, x):
         y = self.model(x)
-        z = self.linear(y)
-        return z
+        return y - 0.5
 
 class CovarianceModel(nn.Module):
     def __init__(self, n):
