@@ -113,7 +113,7 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
                 x_var = cp.Variable(n)
                 L_para = cp.Parameter((n,n))
                 p_para = cp.Parameter(n)
-                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) <= 1]
+                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
                 objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
                 problem = cp.Problem(objective, constraints)
 
@@ -183,7 +183,7 @@ def surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, data
             L_para = cp.Parameter((T_size,T_size))
             p_para = cp.Parameter(T_size)
             T_para = cp.Parameter((n,T_size))
-            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) <= 1]
+            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
             objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
             problem = cp.Problem(objective, constraints)
 
@@ -254,7 +254,7 @@ def validate_portfolio(model, covariance_model, scheduler, epoch, dataset, train
                 x_var = cp.Variable(n)
                 L_para = cp.Parameter((n,n))
                 p_para = cp.Parameter(n)
-                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) <= 1]
+                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
                 objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
                 problem = cp.Problem(objective, constraints)
 
@@ -314,7 +314,7 @@ def surrogate_validate_portfolio(model, covariance_model, T, scheduler, epoch, d
             L_para = cp.Parameter((T_size,T_size))
             p_para = cp.Parameter(T_size)
             T_para = cp.Parameter((n,T_size))
-            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) <= 1]
+            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
             objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
             problem = cp.Problem(objective, constraints)
 
@@ -373,7 +373,7 @@ def test_portfolio(model, covariance_model, epoch, dataset, device='cpu', evalua
                 x_var = cp.Variable(n)
                 L_para = cp.Parameter((n,n))
                 p_para = cp.Parameter(n)
-                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) <= 1]
+                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
                 objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
                 problem = cp.Problem(objective, constraints)
 
@@ -424,7 +424,7 @@ def surrogate_test_portfolio(model, covariance_model, T, epoch, dataset, device=
             L_para = cp.Parameter((T_size,T_size))
             p_para = cp.Parameter(T_size)
             T_para = cp.Parameter((n,T_size))
-            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) <= 1]
+            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
             objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
             problem = cp.Problem(objective, constraints)
 
