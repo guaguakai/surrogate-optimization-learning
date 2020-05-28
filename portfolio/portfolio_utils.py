@@ -30,8 +30,8 @@ from torchvision import transforms
 
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
-alpha = 1e-5
-REG = 1e-5
+alpha = 1e-4
+REG = 1e-2
 
 def computeCovariance(covariance_mat):
     cos = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
@@ -410,6 +410,9 @@ def surrogate_test_portfolio(model, covariance_model, T, epoch, dataset, device=
             n = len(covariance_mat)
             Q_real = computeCovariance(covariance_mat) + torch.eye(n) * REG
             predictions = model(features.float())[:,0]
+            if epoch == -1:
+                predictions = labels
+                Q = Q_real
             loss = loss_fn(predictions, labels)
 
             Q = covariance_model() + torch.eye(n) * REG 
