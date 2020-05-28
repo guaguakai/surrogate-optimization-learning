@@ -502,7 +502,7 @@ def validate_submodular(net, scheduler, epoch, sample_instance, dataset, trainin
     if (epoch > 0):
         if training_method == "two-stage":
             scheduler.step(average_loss)
-        elif training_method == "decision-focused" or training_method == "surrogate-decision-focused":
+        elif training_method == "decision-focused" or training_method == "surrogate":
             scheduler.step(-average_obj)
         else:
             raise TypeError("Not Implemented Method")

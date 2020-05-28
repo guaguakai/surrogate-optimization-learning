@@ -16,9 +16,10 @@ from cvxpylayers.torch import CvxpyLayer
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from data_utils import SP500DataLoader
-from utils import computeCovariance, generateDataset
+from portfolio_utils import computeCovariance, generateDataset
 from model import PortfolioModel, CovarianceModel
 from portfolio_utils import train_portfolio, surrogate_train_portfolio, validate_portfolio, surrogate_validate_portfolio, test_portfolio, surrogate_test_portfolio
+from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
 if __name__ == '__main__':
     # ==================== Parser setting ==========================
@@ -28,8 +29,8 @@ if __name__ == '__main__':
     parser.add_argument('--T-size', type=int, default=10, help='the size of reparameterization metrix')
     parser.add_argument('--epochs', type=int, default=20, help='number of training epochs')
     parser.add_argument('--n', type=int, default=50, help='number of items')
-    parser.add_argument('--num-samples', type=int, default=100, help='number of samples, 0 -> all')
-    parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
+    parser.add_argument('--num-samples', type=int, default=0, help='number of samples, 0 -> all')
+    parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
 
     args = parser.parse_args()
 
@@ -66,16 +67,18 @@ if __name__ == '__main__':
 
     model = PortfolioModel(input_size=feature_size, output_size=1)
     covariance_model = CovarianceModel(n=n)
-    optimizer = torch.optim.Adam(list(model.parameters()) + list(covariance_model.parameters()), lr=lr)
-    scheduler = ReduceLROnPlateau(optimizer, 'min')
 
     if training_method == 'surrogate':
         T_size = args.T_size
         init_T = normalize_matrix_positive(torch.rand(n, T_size))
         T = torch.tensor(init_T, requires_grad=True)
-        T_lr = lr
-        T_optimizer = torch.optim.Adam([T], lr=T_lr)
-        T_scheduler = ReduceLROnPlateau(T_optimizer, 'min')
+        # T_optimizer = torch.optim.Adam([T], lr=T_lr)
+        # T_scheduler = ReduceLROnPlateau(T_optimizer, 'min')
+        optimizer = torch.optim.Adam(list(model.parameters()) + list(covariance_model.parameters()) + [T], lr=lr)
+        scheduler = ReduceLROnPlateau(optimizer, 'min')
+    else:
+        optimizer = torch.optim.Adam(list(model.parameters()) + list(covariance_model.parameters()), lr=lr)
+        scheduler = ReduceLROnPlateau(optimizer, 'min')
 
     train_loss_list, train_obj_list = [], []
     test_loss_list,  test_obj_list  = [], []
@@ -94,19 +97,19 @@ if __name__ == '__main__':
         if training_method == 'surrogate':
             if epoch == -1:
                 print('Testing the optimal solution...')
-                train_loss, train_obj = test_portfolio(model, covariance_model, epoch, train_dataset)
+                train_loss, train_obj = test_portfolio(model, covariance_model, epoch, train_dataset, evaluate=True)
             elif epoch == 0:
                 print('Testing the initial solution quality...')
-                train_loss, train_obj = surrogate_test_portfolio(model, covariance_model, T, epoch, train_dataset)
+                train_loss, train_obj = surrogate_test_portfolio(model, covariance_model, T.detach(), epoch, train_dataset, evaluate=evaluate)
             else:
-                train_loss, train_obj, (forward_time, inference_time, qp_time, backward_time) = surrogate_train_portfolio(model, covariance_model, T, optimizer, T_optimizer, epoch, train_dataset, training_method=training_method)
+                train_loss, train_obj, (forward_time, inference_time, qp_time, backward_time) = surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, train_dataset, training_method=training_method)
         elif training_method == 'decision-focused' or training_method == 'two-stage':
             if epoch == -1:
                 print('Testing the optimal solution...')
                 train_loss, train_obj = test_portfolio(model, covariance_model, epoch, train_dataset, evaluate=True)
             elif epoch == 0:
                 print('Testing the initial solution quality...')
-                train_loss, train_obj = test_portfolio(model, covariance_model, epoch, train_dataset)
+                train_loss, train_obj = test_portfolio(model, covariance_model, epoch, train_dataset, evaluate=evaluate)
             else:
                 train_loss, train_obj, (forward_time, inference_time, qp_time, backward_time) = train_portfolio(model, covariance_model, optimizer, epoch, train_dataset, training_method=training_method, evaluate=evaluate)
         else:
@@ -126,7 +129,7 @@ if __name__ == '__main__':
             if epoch == -1:
                 validate_loss, validate_obj = validate_portfolio(model, covariance_model, scheduler, epoch, validate_dataset, training_method=training_method)
             else:
-                validate_loss, validate_obj = surrogate_validate_portfolio(model, covariance_model, scheduler, T_scheduler, T, epoch, validate_dataset, training_method=training_method)
+                validate_loss, validate_obj = surrogate_validate_portfolio(model, covariance_model, T.detach(), scheduler, epoch, validate_dataset, training_method=training_method)
         else:
             if epoch == -1:
                 validate_loss, validate_obj = validate_portfolio(model, covariance_model, scheduler, epoch, validate_dataset, training_method=training_method, evaluate=True)
@@ -138,7 +141,7 @@ if __name__ == '__main__':
             if epoch == -1:
                 test_loss, test_obj = test_portfolio(model, covariance_model, epoch, test_dataset)
             else:
-                test_loss, test_obj = surrogate_test_portfolio(model, covariance_model, T, epoch, test_dataset)
+                test_loss, test_obj = surrogate_test_portfolio(model, covariance_model, T.detach(), epoch, test_dataset)
         else:
             if epoch == -1:
                 test_loss, test_obj = test_portfolio(model, covariance_model, epoch, test_dataset, evaluate=True)
@@ -183,17 +186,17 @@ if __name__ == '__main__':
         f_time.close()
 
         # ============= early stopping criteria =============
-        kk = 3
+        kk = 5
         if epoch >= kk*2 -1:
             if training_method == 'two-stage':
                 if evaluate:
                     break
-                GE_counts = np.sum(np.array(validate_loss_list[1:][-kk:]) >= np.array(validate_loss_list[1:][-2*kk:-kk]) - 1e-4)
+                GE_counts = np.sum(np.array(validate_loss_list[-kk:]) >= np.array(validate_loss_list[-2*kk:-kk]) - 1e-6)
                 print('Generalization error increases counts: {}'.format(GE_counts))
-                if GE_counts == kk or np.sum(np.isnan(validate_loss_list[1:][-kk:])) == kk:
+                if GE_counts == kk or np.sum(np.isnan(validate_loss_list[-kk:])) == kk:
                     evaluate = True
             else: # surrogate or decision-focused
-                GE_counts = np.sum(np.array(validate_obj_list[1:][-kk:]) <= np.array(validate_obj_list[1:][-2*kk:-kk]) + 1e-4)
+                GE_counts = np.sum(np.array(validate_obj_list[-kk:]) <= np.array(validate_obj_list[-2*kk:-kk]) + 1e-6)
                 print('Generalization error increases counts: {}'.format(GE_counts))
-                if GE_counts == kk or np.sum(np.isnan(validate_obj_list[1:][-kk:])) == kk:
+                if GE_counts == kk or np.sum(np.isnan(validate_obj_list[-kk:])) == kk:
                     break
