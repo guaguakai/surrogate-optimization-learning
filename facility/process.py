@@ -15,7 +15,7 @@ if __name__ == '__main__':
     filename = args.filename
     T = args.T
 
-    N_list = [30, 40, 50, 60, 80]#, 150]
+    N_list = [20, 30, 40, 50, 60, 80, 100, 120]
     methods = ['two-stage', 'decision-focused', 'surrogate']# ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'movie_results/performance/'
@@ -29,10 +29,11 @@ if __name__ == '__main__':
     validating_objs   = np.zeros((len(N_list), len(methods) + 1))
 
 
-    forward_time  = np.zeros((len(N_list), len(methods)))
-    inference_time  = np.zeros((len(N_list), len(methods)))
-    qp_time       = np.zeros((len(N_list), len(methods)))
-    backward_time = np.zeros((len(N_list), len(methods)))
+    forward_time   = np.zeros((len(N_list), len(methods)))
+    inference_time = np.zeros((len(N_list), len(methods)))
+    qp_time        = np.zeros((len(N_list), len(methods)))
+    backward_time  = np.zeros((len(N_list), len(methods)))
+    training_time  = np.zeros((len(N_list), len(methods)))
 
     for N_idx, N in enumerate(N_list):
         for method_idx, method in enumerate(methods):
@@ -81,18 +82,35 @@ if __name__ == '__main__':
             # assert finished_epoch == 49, "N: {}, method: {} incorrectly finished".format(N, method)
 
             line = f_time.readline().split(',')
+            training_time[N_idx, method_idx] = float(line[3]) + float(line[5]) + float(line[7]) + float(line[9])
             if method == 'two-stage':
-                forward_time[N_idx, method_idx], inference_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3])/finished_epoch, float(line[5]), float(line[7])/finished_epoch, float(line[9])/finished_epoch
+                line = f_time.readline().split(',')
+                forward_time[N_idx, method_idx] = float(line[selected_idx])
+                line = f_time.readline().split(',')
+                inference_time[N_idx, method_idx] = float(line[selected_idx])
+                line = f_time.readline().split(',')
+                qp_time[N_idx, method_idx] = float(line[selected_idx])
+                line = f_time.readline().split(',')
+                backward_time[N_idx, method_idx]  = float(line[selected_idx])
             else:
-                forward_time[N_idx, method_idx], inference_time[N_idx, method_idx], qp_time[N_idx, method_idx], backward_time[N_idx, method_idx]  = float(line[3])/finished_epoch, float(line[5])/finished_epoch, float(line[7])/finished_epoch, float(line[9])/finished_epoch
+                line = f_time.readline().split(',')
+                forward_time[N_idx, method_idx] = float(line[selected_idx + 2])
+                line = f_time.readline().split(',')
+                inference_time[N_idx, method_idx] = float(line[selected_idx + 2])
+                line = f_time.readline().split(',')
+                qp_time[N_idx, method_idx] = float(line[selected_idx + 2])
+                line = f_time.readline().split(',')
+                backward_time[N_idx, method_idx]  = float(line[selected_idx + 2])
             f_time.close()
 
 
     stats_path = 'stats/'
-    f_stats_objs = open(stats_path + 'training_objs.csv', 'w')
-    f_stats_time = open(stats_path + 'time.csv', 'w')
+    f_stats_objs  = open(stats_path + 'training_objs.csv', 'w')
+    f_stats_total = open(stats_path + 'total_time.csv', 'w')
+    f_stats_time  = open(stats_path + 'time.csv', 'w')
 
     customized_write(f_stats_objs, methods, N_list, testing_objs)
+    customized_write(f_stats_total, methods, N_list, training_time)
     customized_write(f_stats_time, methods, N_list, forward_time)
     customized_write(f_stats_time, methods, N_list, inference_time)
     customized_write(f_stats_time, methods, N_list, qp_time)

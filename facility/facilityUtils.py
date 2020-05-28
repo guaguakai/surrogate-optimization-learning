@@ -408,7 +408,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
 
             # print(pairwise_distances(T.t().detach().numpy()))
             objective  = sum(objective_value_list) / batch_size
-            T_loss     = sum(T_loss_list) / batch_size
+            T_loss     = torch.sum(T.t() @ T - torch.diag(T.t() @ T)) # sum(T_loss_list) / batch_size
             # print('objective', objective)
 
             optimizer.zero_grad()
@@ -424,7 +424,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     optimizer.step()
                 elif training_method == 'surrogate':
                     T_optimizer.zero_grad()
-                    (-objective).backward()
+                    (-objective - T_loss).backward()
                     # T_loss.backward() # TODO: minimizing reparameterization loss
 
                     for parameter in net.parameters():
