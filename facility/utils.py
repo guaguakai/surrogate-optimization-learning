@@ -28,6 +28,14 @@ def normalize_vector(s, max_value=1):
         s = s / s_sum * max_value
     return s
 
+def computeCovariance(covariance_mat):
+    cos = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
+    n = len(covariance_mat)
+    cosine_matrix = torch.zeros((n,n))
+    for i in range(n):
+        cosine_matrix[i] = cos(covariance_mat, covariance_mat[i].repeat(n,1))
+    return cosine_matrix
+
 def point_projection(x, T): # project x to the hyperplane x = {Ty}_y
     y = torch.pinverse(T) @ x
     newx = T @ y
