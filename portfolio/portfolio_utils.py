@@ -48,7 +48,7 @@ def generateDataset(data_loader, n=200, num_samples=100):
     feature_mat    = feature_mat[:num_samples,symbol_indices]
     target_mat     = target_mat[:num_samples,symbol_indices]
     covariance_mat = covariance_mat[:num_samples,symbol_indices]
-    symbols = symbols[symbol_indices]
+    symbols = [symbols[i] for i in symbol_indices]
     dates = dates[:num_samples]
 
     num_samples = len(dates)
