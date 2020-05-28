@@ -14,8 +14,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     filename = args.filename
 
-    N_list = [20, 30, 40, 50] #, 60, 80, 100]
-    methods = ['decision-focused'] # ['two-stage', 'surrogate-decision-focused'] # ['two-stage', 'decision-focused', 'surrogate']
+    N_list = [60, 80, 100, 120]
+    methods = ['two-stage', 'hybrid', 'surrogate-decision-focused']
 
     performance_prefix = 'results/random/'
     time_prefix        = 'results/time/random/'
@@ -47,7 +47,7 @@ if __name__ == '__main__':
             'backward time T', 'backward time',
             'epoch T', 'epoch']
 
-    sample_set = list(set(range(1,31)) - set([20]))
+    sample_set = list(set(range(1,31)) - set([]))
     for N_idx, N in enumerate(N_list):
         postfix            = 'p0.2_b3.0_cut{}_noise0.2.csv'.format(N//10)
 
@@ -90,14 +90,14 @@ if __name__ == '__main__':
 
             tmp_optimal_obj_dict[method]   = np.mean(performance_pd['test opt'].astype(float))
 
-            tmp_forward_dict[method]       = np.mean(time_pd['forward time'].astype(float))
+            tmp_forward_dict[method]       = np.mean(time_pd['forward time'].astype(float) / time_pd['epoch'].astype(float))
             if method == 'two-stage':
                 tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float))
             else:
                 # tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float))
                 tmp_inference_dict[method]     = np.mean(time_pd['inference time'].astype(float) / time_pd['epoch'].astype(float))
-            tmp_qp_dict[method]            = np.mean(time_pd['qp time'].astype(float))
-            tmp_backward_dict[method]      = np.mean(time_pd['backward time'].astype(float))
+            tmp_qp_dict[method]            = np.mean(time_pd['qp time'].astype(float) / time_pd['epoch'].astype(float))
+            tmp_backward_dict[method]      = np.mean(time_pd['backward time'].astype(float) / time_pd['epoch'].astype(float))
 
         testing_losses    = testing_losses.append(pd.DataFrame(tmp_test_loss_dict, index=[N_idx]))
         training_losses   = training_losses.append(pd.DataFrame(tmp_train_loss_dict, index=[N_idx]))
