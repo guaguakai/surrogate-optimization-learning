@@ -131,7 +131,7 @@ if __name__ == '__main__':
     evaluate = False if training_method == 'two-stage' else True
     total_forward_time, total_inference_time, total_qp_time, total_backward_time = 0, 0, 0, 0
     forward_time_list, inference_time_list, qp_time_list, backward_time_list = [], [], [], []
-    for epoch in range(-1, num_epochs):
+    for epoch in range(0, num_epochs):
         if epoch == num_epochs - 1:
             evaluate = True
         start_time = time.time()
@@ -230,18 +230,18 @@ if __name__ == '__main__':
         f_time.close()
 
         # ============= early stopping criteria =============
-        kk = 3
+        kk = 5
         if epoch >= kk*2 -1:
             if training_method == 'two-stage':
                 if evaluate:
                     break
-                GE_counts = np.sum(np.array(validate_loss_list[1:][-kk:]) >= np.array(validate_loss_list[1:][-2*kk:-kk]) - 1e-4)
+                GE_counts = np.sum(np.array(validate_loss_list[-kk:]) >= np.array(validate_loss_list[-2*kk:-kk]) - 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
-                if GE_counts == kk or np.sum(np.isnan(validate_loss_list[1:][-kk:])) == kk:
+                if GE_counts == kk or np.sum(np.isnan(validate_loss_list[-kk:])) == kk:
                     evaluate = True
             else: # surrogate or decision-focused
-                GE_counts = np.sum(np.array(validate_obj_list[1:][-kk:]) <= np.array(validate_obj_list[1:][-2*kk:-kk]) + 1e-4)
+                GE_counts = np.sum(np.array(validate_obj_list[-kk:]) <= np.array(validate_obj_list[-2*kk:-kk]) + 1e-4)
                 print('Generalization error increases counts: {}'.format(GE_counts))
-                if GE_counts == kk or np.sum(np.isnan(validate_obj_list[1:][-kk:])) == kk:
+                if GE_counts == kk or np.sum(np.isnan(validate_obj_list[-kk:])) == kk:
                     break
 

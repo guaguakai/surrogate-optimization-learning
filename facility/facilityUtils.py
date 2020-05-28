@@ -337,6 +337,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     inference_time += time.time() - inference_start_time
                     optimal_y = torch.Tensor(optimize_result.x)
 
+                    qp_start_time = time.time()
                     if optimize_result.success:
                         optimal_y = torch.Tensor(optimize_result.x)
                         newA, newb = torch.Tensor(), torch.Tensor()
@@ -345,7 +346,6 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         # newG = torch.cat((A @ T, G @ T, -torch.eye(variable_size), torch.eye(variable_size)))
                         # newh = torch.cat((b, h, torch.zeros(variable_size), torch.ones(variable_size)))
 
-                        qp_start_time = time.time()
                         Q = getSurrogateHessian(T, optimal_y, n, m, output, d, f).detach() + torch.eye(len(optimal_y)) * 10
                         L = torch.cholesky(Q)
                         jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f, create_graph=True)
