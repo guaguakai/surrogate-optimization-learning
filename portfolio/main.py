@@ -30,7 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=20, help='number of training epochs')
     parser.add_argument('--n', type=int, default=50, help='number of items')
     parser.add_argument('--num-samples', type=int, default=0, help='number of samples, 0 -> all')
-    parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
+    parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
 
     args = parser.parse_args()
 
@@ -186,7 +186,7 @@ if __name__ == '__main__':
         f_time.close()
 
         # ============= early stopping criteria =============
-        kk = 3
+        kk = 100
         if epoch >= kk*2 -1:
             if training_method == 'two-stage':
                 if evaluate:

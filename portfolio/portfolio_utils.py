@@ -55,8 +55,9 @@ def generateDataset(data_loader, n=200, num_samples=100):
 
     sample_shape, feature_size = feature_mat.shape, feature_mat.shape[-1]
 
+    # ------ normalization ------
     feature_mat = feature_mat.reshape(-1,feature_size)
-    feature_mat = (feature_mat - torch.mean(feature_mat, dim=0)) / (torch.std(feature_mat, dim=0) + 1e-5)
+    feature_mat = (feature_mat - torch.mean(feature_mat, dim=0)) / (torch.std(feature_mat, dim=0) + 1e-5) 
     feature_mat = feature_mat.reshape(sample_shape, feature_size)
 
     dataset = data_utils.TensorDataset(feature_mat, covariance_mat, target_mat)
@@ -137,6 +138,8 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
                     # (-obj + loss).backward() # TODO
                     for parameter in model.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    for parameter in covariance_model.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
             except:
@@ -207,6 +210,8 @@ def surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, data
                     (-obj + T_loss * T_weight).backward()
                     for parameter in model.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    for parameter in covariance_model.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                     T.grad = torch.clamp(T.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
@@ -229,7 +234,7 @@ def validate_portfolio(model, covariance_model, scheduler, epoch, dataset, train
     model.eval()
     covariance_model.eval()
     loss_fn = torch.nn.MSELoss()
-    test_losses, test_objs = [], []
+    validate_losses, validate_objs = [], []
 
     forward_time, inference_time, qp_time, backward_time = 0, 0, 0, 0
 
@@ -268,12 +273,12 @@ def validate_portfolio(model, covariance_model, scheduler, epoch, dataset, train
             else:
                 obj = torch.Tensor([0])
 
-            test_losses.append(loss.item())
-            test_objs.append(obj.item())
+            validate_losses.append(loss.item())
+            validate_objs.append(obj.item())
             tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item():.6f}%')
 
-    average_loss    = np.mean(test_losses)
-    average_obj     = np.mean(test_objs)
+    average_loss    = np.mean(validate_losses)
+    average_obj     = np.mean(validate_objs)
 
     if (epoch > 0):
         if training_method == "two-stage":
