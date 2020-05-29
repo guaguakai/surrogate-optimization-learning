@@ -27,7 +27,6 @@ class PortfolioModel(nn.Module):
         self.model = nn.Sequential(
                 linear_block(input_size, 100),
                 linear_block(100, 100),
-                linear_block(100, 100),
                 linear_block(100, output_size, activation='Sigmoid')
                 )
 
