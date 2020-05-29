@@ -30,7 +30,7 @@ from torchvision import transforms
 
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
-alpha = 1e-1
+alpha = 5e-2
 REG = 1e-2
 
 def computeCovariance(covariance_mat):
@@ -45,7 +45,7 @@ def generateDataset(data_loader, n=200, num_samples=100):
     feature_mat, target_mat, feature_cols, covariance_mat, target_name, dates, symbols = data_loader.load_pytorch_data()
     symbol_indices = np.random.choice(len(symbols), n, replace=False)
     feature_mat    = feature_mat[:num_samples,symbol_indices]
-    target_mat     = target_mat[:num_samples,symbol_indices] * 100
+    target_mat     = target_mat[:num_samples,symbol_indices]
     covariance_mat = covariance_mat[:num_samples,symbol_indices]
     symbols = [symbols[i] for i in symbol_indices]
     dates = dates[:num_samples]
@@ -149,7 +149,7 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
 
             train_losses.append(loss.item())
             train_objs.append(obj.item())
-            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item():.6f}%') 
+            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item()*100:.6f}%') 
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
@@ -223,7 +223,7 @@ def surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, data
 
             train_losses.append(loss.item())
             train_objs.append(obj.item())
-            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item():.6f}%', T_loss=f'{T_loss:.3f}')
+            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item()*100:.6f}%', T_loss=f'{T_loss:.3f}')
 
     average_loss    = np.mean(train_losses)
     average_obj     = np.mean(train_objs)
@@ -274,7 +274,7 @@ def validate_portfolio(model, covariance_model, scheduler, epoch, dataset, train
 
             validate_losses.append(loss.item())
             validate_objs.append(obj.item())
-            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item():.6f}%')
+            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item()*100:.6f}%')
 
     average_loss    = np.mean(validate_losses)
     average_obj     = np.mean(validate_objs)
@@ -331,7 +331,7 @@ def surrogate_validate_portfolio(model, covariance_model, T, scheduler, epoch, d
 
             validate_losses.append(loss.item())
             validate_objs.append(obj.item())
-            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item():.6f}%')
+            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item()*100:.6f}%')
 
     average_loss    = np.mean(validate_losses)
     average_obj     = np.mean(validate_objs)
@@ -393,7 +393,7 @@ def test_portfolio(model, covariance_model, epoch, dataset, device='cpu', evalua
 
             test_losses.append(loss.item())
             test_objs.append(obj.item())
-            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item():.6f}%') 
+            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item()*100:.6f}%') 
 
     average_loss    = np.mean(test_losses)
     average_obj     = np.mean(test_objs)
@@ -444,7 +444,7 @@ def surrogate_test_portfolio(model, covariance_model, T, epoch, dataset, device=
 
             test_losses.append(loss.item())
             test_objs.append(obj.item())
-            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item():.6f}%')
+            tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item()*100:.6f}%')
 
     average_loss    = np.mean(test_losses)
     average_obj     = np.mean(test_objs)

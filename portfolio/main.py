@@ -156,9 +156,9 @@ if __name__ == '__main__':
                 test_loss, test_obj = test_portfolio(model, covariance_model, epoch, test_dataset, evaluate=evaluate)
 
         # =============== printing data ================
-        sys.stdout.write(f'Epoch {epoch} | Train Loss:    \t {train_loss:.8f} \t | Train Objective Value:    \t {train_obj:.6f}% \n')
-        sys.stdout.write(f'Epoch {epoch} | Validate Loss: \t {validate_loss:.8f} \t | Validate Objective Value: \t {validate_obj:.6f}% \n')
-        sys.stdout.write(f'Epoch {epoch} | Test Loss:     \t {test_loss:.8f} \t | Test Objective Value:     \t {test_obj:.6f}% \n')
+        sys.stdout.write(f'Epoch {epoch} | Train Loss:    \t {train_loss:.8f} \t | Train Objective Value:    \t {train_obj*100:.6f}% \n')
+        sys.stdout.write(f'Epoch {epoch} | Validate Loss: \t {validate_loss:.8f} \t | Validate Objective Value: \t {validate_obj*100:.6f}% \n')
+        sys.stdout.write(f'Epoch {epoch} | Test Loss:     \t {test_loss:.8f} \t | Test Objective Value:     \t {test_obj*100:.6f}% \n')
         sys.stdout.flush()
 
         # ============== recording data ================
