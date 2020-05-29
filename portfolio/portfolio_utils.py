@@ -30,7 +30,7 @@ from torchvision import transforms
 
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
-alpha = 5e-2
+alpha = 1e-2
 REG = 1e-2
 
 def computeCovariance(covariance_mat):
@@ -114,7 +114,7 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
                 L_para = cp.Parameter((n,n))
                 p_para = cp.Parameter(n)
                 constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
+                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
                 problem = cp.Problem(objective, constraints)
 
                 cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
@@ -137,8 +137,8 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
                     # (-obj + loss).backward() # TODO
                     for parameter in model.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
-                    for parameter in covariance_model.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    # for parameter in covariance_model.parameters():
+                    #     parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
             except:
@@ -186,7 +186,7 @@ def surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, data
             p_para = cp.Parameter(T_size)
             T_para = cp.Parameter((n,T_size))
             constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
+            objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
             problem = cp.Problem(objective, constraints)
 
             cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
@@ -209,8 +209,8 @@ def surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, data
                     (-obj + T_loss * T_weight).backward()
                     for parameter in model.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
-                    for parameter in covariance_model.parameters():
-                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    # for parameter in covariance_model.parameters():
+                    #     parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                     T.grad = torch.clamp(T.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
@@ -260,7 +260,7 @@ def validate_portfolio(model, covariance_model, scheduler, epoch, dataset, train
                 L_para = cp.Parameter((n,n))
                 p_para = cp.Parameter(n)
                 constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
+                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
                 problem = cp.Problem(objective, constraints)
 
                 cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
@@ -320,7 +320,7 @@ def surrogate_validate_portfolio(model, covariance_model, T, scheduler, epoch, d
             p_para = cp.Parameter(T_size)
             T_para = cp.Parameter((n,T_size))
             constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
+            objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
             problem = cp.Problem(objective, constraints)
 
             cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
@@ -379,7 +379,7 @@ def test_portfolio(model, covariance_model, epoch, dataset, device='cpu', evalua
                 L_para = cp.Parameter((n,n))
                 p_para = cp.Parameter(n)
                 constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
+                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
                 problem = cp.Problem(objective, constraints)
 
                 cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
@@ -433,7 +433,7 @@ def surrogate_test_portfolio(model, covariance_model, T, epoch, dataset, device=
             p_para = cp.Parameter(T_size)
             T_para = cp.Parameter((n,T_size))
             constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            objective = cp.Minimize(0.5 * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
+            objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
             problem = cp.Problem(objective, constraints)
 
             cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
