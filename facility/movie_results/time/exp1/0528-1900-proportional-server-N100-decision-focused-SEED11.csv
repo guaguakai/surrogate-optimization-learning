@@ -1,0 +1,6 @@
+Epoch, 1
+Random seed, 11, forward time, 160.6611578464508, inference time, 1068.935830116272, qp time, 916.6397788524628, backward_time, 391.745525598526
+forward time,0,160.6611578464508
+inference time,0,1068.935830116272
+qp time,0,916.6397788524628
+backward time,0,391.745525598526
