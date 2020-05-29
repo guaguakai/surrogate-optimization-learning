@@ -31,8 +31,15 @@ if __name__ == '__main__':
     parser.add_argument('--n', type=int, default=50, help='number of items')
     parser.add_argument('--num-samples', type=int, default=0, help='number of samples, 0 -> all')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
+    parser.add_argument('--seed', type=int, default=0, help='random seed')
 
     args = parser.parse_args()
+
+    SEED = args.seed #  random.randint(0,10000)
+    print("Random seed: {}".format(SEED))
+    torch.manual_seed(SEED)
+    np.random.seed(SEED)
+    random.seed(SEED)
 
     portfolio_opt_dir = os.path.abspath(os.path.dirname(__file__))
     print("portfolio_opt_dir:", portfolio_opt_dir)
@@ -166,7 +173,7 @@ if __name__ == '__main__':
         validate_obj_list.append(validate_obj)
 
         # record the data every epoch
-        f_output = open('results/performance/' + filepath + "{}.csv".format(training_method), 'w')
+        f_output = open('results/performance/' + filepath + "{}-SEED{}.csv".format(training_method,SEED), 'w')
         f_output.write('Epoch, {}\n'.format(epoch))
         f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
         f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
@@ -176,7 +183,7 @@ if __name__ == '__main__':
         f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
         f_output.close()
 
-        f_time = open('results/time/' + filepath + "{}.csv".format(training_method), 'w')
+        f_time = open('results/time/' + filepath + "{}-SEED{}.csv".format(training_method, SEED), 'w')
         f_time.write('Epoch, {}\n'.format(epoch))
         f_time.write('Random seed, {}, forward time, {}, inference time, {}, qp time, {}, backward_time, {}\n'.format(str(seed), total_forward_time, total_inference_time, total_qp_time, total_backward_time))
         f_time.write('forward time,'   + ','.join([str(x) for x in forward_time_list]) + '\n')
@@ -186,8 +193,8 @@ if __name__ == '__main__':
         f_time.close()
 
         # ============= early stopping criteria =============
-        kk = 100
-        if epoch >= kk*2 -1:
+        kk = 6
+        if epoch >= kk*2-1:
             if training_method == 'two-stage':
                 if evaluate:
                     break

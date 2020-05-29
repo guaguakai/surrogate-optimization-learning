@@ -210,7 +210,7 @@ if __name__ == '__main__':
         validate_obj_list.append(validate_obj)
 
         # record the data every epoch
-        f_output = open('movie_results/performance/' + filepath + "{}.csv".format(training_method), 'w')
+        f_output = open('movie_results/performance/' + filepath + "{}-SEED{}.csv".format(training_method, SEED), 'w')
         f_output.write('Epoch, {}\n'.format(epoch))
         f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
         f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
@@ -220,7 +220,7 @@ if __name__ == '__main__':
         f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
         f_output.close()
 
-        f_time = open('movie_results/time/' + filepath + "{}.csv".format(training_method), 'w')
+        f_time = open('movie_results/time/' + filepath + "{}-SEED{}.csv".format(training_method, SEED), 'w')
         f_time.write('Epoch, {}\n'.format(epoch))
         f_time.write('Random seed, {}, forward time, {}, inference time, {}, qp time, {}, backward_time, {}\n'.format(str(SEED), total_forward_time, total_inference_time, total_qp_time, total_backward_time))
         f_time.write('forward time,'   + ','.join([str(x) for x in forward_time_list]) + '\n')
@@ -230,7 +230,7 @@ if __name__ == '__main__':
         f_time.close()
 
         # ============= early stopping criteria =============
-        kk = 3
+        kk = 6
         if epoch >= kk*2 -1:
             if training_method == 'two-stage':
                 if evaluate:
