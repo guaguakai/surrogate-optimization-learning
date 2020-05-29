@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--num-samples', type=int, default=0, help='number of samples, 0 -> all')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
     parser.add_argument('--features', type=int, default=200, help='learning rate')
-    parser.add_argument('--seed', type=int, default=0, help='random seed')
+    parser.add_argument('--seed', type=int, help='random seed')
 
     args = parser.parse_args()
 
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     evaluate = False if training_method == 'two-stage' else True
     total_forward_time, total_inference_time, total_qp_time, total_backward_time = 0, 0, 0, 0
     forward_time_list, inference_time_list, qp_time_list, backward_time_list = [], [], [], []
-    for epoch in range(0, num_epochs):
+    for epoch in range(-1, num_epochs):
         if epoch == num_epochs - 1:
             evaluate = True
         start_time = time.time()

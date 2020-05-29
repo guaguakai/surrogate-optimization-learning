@@ -30,7 +30,7 @@ from torchvision import transforms
 
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
-alpha = 1e-4
+alpha = 1e-1
 REG = 1e-2
 
 def computeCovariance(covariance_mat):
