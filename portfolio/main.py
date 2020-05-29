@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('--n', type=int, default=50, help='number of items')
     parser.add_argument('--num-samples', type=int, default=0, help='number of samples, 0 -> all')
     parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
-    parser.add_argument('--seed', type=int, default=0, help='random seed')
+    parser.add_argument('--seed', type=int, help='random seed')
 
     args = parser.parse_args()
 
