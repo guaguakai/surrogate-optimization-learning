@@ -1,6 +1,6 @@
-Epoch, 0
-Random seed, 17, forward time, 0, inference time, 0, qp time, 0, backward_time, 0
-forward time,0
-inference time,0
-qp time,0
-backward time,0
+Epoch, 2
+Random seed, 17, forward time, 474.90590381622314, inference time, 3768.3473711013794, qp time, 2767.8217701911926, backward_time, 1131.6821858882904
+forward time,0,237.63136887550354,237.2745349407196
+inference time,0,2083.890021085739,1684.4573500156403
+qp time,0,1416.797991991043,1351.0237782001495
+backward time,0,593.0899677276611,538.5922181606293
