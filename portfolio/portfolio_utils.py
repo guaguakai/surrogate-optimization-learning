@@ -7,8 +7,6 @@ import numpy as np
 import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
 
-MAX_NORM = 0.1
-
 import sys
 import pandas as pd
 import torch
@@ -30,8 +28,11 @@ from torchvision import transforms
 
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
 
-alpha = 1e-2
-REG = 1e-2
+alpha = 2
+REG = 0.1
+
+MAX_NORM = 0.1
+T_MAX_NORM = 0.1
 
 def computeCovariance(covariance_mat):
     cos = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
@@ -93,36 +94,44 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
             forward_start_time = time.time()
             features, covariance_mat, labels = features[0].to(device), covariance_mat[0].to(device), labels[0,:,0].to(device).float() # only one single data
             n = len(covariance_mat)
-            Q_real = computeCovariance(covariance_mat) + torch.eye(n) * REG
+            Q_real = computeCovariance(covariance_mat) * (1 - REG) + torch.eye(n) * REG
             predictions = model(features.float())[:,0]
             loss = loss_fn(predictions, labels)
+            Q = covariance_model() * (1 - REG) + torch.eye(n) * REG  # TODO
 
             if evaluate:
-                if training_method == 'two-stage':
-                    Q = torch.eye(n)
-                else:
-                    # Q = torch.eye(n)
-                    Q = covariance_model() + torch.eye(n) * REG  # TODO
-
                 forward_time += time.time() - forward_start_time
                 inference_start_time = time.time()
 
                 p = predictions
                 L = torch.cholesky(Q)
+                # =============== solving QP using qpth ================
+                G = -torch.eye(n)
+                h = torch.zeros(n)
+                A = torch.ones(1,n)
+                b = torch.ones(1)
+                qp_solver = qpth.qp.QPFunction()
+                x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
                 # =============== solving QP using CVXPY ===============
-                x_var = cp.Variable(n)
-                L_para = cp.Parameter((n,n))
-                p_para = cp.Parameter(n)
-                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
-                problem = cp.Problem(objective, constraints)
+                # x_var = cp.Variable(n)
+                # L_para = cp.Parameter((n,n))
+                # p_para = cp.Parameter(n)
+                # constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
+                # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
+                # problem = cp.Problem(objective, constraints)
 
-                cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
-                x, = cvxpylayer(L, p)
+                # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
+                # x, = cvxpylayer(L, p)
 
                 obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
 
                 inference_time += time.time() - inference_start_time
+                # ======= opt ===
+                # p_opt = labels
+                # L_opt = torch.cholesky(Q_real)
+                # x_opt, = cvxpylayer(L_opt, p_opt)
+                # opt = labels @ x_opt - 0.5 * alpha * x.t() @ Q_real @ x
+                # print('obj:', obj, 'opt:', opt)
             else:
                 obj = torch.Tensor([0])
 
@@ -131,14 +140,15 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
             backward_start_time = time.time()
             try:
                 if training_method == 'two-stage':
-                    loss.backward()
+                    Q_loss = torch.norm(Q - Q_real)
+                    (loss + Q_loss).backward()
                 elif training_method == 'decision-focused':
                     (-obj).backward()
                     # (-obj + loss).backward() # TODO
                     for parameter in model.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
-                    # for parameter in covariance_model.parameters():
-                    #     parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    for parameter in covariance_model.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
             except:
@@ -155,70 +165,90 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
     average_obj     = np.mean(train_objs)
     return average_loss, average_obj, (forward_time, inference_time, qp_time, backward_time)
 
-def surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, dataset, training_method='surrogate', device='cpu', evaluate=False):
+def surrogate_train_portfolio(model, covariance_model, T_init, optimizer, T_optimizer, epoch, dataset, training_method='surrogate', device='cpu', evaluate=False):
     model.train()
     covariance_model.train()
     loss_fn = torch.nn.MSELoss()
     train_losses, train_objs = [], []
 
     forward_time, inference_time, qp_time, backward_time = 0, 0, 0, 0
-    T_size = T.shape[1]
+    T_size = T_init.shape[1]
 
     with tqdm.tqdm(dataset) as tqdm_loader:
         for batch_idx, (features, covariance_mat, labels) in enumerate(tqdm_loader):
             forward_start_time = time.time()
             features, covariance_mat, labels = features[0].to(device), covariance_mat[0].to(device), labels[0,:,0].to(device).float() # only one single data
             n = len(covariance_mat)
-            Q_real = computeCovariance(covariance_mat) + torch.eye(n) * REG
+            Q_real = computeCovariance(covariance_mat) * (1 - REG) + torch.eye(n) * REG
             predictions = model(features.float())[:,0]
             loss = loss_fn(predictions, labels)
 
-            Q = covariance_model() + torch.eye(n) * REG 
+
+            # randomly select column to update
+            # T = init_T
+            T = T_init.detach().clone()
+            random_column = torch.randint(T_init.shape[1], [1])
+            T[:,random_column] = T_init[:,random_column]
+
+            Q = covariance_model() * (1 - REG) + torch.eye(n) * REG 
 
             forward_time += time.time() - forward_start_time
             inference_start_time = time.time()
 
             p = predictions @ T
             L = torch.cholesky(T.t() @ Q @ T)
-            # =============== solving QP using CVXPY ===============
-            y_var = cp.Variable(T_size)
-            L_para = cp.Parameter((T_size,T_size))
-            p_para = cp.Parameter(T_size)
-            T_para = cp.Parameter((n,T_size))
-            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
-            problem = cp.Problem(objective, constraints)
-
-            cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
-            y, = cvxpylayer(L, p, T)
+            # =============== solving QP using qpth ================
+            G = -torch.eye(n) @ T
+            h = torch.zeros(n)
+            A = torch.ones(1,n) @ T
+            b = torch.ones(1)
+            qp_solver = qpth.qp.QPFunction()
+            y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
             x = T @ y
+            # =============== solving QP using CVXPY ===============
+            # y_var = cp.Variable(T_size)
+            # L_para = cp.Parameter((T_size,T_size))
+            # p_para = cp.Parameter(T_size)
+            # T_para = cp.Parameter((n,T_size))
+            # constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
+            # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
+            # problem = cp.Problem(objective, constraints)
+
+            # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
+            # y, = cvxpylayer(L, p, T)
+            # x = T @ y
+            # print("predicted objective value:", predictions.t() @ x - 0.5 * alpha * x.t() @ Q @ x)
 
             obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
+            # print("real objective value:", obj)
 
             inference_time += time.time() - inference_start_time
 
             # ====================== back-prop =====================
             optimizer.zero_grad()
+            T_optimizer.zero_grad()
             backward_start_time = time.time()
             try:
                 if training_method == 'surrogate':
                     covariance = computeCovariance(T.t())
                     T_weight = 0.0
+                    TS_weight = 0.0
                     T_loss     = torch.sum(covariance) - torch.sum(torch.diag(covariance))
 
-                    (-obj + T_loss * T_weight).backward()
+                    (-obj + T_weight * T_loss).backward()
                     for parameter in model.parameters():
                         parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
-                    # for parameter in covariance_model.parameters():
-                    #     parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
-                    T.grad = torch.clamp(T.grad, min=-MAX_NORM, max=MAX_NORM)
+                    for parameter in covariance_model.parameters():
+                        parameter.grad = torch.clamp(parameter.grad, min=-MAX_NORM, max=MAX_NORM)
+                    T_init.grad = torch.clamp(T_init.grad, min=-T_MAX_NORM, max=T_MAX_NORM)
                 else:
                     raise ValueError('Not implemented method')
             except:
                 print("no grad is backpropagated...")
                 pass
             optimizer.step()
-            T.data = normalize_matrix_positive(T.data)
+            T_optimizer.step()
+            T_init.data = normalize_matrix_positive(T_init.data)
             backward_time += time.time() - backward_start_time
 
             train_losses.append(loss.item())
@@ -242,29 +272,36 @@ def validate_portfolio(model, covariance_model, scheduler, epoch, dataset, train
             forward_start_time = time.time()
             features, covariance_mat, labels = features[0].to(device), covariance_mat[0].to(device), labels[0,:,0].to(device).float() # only one single data
             n = len(covariance_mat)
-            Q_real = computeCovariance(covariance_mat) + torch.eye(n) * REG
+            Q_real = computeCovariance(covariance_mat) * (1 - REG) + torch.eye(n) * REG
             predictions = model(features.float())[:,0]
 
             loss = loss_fn(predictions, labels)
 
             if evaluate:
-                Q = covariance_model() + torch.eye(n) * REG 
+                Q = covariance_model() * (1 - REG) + torch.eye(n) * REG 
 
                 forward_time += time.time() - forward_start_time
                 inference_start_time = time.time()
 
                 p = predictions
                 L = torch.cholesky(Q)
+                # =============== solving QP using qpth ================
+                G = -torch.eye(n)
+                h = torch.zeros(n)
+                A = torch.ones(1,n)
+                b = torch.ones(1)
+                qp_solver = qpth.qp.QPFunction()
+                x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
                 # =============== solving QP using CVXPY ===============
-                x_var = cp.Variable(n)
-                L_para = cp.Parameter((n,n))
-                p_para = cp.Parameter(n)
-                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
-                problem = cp.Problem(objective, constraints)
+                # x_var = cp.Variable(n)
+                # L_para = cp.Parameter((n,n))
+                # p_para = cp.Parameter(n)
+                # constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
+                # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
+                # problem = cp.Problem(objective, constraints)
 
-                cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
-                x, = cvxpylayer(L, p)
+                # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
+                # x, = cvxpylayer(L, p)
 
                 obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
 
@@ -289,7 +326,7 @@ def validate_portfolio(model, covariance_model, scheduler, epoch, dataset, train
 
     return average_loss, average_obj # , (forward_time, inference_time, qp_time, backward_time)
 
-def surrogate_validate_portfolio(model, covariance_model, T, scheduler, epoch, dataset, training_method='surrogate', device='cpu', evaluate=False):
+def surrogate_validate_portfolio(model, covariance_model, T, scheduler, T_scheduler, epoch, dataset, training_method='surrogate', device='cpu', evaluate=False):
     model.eval()
     covariance_model.eval()
     loss_fn = torch.nn.MSELoss()
@@ -303,29 +340,37 @@ def surrogate_validate_portfolio(model, covariance_model, T, scheduler, epoch, d
             forward_start_time = time.time()
             features, covariance_mat, labels = features[0].to(device), covariance_mat[0].to(device), labels[0,:,0].to(device).float() # only one single data
             n = len(covariance_mat)
-            Q_real = computeCovariance(covariance_mat) + torch.eye(n) * REG
+            Q_real = computeCovariance(covariance_mat) * (1 - REG) + torch.eye(n) * REG
             predictions = model(features.float())[:,0]
             loss = loss_fn(predictions, labels)
 
-            Q = covariance_model() + torch.eye(n) * REG 
+            Q = covariance_model() * (1 - REG) + torch.eye(n) * REG 
 
             forward_time += time.time() - forward_start_time
             inference_start_time = time.time()
 
             p = predictions @ T
             L = torch.cholesky(T.t() @ Q @ T)
-            # =============== solving QP using CVXPY ===============
-            y_var = cp.Variable(T_size)
-            L_para = cp.Parameter((T_size,T_size))
-            p_para = cp.Parameter(T_size)
-            T_para = cp.Parameter((n,T_size))
-            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
-            problem = cp.Problem(objective, constraints)
-
-            cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
-            y, = cvxpylayer(L, p, T)
+            # =============== solving QP using qpth ================
+            G = -torch.eye(n) @ T
+            h = torch.zeros(n)
+            A = torch.ones(1,n) @ T
+            b = torch.ones(1)
+            qp_solver = qpth.qp.QPFunction()
+            y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
             x = T @ y
+            # =============== solving QP using CVXPY ===============
+            # y_var = cp.Variable(T_size)
+            # L_para = cp.Parameter((T_size,T_size))
+            # p_para = cp.Parameter(T_size)
+            # T_para = cp.Parameter((n,T_size))
+            # constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
+            # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
+            # problem = cp.Problem(objective, constraints)
+
+            # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
+            # y, = cvxpylayer(L, p, T)
+            # x = T @ y
 
             obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
 
@@ -339,8 +384,13 @@ def surrogate_validate_portfolio(model, covariance_model, T, scheduler, epoch, d
     if (epoch > 0):
         if training_method == "two-stage":
             scheduler.step(average_loss)
-        elif training_method == "decision-focused" or training_method == "surrogate":
+        elif training_method == "decision-focused":
             scheduler.step(-average_obj)
+        elif training_method == "surrogate":
+            # covariance = computeCovariance(T.t())
+            # T_loss     = torch.sum(covariance) - torch.sum(torch.diag(covariance))
+            scheduler.step(-average_obj)
+            T_scheduler.step(-average_obj)
         else:
             raise TypeError("Not Implemented Method")
 
@@ -351,6 +401,7 @@ def test_portfolio(model, covariance_model, epoch, dataset, device='cpu', evalua
     covariance_model.eval()
     loss_fn = torch.nn.MSELoss()
     test_losses, test_objs = [], []
+    test_opts = []
 
     forward_time, inference_time, qp_time, backward_time = 0, 0, 0, 0
 
@@ -359,13 +410,15 @@ def test_portfolio(model, covariance_model, epoch, dataset, device='cpu', evalua
             forward_start_time = time.time()
             features, covariance_mat, labels = features[0].to(device), covariance_mat[0].to(device), labels[0,:,0].to(device).float() # only one single data
             n = len(covariance_mat)
-            Q_real = computeCovariance(covariance_mat) + torch.eye(n) * REG
-            predictions = model(features.float())[:,0]
-            Q = covariance_model() + torch.eye(n) * REG 
+            Q_real = computeCovariance(covariance_mat) * (1 - REG) + torch.eye(n) * REG
 
             if epoch == -1:
                 predictions = labels
                 Q = Q_real
+            else:
+                predictions = model(features.float())[:,0]
+                Q = covariance_model() * (1 - REG) + torch.eye(n) * REG 
+
             loss = loss_fn(predictions, labels)
 
             if evaluate:
@@ -374,20 +427,36 @@ def test_portfolio(model, covariance_model, epoch, dataset, device='cpu', evalua
 
                 p = predictions
                 L = torch.cholesky(Q)
+                # =============== solving QP using qpth ================
+                G = -torch.eye(n)
+                h = torch.zeros(n)
+                A = torch.ones(1,n)
+                b = torch.ones(1)
+                qp_solver = qpth.qp.QPFunction()
+                x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
+                # x_opt = qp_solver(alpha * Q_real, -labels, G, h, A, b)[0]
                 # =============== solving QP using CVXPY ===============
-                x_var = cp.Variable(n)
-                L_para = cp.Parameter((n,n))
-                p_para = cp.Parameter(n)
-                constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
-                problem = cp.Problem(objective, constraints)
+                # x_var = cp.Variable(n)
+                # L_para = cp.Parameter((n,n))
+                # p_para = cp.Parameter(n)
+                # constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
+                # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
+                # problem = cp.Problem(objective, constraints)
 
-                cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
-                x, = cvxpylayer(L, p)
+                # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
+                # x, = cvxpylayer(L, p)
 
                 obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
+                # opt = labels @ x_opt - 0.5 * alpha * x_opt.t() @ Q_real @ x_opt
+                # print('obj:', obj, 'opt:', opt)
 
                 inference_time += time.time() - inference_start_time
+                # ======= opt ===
+                # p_opt = labels
+                # L_opt = torch.cholesky(Q_real)
+                # x_opt, = cvxpylayer(L_opt, p_opt)
+                # opt = labels @ x_opt - 0.5 * alpha * x_opt.t() @ Q_real @ x_opt
+                # test_opts.append(opt.item())
             else:
                 obj = torch.Tensor([0])
 
@@ -395,6 +464,7 @@ def test_portfolio(model, covariance_model, epoch, dataset, device='cpu', evalua
             test_objs.append(obj.item())
             tqdm_loader.set_postfix(loss=f'{loss.item():.6f}', obj=f'{obj.item()*100:.6f}%') 
 
+    # print('opts:', test_opts)
     average_loss    = np.mean(test_losses)
     average_obj     = np.mean(test_objs)
     return average_loss, average_obj # , (forward_time, inference_time, qp_time, backward_time)
@@ -404,6 +474,7 @@ def surrogate_test_portfolio(model, covariance_model, T, epoch, dataset, device=
     covariance_model.eval()
     loss_fn = torch.nn.MSELoss()
     test_losses, test_objs = [], []
+    test_opts = []
 
     forward_time, inference_time, qp_time, backward_time = 0, 0, 0, 0
     T_size = T.shape[1]
@@ -413,34 +484,46 @@ def surrogate_test_portfolio(model, covariance_model, T, epoch, dataset, device=
             forward_start_time = time.time()
             features, covariance_mat, labels = features[0].to(device), covariance_mat[0].to(device), labels[0,:,0].to(device).float() # only one single data
             n = len(covariance_mat)
-            Q_real = computeCovariance(covariance_mat) + torch.eye(n) * REG
+            Q_real = computeCovariance(covariance_mat) * (1 - REG) + torch.eye(n) * REG
             predictions = model(features.float())[:,0]
-            if epoch == -1:
-                predictions = labels
-                Q = Q_real
+            Q = covariance_model() * (1 - REG) + torch.eye(n) * REG 
             loss = loss_fn(predictions, labels)
-
-            Q = covariance_model() + torch.eye(n) * REG 
 
             forward_time += time.time() - forward_start_time
             inference_start_time = time.time()
 
             p = predictions @ T
             L = torch.cholesky(T.t() @ Q @ T)
-            # =============== solving QP using CVXPY ===============
-            y_var = cp.Variable(T_size)
-            L_para = cp.Parameter((T_size,T_size))
-            p_para = cp.Parameter(T_size)
-            T_para = cp.Parameter((n,T_size))
-            constraints = [y_var >= 0, T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
-            problem = cp.Problem(objective, constraints)
-
-            cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
-            y, = cvxpylayer(L, p, T)
+            # =============== solving QP using qpth ================
+            G = -torch.eye(n) @ T
+            h = torch.zeros(n)
+            A = torch.ones(1,n) @ T
+            b = torch.ones(1)
+            qp_solver = qpth.qp.QPFunction()
+            y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
             x = T @ y
+            # =============== solving QP using CVXPY ===============
+            # y_var = cp.Variable(T_size)
+            # L_para = cp.Parameter((T_size,T_size))
+            # p_para = cp.Parameter(T_size)
+            # T_para = cp.Parameter((n,T_size))
+            # constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
+            # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
+            # problem = cp.Problem(objective, constraints)
+
+            # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
+            # y, = cvxpylayer(L, p, T)
+            # x = T @ y
 
             obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
+
+            # ======= opt ===
+            # p_opt = labels @ T
+            # L_opt = torch.cholesky(T.t() @ Q_real @ T)
+            # y_opt, = cvxpylayer(L_opt, p_opt, T)
+            # x_opt = T @ y_opt
+            # opt = labels @ x_opt - 0.5 * alpha * x_opt.t() @ Q_real @ x_opt
+            # test_opts.append(opt.item())
 
             test_losses.append(loss.item())
             test_objs.append(obj.item())

@@ -75,17 +75,16 @@ if __name__ == '__main__':
     model = PortfolioModel(input_size=feature_size, output_size=1)
     covariance_model = CovarianceModel(n=n)
 
+    optimizer = torch.optim.Adam(list(model.parameters()) + list(covariance_model.parameters()), lr=lr)
+    scheduler = ReduceLROnPlateau(optimizer, 'min')
+
     if training_method == 'surrogate':
         T_size = args.T_size
         init_T = normalize_matrix_positive(torch.rand(n, T_size))
         T = torch.tensor(init_T, requires_grad=True)
-        # T_optimizer = torch.optim.Adam([T], lr=T_lr)
-        # T_scheduler = ReduceLROnPlateau(T_optimizer, 'min')
-        optimizer = torch.optim.Adam(list(model.parameters()) + list(covariance_model.parameters()) + [T], lr=lr)
-        scheduler = ReduceLROnPlateau(optimizer, 'min')
-    else:
-        optimizer = torch.optim.Adam(list(model.parameters()) + list(covariance_model.parameters()), lr=lr)
-        scheduler = ReduceLROnPlateau(optimizer, 'min')
+        T_lr = lr
+        T_optimizer = torch.optim.Adam([T], lr=T_lr)
+        T_scheduler = ReduceLROnPlateau(T_optimizer, 'min')
 
     train_loss_list, train_obj_list = [], []
     test_loss_list,  test_obj_list  = [], []
@@ -109,7 +108,7 @@ if __name__ == '__main__':
                 print('Testing the initial solution quality...')
                 train_loss, train_obj = surrogate_test_portfolio(model, covariance_model, T.detach(), epoch, train_dataset, evaluate=evaluate)
             else:
-                train_loss, train_obj, (forward_time, inference_time, qp_time, backward_time) = surrogate_train_portfolio(model, covariance_model, T, optimizer, epoch, train_dataset, training_method=training_method)
+                train_loss, train_obj, (forward_time, inference_time, qp_time, backward_time) = surrogate_train_portfolio(model, covariance_model, T, optimizer, T_optimizer, epoch, train_dataset, training_method=training_method)
         elif training_method == 'decision-focused' or training_method == 'two-stage':
             if epoch == -1:
                 print('Testing the optimal solution...')
@@ -136,7 +135,7 @@ if __name__ == '__main__':
             if epoch == -1:
                 validate_loss, validate_obj = test_portfolio(model, covariance_model, epoch, validate_dataset, evaluate=True)
             else:
-                validate_loss, validate_obj = surrogate_validate_portfolio(model, covariance_model, T.detach(), scheduler, epoch, validate_dataset, training_method=training_method)
+                validate_loss, validate_obj = surrogate_validate_portfolio(model, covariance_model, T.detach(), scheduler, T_scheduler, epoch, validate_dataset, training_method=training_method)
         else:
             if epoch == -1:
                 validate_loss, validate_obj = test_portfolio(model, covariance_model, epoch, validate_dataset, evaluate=True)
@@ -193,7 +192,7 @@ if __name__ == '__main__':
         f_time.close()
 
         # ============= early stopping criteria =============
-        kk = 6
+        kk = 100
         if epoch >= kk*2-1:
             if training_method == 'two-stage':
                 if evaluate:

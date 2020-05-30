@@ -7,14 +7,14 @@ def linear_block(in_channels, out_channels, activation='ReLU'):
         return nn.Sequential(
                nn.Linear(in_channels, out_channels),
                nn.BatchNorm1d(out_channels),
-               torch.nn.Dropout(p=0.5),
+               # torch.nn.Dropout(p=0.5),
                nn.LeakyReLU()
                )
     elif activation == 'Sigmoid':
         return nn.Sequential(
                nn.Linear(in_channels, out_channels),
                nn.BatchNorm1d(out_channels),
-               torch.nn.Dropout(p=0.5),
+               # torch.nn.Dropout(p=0.5),
                nn.Sigmoid()
                )
 
@@ -32,7 +32,7 @@ class PortfolioModel(nn.Module):
 
     def forward(self, x):
         y = self.model(x)
-        return (y - 0.5)
+        return (y - 0.5) * 0.1
 
 class CovarianceModel(nn.Module):
     def __init__(self, n):
