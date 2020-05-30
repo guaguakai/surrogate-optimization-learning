@@ -192,7 +192,7 @@ if __name__ == '__main__':
         f_time.close()
 
         # ============= early stopping criteria =============
-        kk = 100
+        kk = 6
         if epoch >= kk*2-1:
             if training_method == 'two-stage':
                 if evaluate:
