@@ -55,7 +55,7 @@ if __name__ == '__main__':
     filepath = args.filepath
     seed = 0
     n = args.n
-    num_samples = args.num_samples if args.num_samples != 0 else 4010
+    num_samples = args.num_samples if args.num_samples != 0 else 1000000
     num_epochs = args.epochs
     lr = args.lr
     method_id = args.method
@@ -192,7 +192,7 @@ if __name__ == '__main__':
         f_time.close()
 
         # ============= early stopping criteria =============
-        kk = 6
+        kk = 3
         if epoch >= kk*2-1:
             if training_method == 'two-stage':
                 if evaluate:

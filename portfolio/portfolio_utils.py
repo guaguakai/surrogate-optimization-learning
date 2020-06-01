@@ -27,12 +27,30 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 
 from utils import normalize_matrix, normalize_matrix_positive, normalize_vector, normalize_matrix_qr, normalize_projection
+from sqrtm import sqrtm
 
 alpha = 2
 REG = 0.1
+solver = 'cvxpy'
 
 MAX_NORM = 0.1
 T_MAX_NORM = 0.1
+
+def symsqrt(matrix):
+    """Compute the square root of a positive definite matrix."""
+    _, s, v = matrix.svd()
+    good = s > s.max(-1, True).values * s.size(-1) * torch.finfo(s.dtype).eps
+    components = good.sum(-1)
+    common = components.max()
+    unbalanced = common != components.min()
+    if common < s.size(-1):
+        s = s[..., :common]
+        v = v[..., :common]
+        if unbalanced:
+            good = good[..., :common]
+    if unbalanced:
+        s = s.where(good, torch.zeros((), device=s.device, dtype=s.dtype))
+    return (v * s.sqrt().unsqueeze(-2)) @ v.transpose(-2, -1)
 
 def computeCovariance(covariance_mat):
     cos = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
@@ -104,24 +122,26 @@ def train_portfolio(model, covariance_model, optimizer, epoch, dataset, training
                 inference_start_time = time.time()
 
                 p = predictions
-                L = torch.cholesky(Q)
+                L = sqrtm(Q) # torch.cholesky(Q)
                 # =============== solving QP using qpth ================
-                G = -torch.eye(n)
-                h = torch.zeros(n)
-                A = torch.ones(1,n)
-                b = torch.ones(1)
-                qp_solver = qpth.qp.QPFunction()
-                x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
+                if solver == 'qpth':
+                    G = -torch.eye(n)
+                    h = torch.zeros(n)
+                    A = torch.ones(1,n)
+                    b = torch.ones(1)
+                    qp_solver = qpth.qp.QPFunction()
+                    x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
                 # =============== solving QP using CVXPY ===============
-                # x_var = cp.Variable(n)
-                # L_para = cp.Parameter((n,n))
-                # p_para = cp.Parameter(n)
-                # constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
-                # problem = cp.Problem(objective, constraints)
+                elif solver == 'cvxpy':
+                    x_var = cp.Variable(n)
+                    L_para = cp.Parameter((n,n))
+                    p_para = cp.Parameter(n)
+                    constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
+                    objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) + p_para.T @ x_var)
+                    problem = cp.Problem(objective, constraints)
 
-                # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
-                # x, = cvxpylayer(L, p)
+                    cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
+                    x, = cvxpylayer(L, -p)
 
                 obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
 
@@ -196,27 +216,29 @@ def surrogate_train_portfolio(model, covariance_model, T_init, optimizer, T_opti
             inference_start_time = time.time()
 
             p = predictions @ T
-            L = torch.cholesky(T.t() @ Q @ T)
+            L = sqrtm(T.t() @ Q @ T) # torch.cholesky(T.t() @ Q @ T)
             # =============== solving QP using qpth ================
-            G = -torch.eye(n) @ T
-            h = torch.zeros(n)
-            A = torch.ones(1,n) @ T
-            b = torch.ones(1)
-            qp_solver = qpth.qp.QPFunction()
-            y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
-            x = T @ y
+            if solver == 'qpth':
+                G = -torch.eye(n) @ T
+                h = torch.zeros(n)
+                A = torch.ones(1,n) @ T
+                b = torch.ones(1)
+                qp_solver = qpth.qp.QPFunction()
+                y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
+                x = T @ y
             # =============== solving QP using CVXPY ===============
-            # y_var = cp.Variable(T_size)
-            # L_para = cp.Parameter((T_size,T_size))
-            # p_para = cp.Parameter(T_size)
-            # T_para = cp.Parameter((n,T_size))
-            # constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
-            # problem = cp.Problem(objective, constraints)
+            elif solver == 'cvxpy':
+                y_var = cp.Variable(T_size)
+                L_para = cp.Parameter((T_size,T_size))
+                p_para = cp.Parameter(T_size)
+                T_para = cp.Parameter((n,T_size))
+                constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
+                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) + p_para.T @ y_var)
+                problem = cp.Problem(objective, constraints)
 
-            # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
-            # y, = cvxpylayer(L, p, T)
-            # x = T @ y
+                cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
+                y, = cvxpylayer(L, -p, T)
+                x = T @ y
             # print("predicted objective value:", predictions.t() @ x - 0.5 * alpha * x.t() @ Q @ x)
 
             obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
@@ -284,24 +306,26 @@ def validate_portfolio(model, covariance_model, scheduler, epoch, dataset, train
                 inference_start_time = time.time()
 
                 p = predictions
-                L = torch.cholesky(Q)
+                L = sqrtm(Q) # torch.cholesky(Q)
                 # =============== solving QP using qpth ================
-                G = -torch.eye(n)
-                h = torch.zeros(n)
-                A = torch.ones(1,n)
-                b = torch.ones(1)
-                qp_solver = qpth.qp.QPFunction()
-                x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
+                if solver == 'qpth':
+                    G = -torch.eye(n)
+                    h = torch.zeros(n)
+                    A = torch.ones(1,n)
+                    b = torch.ones(1)
+                    qp_solver = qpth.qp.QPFunction()
+                    x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
                 # =============== solving QP using CVXPY ===============
-                # x_var = cp.Variable(n)
-                # L_para = cp.Parameter((n,n))
-                # p_para = cp.Parameter(n)
-                # constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
-                # problem = cp.Problem(objective, constraints)
-
-                # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
-                # x, = cvxpylayer(L, p)
+                elif solver == 'cvxpy':
+                    x_var = cp.Variable(n)
+                    L_para = cp.Parameter((n,n))
+                    p_para = cp.Parameter(n)
+                    constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
+                    objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
+                    problem = cp.Problem(objective, constraints)
+    
+                    cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
+                    x, = cvxpylayer(L, p)
 
                 obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
 
@@ -350,27 +374,29 @@ def surrogate_validate_portfolio(model, covariance_model, T, scheduler, T_schedu
             inference_start_time = time.time()
 
             p = predictions @ T
-            L = torch.cholesky(T.t() @ Q @ T)
+            L = sqrtm(T.t() @ Q @ T) # torch.cholesky(T.t() @ Q @ T)
             # =============== solving QP using qpth ================
-            G = -torch.eye(n) @ T
-            h = torch.zeros(n)
-            A = torch.ones(1,n) @ T
-            b = torch.ones(1)
-            qp_solver = qpth.qp.QPFunction()
-            y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
-            x = T @ y
+            if solver == 'qpth':
+                G = -torch.eye(n) @ T
+                h = torch.zeros(n)
+                A = torch.ones(1,n) @ T
+                b = torch.ones(1)
+                qp_solver = qpth.qp.QPFunction()
+                y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
+                x = T @ y
             # =============== solving QP using CVXPY ===============
-            # y_var = cp.Variable(T_size)
-            # L_para = cp.Parameter((T_size,T_size))
-            # p_para = cp.Parameter(T_size)
-            # T_para = cp.Parameter((n,T_size))
-            # constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
-            # problem = cp.Problem(objective, constraints)
-
-            # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
-            # y, = cvxpylayer(L, p, T)
-            # x = T @ y
+            elif solver == 'cvxpy':
+                y_var = cp.Variable(T_size)
+                L_para = cp.Parameter((T_size,T_size))
+                p_para = cp.Parameter(T_size)
+                T_para = cp.Parameter((n,T_size))
+                constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
+                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) + p_para.T @ y_var)
+                problem = cp.Problem(objective, constraints)
+    
+                cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
+                y, = cvxpylayer(L, -p, T)
+                x = T @ y
 
             obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
 
@@ -426,25 +452,27 @@ def test_portfolio(model, covariance_model, epoch, dataset, device='cpu', evalua
                 inference_start_time = time.time()
 
                 p = predictions
-                L = torch.cholesky(Q)
+                L = sqrtm(Q) # torch.cholesky(Q)
                 # =============== solving QP using qpth ================
-                G = -torch.eye(n)
-                h = torch.zeros(n)
-                A = torch.ones(1,n)
-                b = torch.ones(1)
-                qp_solver = qpth.qp.QPFunction()
-                x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
-                # x_opt = qp_solver(alpha * Q_real, -labels, G, h, A, b)[0]
+                if solver == 'qpth':
+                    G = -torch.eye(n)
+                    h = torch.zeros(n)
+                    A = torch.ones(1,n)
+                    b = torch.ones(1)
+                    qp_solver = qpth.qp.QPFunction()
+                    x = qp_solver(alpha * Q, -p, G, h, A, b)[0]
+                    # x_opt = qp_solver(alpha * Q_real, -labels, G, h, A, b)[0]
                 # =============== solving QP using CVXPY ===============
-                # x_var = cp.Variable(n)
-                # L_para = cp.Parameter((n,n))
-                # p_para = cp.Parameter(n)
-                # constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-                # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) - p_para.T @ x_var)
-                # problem = cp.Problem(objective, constraints)
+                elif solver == 'cvxpy':
+                    x_var = cp.Variable(n)
+                    L_para = cp.Parameter((n,n))
+                    p_para = cp.Parameter(n)
+                    constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
+                    objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ x_var) + p_para.T @ x_var)
+                    problem = cp.Problem(objective, constraints)
 
-                # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
-                # x, = cvxpylayer(L, p)
+                    cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para], variables=[x_var])
+                    x, = cvxpylayer(L, -p)
 
                 obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
                 # opt = labels @ x_opt - 0.5 * alpha * x_opt.t() @ Q_real @ x_opt
@@ -493,27 +521,29 @@ def surrogate_test_portfolio(model, covariance_model, T, epoch, dataset, device=
             inference_start_time = time.time()
 
             p = predictions @ T
-            L = torch.cholesky(T.t() @ Q @ T)
+            L = sqrtm(T.t() @ Q @ T) # torch.cholesky(T.t() @ Q @ T)
             # =============== solving QP using qpth ================
-            G = -torch.eye(n) @ T
-            h = torch.zeros(n)
-            A = torch.ones(1,n) @ T
-            b = torch.ones(1)
-            qp_solver = qpth.qp.QPFunction()
-            y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
-            x = T @ y
+            if solver == 'qpth':
+                G = -torch.eye(n) @ T
+                h = torch.zeros(n)
+                A = torch.ones(1,n) @ T
+                b = torch.ones(1)
+                qp_solver = qpth.qp.QPFunction()
+                y = qp_solver(alpha * T.t() @ Q @ T, -p, G, h, A, b)[0]
+                x = T @ y
             # =============== solving QP using CVXPY ===============
-            # y_var = cp.Variable(T_size)
-            # L_para = cp.Parameter((T_size,T_size))
-            # p_para = cp.Parameter(T_size)
-            # T_para = cp.Parameter((n,T_size))
-            # constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
-            # objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) - p_para.T @ y_var)
-            # problem = cp.Problem(objective, constraints)
+            elif solver == 'cvxpy':
+                y_var = cp.Variable(T_size)
+                L_para = cp.Parameter((T_size,T_size))
+                p_para = cp.Parameter(T_size)
+                T_para = cp.Parameter((n,T_size))
+                constraints = [T_para @ y_var >= 0, cp.sum(T_para @ y_var) == 1]
+                objective = cp.Minimize(0.5 * alpha * cp.sum_squares(L_para @ y_var) + p_para.T @ y_var)
+                problem = cp.Problem(objective, constraints)
 
-            # cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
-            # y, = cvxpylayer(L, p, T)
-            # x = T @ y
+                cvxpylayer = CvxpyLayer(problem, parameters=[L_para, p_para, T_para], variables=[y_var])
+                y, = cvxpylayer(L, -p, T)
+                x = T @ y
 
             obj = labels @ x - 0.5 * alpha * x.t() @ Q_real @ x
 
