@@ -27,11 +27,11 @@ def plot_graph(G, T, epoch):
 
     pos = nx.get_node_attributes(G, 'pos')
 
-    plt.figure(figsize=(10,10))
+    plt.figure(figsize=(10,8))
     print('sources', G.graph['sources'], 'targets', G.graph['targets'])
     nx.draw_networkx_nodes(G, pos, nodelist=list(set(G.nodes()) - set(G.graph['sources']) - set(G.graph['targets'])), node_color='grey', node_shape='o', node_size=10, alpha=0.8)
-    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='dodgerblue', node_size=300, node_shape='^', alpha=1)
-    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='red', node_size=500, node_shape='*', alpha=1)
+    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='dodgerblue', node_size=700, node_shape='^', alpha=1)
+    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='red', node_size=1000, node_shape='*', alpha=1)
 
     # edge_labels = {edge: ' '.join(['{:.3f}'.format(tt) for tt in t]) for edge, t in zip(G.edges(), T)}
     # for edge, label in zip(G.edges(), edge_labels):
@@ -53,9 +53,9 @@ def plot_graph(G, T, epoch):
         intensity = np.clip(T[choices==t,t], a_min=a_min, a_max=a_max)
         alpha = intensity / a_max * alphas[t] * 0.8 + 0.1
         edges = [list(G.edges())[index] for index in indices]
-        nx.draw_networkx_edges(G, pos, edgelist=edges, edge_color=intensity, width=5.0, edge_vmin=0, edge_vmax=threshold, alpha=alpha, edge_cmap=cmap)
+        nx.draw_networkx_edges(G, pos, edgelist=edges, edge_color=intensity, width=7.0, edge_vmin=0, edge_vmax=threshold, alpha=alpha, edge_cmap=cmap)
     # plt.show()
-    nx.draw_networkx_edges(G, pos, edgelist=list(set(G.edges())), width=1, alpha=1, edge_color='black', style='dashed')
+    nx.draw_networkx_edges(G, pos, edgelist=list(set(G.edges())), width=1.5, alpha=1, edge_color='black', style='dashed')
     plt.axis('off')
     plt.savefig('results/visualization/epoch{}.png'.format(epoch), bbox_inches='tight')
     plt.clf()

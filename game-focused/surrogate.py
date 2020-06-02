@@ -197,7 +197,7 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
             backward_time  += epoch_backward_time
 
         # ============= early stopping criteria =============
-        kk = 3
+        kk = 5
         if epoch >= kk*2 -1:
             GE_counts = np.sum(np.array(validating_defender_utility_list[1:][-kk:]) <= np.array(validating_defender_utility_list[1:][-2*kk:-kk]) + 1e-4)
             print('Generalization error increases counts: {}'.format(GE_counts))

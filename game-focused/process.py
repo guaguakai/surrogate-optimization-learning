@@ -14,8 +14,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     filename = args.filename
 
-    N_list = [60, 80, 100, 120]
-    methods = ['two-stage', 'hybrid', 'surrogate-decision-focused']
+    N_list = [20, 30, 40, 50] #, 60, 80, 100, 120]
+    methods = ['decision-focused'] # ['two-stage', 'hybrid', 'surrogate-decision-focused']
 
     performance_prefix = 'results/random/'
     time_prefix        = 'results/time/random/'
@@ -23,6 +23,7 @@ if __name__ == '__main__':
     column_names = ['n'] + methods
     testing_losses    = pd.DataFrame(columns=column_names) 
     testing_objs      = pd.DataFrame(columns=column_names)
+    testing_stds      = pd.DataFrame(columns=column_names)
     training_losses   = pd.DataFrame(columns=column_names)
     training_objs     = pd.DataFrame(columns=column_names)
     validating_losses = pd.DataFrame(columns=column_names)
@@ -47,12 +48,13 @@ if __name__ == '__main__':
             'backward time T', 'backward time',
             'epoch T', 'epoch']
 
-    sample_set = list(set(range(1,31)) - set([]))
+    sample_set = list(set(range(1,31)) - set([1,19,20]))
     for N_idx, N in enumerate(N_list):
         postfix            = 'p0.2_b3.0_cut{}_noise0.2.csv'.format(N//10)
 
         tmp_test_loss_dict     = {'n': N}
         tmp_test_obj_dict      = {'n': N}
+        tmp_test_std_dict  = {'n': N}
         tmp_train_loss_dict    = {'n': N}
         tmp_train_obj_dict     = {'n': N}
         tmp_validate_loss_dict = {'n': N}
@@ -85,6 +87,7 @@ if __name__ == '__main__':
             tmp_validate_loss_dict[method] = np.mean(performance_pd['validate loss'].astype(float))
 
             tmp_test_obj_dict[method]      = np.mean(performance_pd['test defu'].astype(float))
+            tmp_test_std_dict[method]      = np.std(performance_pd['test defu'].astype(float) - performance_pd['test opt'].astype(float))
             tmp_train_obj_dict[method]     = np.mean(performance_pd['train defu'].astype(float))
             tmp_validate_obj_dict[method]  = np.mean(performance_pd['validate defu'].astype(float))
 
@@ -104,6 +107,7 @@ if __name__ == '__main__':
         validating_losses = validating_losses.append(pd.DataFrame(tmp_validate_loss_dict, index=[N_idx]))
 
         testing_objs      = testing_objs.append(pd.DataFrame(tmp_test_obj_dict, index=[N_idx]))
+        testing_stds      = testing_stds.append(pd.DataFrame(tmp_test_std_dict, index=[N_idx]))
         training_objs     = training_objs.append(pd.DataFrame(tmp_train_obj_dict, index=[N_idx]))
         validating_objs   = validating_objs.append(pd.DataFrame(tmp_validate_obj_dict, index=[N_idx]))
         optimal_objs      = optimal_objs.append(pd.DataFrame(tmp_optimal_obj_dict, index=[N_idx]))
@@ -116,6 +120,7 @@ if __name__ == '__main__':
     stats_path = 'stats/'
 
     testing_objs.to_csv(stats_path + 'testing_objs.csv', index=False)
+    testing_stds.to_csv(stats_path + 'testing_stds.csv', index=False)
     optimal_objs.to_csv(stats_path + 'optimal_objs.csv', index=False)
 
     forward_time.to_csv(stats_path + 'forward_time.csv', index=False)

@@ -1,2 +1,8 @@
 Random seed, 11, forward time, 10.145731925964355, qp time, 12.664791584014893, backward_time, 3.0255773067474365
 Random seed, 11, forward time, 10.189714670181274, qp time, 12.480197668075562, backward_time, 2.955653190612793
+Random seed, 47600, forward time, 9.695383787155151, inference time, 23.559345483779907, qp time, 11.90178108215332, backward_time, 1.8219435214996338, epoch, 19
+Random seed, 12, forward time, 6.028588056564331, inference time, 16.29407525062561, qp time, 9.157363891601562, backward_time, 1.3299856185913086, epoch, 12
+Random seed, 13, forward time, 4.432534694671631, inference time, 6.983170509338379, qp time, 5.9195990562438965, backward_time, 0.7437899112701416, epoch, 7
+Random seed, 14, forward time, 5.126017808914185, inference time, 10.773834228515625, qp time, 6.244848728179932, backward_time, 0.8148372173309326, epoch, 10
+Random seed, 15, forward time, 9.846230268478394, inference time, 21.828429698944092, qp time, 12.223563432693481, backward_time, 1.8099737167358398, epoch, 19
+Random seed, 15, forward time, 8.870934247970581, inference time, 19.63703680038452, qp time, 11.23646879196167, backward_time, 1.6801466941833496, epoch, 19
