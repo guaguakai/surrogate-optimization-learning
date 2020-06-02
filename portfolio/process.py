@@ -15,25 +15,25 @@ if __name__ == '__main__':
     filename = args.filename
     T = args.T
 
-    N_list = [20, 30, 40, 50, 60, 80, 100, 120, 150, 200]
+    N_list = [20, 30, 40, 50, 60, 80, 100, 120, 150, 200, 250]
     methods = ['two-stage', 'decision-focused', 'surrogate']# ['two-stage', 'decision-focused', 'surrogate']
 
     performance_prefix = 'results/performance/'
     time_prefix        = 'results/time/'
 
-    seed_list = list(range(1,31))
-    testing_losses    = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
-    testing_objs      = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
-    testing_opts      = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
-    testing_initials  = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
+    seed_list = set(range(1,31)) # - set([])
+    testing_losses    = np.zeros((len(N_list), len(methods), len(seed_list)))
+    testing_objs      = np.zeros((len(N_list), len(methods), len(seed_list)))
+    testing_opts      = np.zeros((len(N_list), len(methods), len(seed_list)))
+    testing_initials  = np.zeros((len(N_list), len(methods), len(seed_list)))
 
-    training_losses   = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
-    training_objs     = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
-    training_opts     = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
+    training_losses   = np.zeros((len(N_list), len(methods), len(seed_list)))
+    training_objs     = np.zeros((len(N_list), len(methods), len(seed_list)))
+    training_opts     = np.zeros((len(N_list), len(methods), len(seed_list)))
 
-    validating_losses = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
-    validating_objs   = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
-    validating_opts   = np.zeros((len(N_list), len(methods) + 1, len(seed_list)))
+    validating_losses = np.zeros((len(N_list), len(methods), len(seed_list)))
+    validating_objs   = np.zeros((len(N_list), len(methods), len(seed_list)))
+    validating_opts   = np.zeros((len(N_list), len(methods), len(seed_list)))
 
 
     forward_time   = np.zeros((len(N_list), len(methods), len(seed_list)))
@@ -46,11 +46,11 @@ if __name__ == '__main__':
         for method_idx, method in enumerate(methods):
             for seed_idx, seed in enumerate(seed_list):
                 if method == 'surrogate':
-                    method = 'T{}-'.format(str(N//5)) + method
+                    method = 'T{}-'.format(str(N//10)) + method
                 f_performance = open(performance_prefix + filename + 'N{}-'.format(N) + method + '-SEED{}'.format(seed) + '.csv', 'r')
     
                 finished_epoch = int(f_performance.readline().split(',')[1])
-                print("N: {}, finished epoch: {}".format(N, finished_epoch))
+                print("N: {}, finished epoch: {}, seed: {}".format(N, finished_epoch, seed))
                 # assert finished_epoch == 49, "N: {}, method: {} incorrectly finished".format(N, method)
     
                 line = [float(x) for x in f_performance.readline().split(',')[1:]]
@@ -111,7 +111,8 @@ if __name__ == '__main__':
                     backward_time[N_idx, method_idx, seed_idx]  = float(line[selected_idx + 2])
                 f_time.close()
 
-    testing_objs = np.mean(testing_objs, axis=2)
+    testing_stds = np.std(testing_opts - testing_objs, axis=2)
+    testing_objs = np.mean(testing_opts - testing_objs, axis=2)
     testing_opts = np.mean(testing_opts, axis=2)
     testing_initials = np.mean(testing_initials, axis=2)
 
@@ -125,11 +126,13 @@ if __name__ == '__main__':
 
     stats_path = 'stats/'
     f_stats_objs  = open(stats_path + 'training_objs.csv', 'w')
+    f_stats_stds  = open(stats_path + 'training_stds.csv', 'w')
     f_stats_total = open(stats_path + 'total_time.csv', 'w')
     f_stats_time  = open(stats_path + 'time.csv', 'w')
     f_stats_opts  = open(stats_path + 'optimal.csv', 'w')
 
     customized_write(f_stats_objs, methods, N_list, testing_objs)
+    customized_write(f_stats_stds, methods, N_list, testing_stds)
     customized_write(f_stats_opts, methods, N_list, testing_opts)
     customized_write(f_stats_opts, methods, N_list, testing_initials)
 

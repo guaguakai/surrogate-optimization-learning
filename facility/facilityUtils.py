@@ -219,22 +219,22 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                         L = torch.cholesky(Q)
                         jac = -getDerivative(optimal_x, n, m, output, d, f, create_graph=True, REG=REG)
                         p = jac - Q @ optimal_x
-                        # qp_solver = qpth.qp.QPFunction()
-                        # x = qp_solver(Q, p, G, h, A, b)[0]
+                        qp_solver = qpth.qp.QPFunction()
+                        x = qp_solver(Q, p, G, h, A, b)[0]
 
-                        if True:
-                            # =============== solving QP using CVXPY ===============
-                            x_default = cp.Variable(n)
-                            G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
-                            L_default = cp.Parameter((n,n))
-                            p_default = cp.Parameter(n)
-                            constraints = [G_default @ x_default <= h_default]
-                            objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ x_default) + p_default.T @ x_default)
-                            problem = cp.Problem(objective, constraints)
+                        # if True:
+                        #     # =============== solving QP using CVXPY ===============
+                        #     x_default = cp.Variable(n)
+                        #     G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
+                        #     L_default = cp.Parameter((n,n))
+                        #     p_default = cp.Parameter(n)
+                        #     constraints = [G_default @ x_default <= h_default]
+                        #     objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ x_default) + p_default.T @ x_default)
+                        #     problem = cp.Problem(objective, constraints)
 
-                            cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
-                            coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
-                            x = coverage_qp_solution
+                        #     cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[x_default])
+                        #     coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
+                        #     x = coverage_qp_solution
 
                         # except:
                         #     print("CVXPY solver fails... Usually because Q is not PSD")
@@ -326,8 +326,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             # random_column = torch.randint(init_T.shape[1], [1])
             # T[:,random_column] = init_T[:,random_column]
 
-            # if batch_idx == 0:
-            #     plot_graph(labels.detach().numpy(), T.detach().numpy(), epoch)
+            if batch_idx == 0:
+                plot_graph(labels.detach().numpy(), T.detach().numpy(), epoch)
 
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
@@ -350,30 +350,30 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         L = torch.cholesky(Q)
                         jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f, create_graph=True)
                         p = jac - Q @ optimal_y
-                        # qp_solver = qpth.qp.QPFunction() # TODO unknown bug
+                        qp_solver = qpth.qp.QPFunction() # TODO unknown bug
 
-                        # try:
-                        #     y = qp_solver(Q, p, newG, newh, newA, newb)[0]
-                        #     x = T @ y
-                        # except:
-                        #     y = optimal_y
-                        #     x = T.detach() @ optimal_y
-                        #     print('qp error! no gradient!')
-
-                        if True:
-                            # =============== solving QP using CVXPY ===============
-                            y_default = cp.Variable(variable_size)
-                            G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
-                            L_default = cp.Parameter((variable_size, variable_size))
-                            p_default = cp.Parameter(variable_size)
-                            constraints = [G_default @ y_default <= h_default]
-                            objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ y_default) + p_default.T @ y_default)
-                            problem = cp.Problem(objective, constraints)
-
-                            cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[y_default])
-                            coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
-                            y = coverage_qp_solution
+                        try:
+                            y = qp_solver(Q, p, newG, newh, newA, newb)[0]
                             x = T @ y
+                        except:
+                            y = optimal_y
+                            x = T.detach() @ optimal_y
+                            print('qp error! no gradient!')
+
+                        # if True:
+                        #     # =============== solving QP using CVXPY ===============
+                        #     y_default = cp.Variable(variable_size)
+                        #     G_default, h_default = cp.Parameter(newG.shape), cp.Parameter(newh.shape)
+                        #     L_default = cp.Parameter((variable_size, variable_size))
+                        #     p_default = cp.Parameter(variable_size)
+                        #     constraints = [G_default @ y_default <= h_default]
+                        #     objective = cp.Minimize(0.5 * cp.sum_squares(L_default @ y_default) + p_default.T @ y_default)
+                        #     problem = cp.Problem(objective, constraints)
+
+                        #     cvxpylayer = CvxpyLayer(problem, parameters=[G_default, h_default, L_default, p_default], variables=[y_default])
+                        #     coverage_qp_solution, = cvxpylayer(newG, newh, L, p)
+                        #     y = coverage_qp_solution
+                        #     x = T @ y
 
                         # time test...
                         # time_test_start = time.time()
