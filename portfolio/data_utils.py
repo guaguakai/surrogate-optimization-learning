@@ -4,7 +4,8 @@ import datetime as dt
 
 import quandl
 import torch
-quandl.ApiConfig.api_key = 'RfHTTH7wuRVARMNz8nyC'
+from key import *
+quandl.ApiConfig.api_key = API_KEY
 
 def compute_monthly_cols(symbol_df):
     returns = symbol_df.Close.pct_change()
