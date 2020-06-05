@@ -1,4 +1,4 @@
-* Portfolio Optimization
+# Portfolio Optimization
 
 There are four methods implemented in this domain:
 1. two-stage (TS)
