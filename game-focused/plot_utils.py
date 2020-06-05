@@ -15,10 +15,10 @@ cmaps['Sequential'] = [
         cm.GnBu, cm.PuBu, cm.YlGnBu, cm.PuBuGn, cm.BuGn, cm.YlGn]
 
 cmaps['Sequential'] = [cm.Blues, cm.Reds, cm.Greens]
-thresholds = [0.1, 0.1, 0.2, 0.2, 0.2]
-alphas = [0.9, 0.9, 0.9, 0.9, 0.9]
-a_maxs = [0.1, 0.1, 0.1]
-a_mins = [0, 0.0, 0]
+alpha_default = [0.9, 0.9, 0.9, 0.9, 0.9]
+a_maxs = [0.5] * 3 #, 0.2, 0.2]
+a_mins = [0.15] * 3 # , 0.0, 0]
+thresholds = [a_max + 0.1 for a_max in a_maxs]
 
 def plot_graph(G, T, epoch):
     # colors is a #edges x 3 matrix, which represents the RGB color of the corresponding edge
@@ -29,9 +29,6 @@ def plot_graph(G, T, epoch):
 
     plt.figure(figsize=(10,8))
     print('sources', G.graph['sources'], 'targets', G.graph['targets'])
-    nx.draw_networkx_nodes(G, pos, nodelist=list(set(G.nodes()) - set(G.graph['sources']) - set(G.graph['targets'])), node_color='grey', node_shape='o', node_size=10, alpha=0.8)
-    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='dodgerblue', node_size=700, node_shape='^', alpha=1)
-    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='red', node_size=1000, node_shape='*', alpha=1)
 
     # edge_labels = {edge: ' '.join(['{:.3f}'.format(tt) for tt in t]) for edge, t in zip(G.edges(), T)}
     # for edge, label in zip(G.edges(), edge_labels):
@@ -50,12 +47,19 @@ def plot_graph(G, T, epoch):
         a_min, a_max = a_mins[t], a_maxs[t]
         cmap = cmaps['Sequential'][t]
         indices = np.where(choices == t)[0]
-        intensity = np.clip(T[choices==t,t], a_min=a_min, a_max=a_max)
-        alpha = intensity / a_max * alphas[t] * 0.8 + 0.1
+        bound = 0.05
+        intensities = np.clip(np.mean(T[choices==t], axis=1) / bound * (a_max - a_min) + a_min, a_min=a_min, a_max=a_max)
+        alphas      = np.clip(np.mean(T[choices==t], axis=1) / bound * (0.75 - 0.5) + 0.5, a_min=0.5, a_max=0.75)
+        widths      = np.clip(np.mean(T[choices==t], axis=1) / bound * (12 - 3) + 3, a_min=3, a_max=10)
         edges = [list(G.edges())[index] for index in indices]
-        nx.draw_networkx_edges(G, pos, edgelist=edges, edge_color=intensity, width=7.0, edge_vmin=0, edge_vmax=threshold, alpha=alpha, edge_cmap=cmap)
+        for edge, intensity, width, alpha in zip(edges, intensities, widths, alphas):
+            nx.draw_networkx_edges(G, pos, edgelist=[edge], edge_color=[intensity], width=width, edge_vmin=a_min, edge_vmax=threshold, alpha=alpha, edge_cmap=cmap)
     # plt.show()
-    nx.draw_networkx_edges(G, pos, edgelist=list(set(G.edges())), width=1.5, alpha=1, edge_color='black', style='dashed')
+    nx.draw_networkx_edges(G, pos, edgelist=list(set(G.edges())), width=1, alpha=1, edge_color='black', style='dashed')
+
+    nx.draw_networkx_nodes(G, pos, nodelist=list(set(G.nodes()) - set(G.graph['sources']) - set(G.graph['targets'])), node_color='grey', node_shape='o', node_size=10, alpha=0.8)
+    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['sources']), node_color='violet', node_size=700, node_shape='^', alpha=1)
+    nx.draw_networkx_nodes(G, pos, nodelist=list(G.graph['targets']), node_color='orange', node_size=1000, node_shape='*', alpha=1)
     plt.axis('off')
     plt.savefig('results/visualization/epoch{}.png'.format(epoch), bbox_inches='tight')
     plt.clf()

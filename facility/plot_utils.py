@@ -15,8 +15,8 @@ cmaps['Sequential'] = [
 
 cmaps['Sequential'] = [cm.Blues, cm.Reds, cm.Greens, cm.Oranges, cm.Purples]
 alphas = [0.5, 0.5, 0.5, 0.5, 0.5]
-a_maxs = [0.2, 0.2, 0.2, 0.2, 0.2]
-a_mins = [0.01, 0.01, 0.01, 0.01, 0.01]
+a_maxs = [0.3] * 5 # [0.2, 0.2, 0.2, 0.2, 0.2]
+a_mins = [0] * 5 # [0.01, 0.01, 0.01, 0.01, 0.01]
 
 def reduce_dimension(T, output_dim=3):
     T = (T - np.min(T, axis=0, keepdims=True)) / np.ptp(T, axis=0, keepdims=True)
@@ -31,7 +31,7 @@ def reduce_dimension(T, output_dim=3):
 
 def manually_reduce_dimension(T, output_dim=2):
     newT = np.zeros((len(T), 2))
-    newT[:,0] = np.array([np.mean(T_row) for T_row in T]) * 5
+    newT[:,0] = np.array([np.mean(T_row[T_row > 0]) for T_row in T]) * 5
     newT[:,1] = np.array([np.std(T_row[T_row > 0]) for T_row in T]) * 5
     return newT
 
@@ -44,7 +44,7 @@ def plot_graph(labels, T, epoch):
 
     print(labels.shape, T.shape, locations.shape)
 
-    sizes = np.max(T, axis=1) * 10000 + 10
+    sizes = np.max(T, axis=1) * 20000 + 50
     print(sizes)
 
     T_prob = (T + 1e-3) / np.sum(T + 1e-3, axis=1, keepdims=True)
@@ -54,7 +54,7 @@ def plot_graph(labels, T, epoch):
 
     plt.figure(figsize=(10,8))
     for t in range(T.shape[1]):
-        vmin, vmax = a_mins[t], a_maxs[t]
+        vmin, vmax = a_mins[t], a_maxs[t] + 0.01
         cmap = cmaps['Sequential'][t]
         alpha = alphas[t]
         indices = np.where(choices == t)[0]
@@ -64,9 +64,9 @@ def plot_graph(labels, T, epoch):
 
     plt.xlabel("average rating", fontsize=28, fontweight='bold')
     plt.ylabel("rating std", fontsize=28, fontweight='bold')
-    plt.xlim(-0.05, 1.05)
+    plt.xlim(0.95, 5.05)
     plt.ylim(-0.05, 1.55)
-    plt.xticks(fontsize=24)
+    plt.xticks([1,2,3,4,5], fontsize=24)
     plt.yticks([0,0.5,1,1.5], fontsize=24)
     plt.savefig('movie_results/visualization/epoch{}.png'.format(epoch), bbox_inches='tight')
     plt.clf()

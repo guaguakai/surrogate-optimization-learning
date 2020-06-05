@@ -63,12 +63,12 @@ if __name__ == '__main__':
 
     # ============= Loading Movie Data =============
     print('Loading MovieLens Dataset...')
-    ml1m_dir  = 'data/ml-1m/ratings.csv'
-    ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
-    ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
+    # ml1m_dir  = 'data/ml-1m/ratings.csv'
+    # ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
+    # ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
 
-    # ml25m_dir = 'data/ml-25m/ratings.csv'
-    # ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
+    ml25m_dir = 'data/ml-25m/ratings.csv'
+    ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
 
     # Reindex
     user_id = ml_rating[['uid']].drop_duplicates().reindex()
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     evaluate = False if training_method == 'two-stage' else True
     total_forward_time, total_inference_time, total_qp_time, total_backward_time = 0, 0, 0, 0
     forward_time_list, inference_time_list, qp_time_list, backward_time_list = [], [], [], []
-    for epoch in range(-1, num_epochs):
+    for epoch in range(1, num_epochs):
         if epoch == num_epochs - 1:
             evaluate = True
         start_time = time.time()
@@ -210,7 +210,7 @@ if __name__ == '__main__':
         validate_obj_list.append(validate_obj)
 
         # record the data every epoch
-        f_output = open('movie_results/performance/' + filepath + "{}-SEED{}.csv".format(training_method, SEED), 'w')
+        f_output = open('results/performance/' + filepath + "{}-SEED{}.csv".format(training_method, SEED), 'w')
         f_output.write('Epoch, {}\n'.format(epoch))
         f_output.write('training loss,' + ','.join([str(x) for x in train_loss_list]) + '\n')
         f_output.write('training obj,'  + ','.join([str(x) for x in train_obj_list])  + '\n')
@@ -220,7 +220,7 @@ if __name__ == '__main__':
         f_output.write('testing obj,'   + ','.join([str(x) for x in test_obj_list])   + '\n')
         f_output.close()
 
-        f_time = open('movie_results/time/' + filepath + "{}-SEED{}.csv".format(training_method, SEED), 'w')
+        f_time = open('results/time/' + filepath + "{}-SEED{}.csv".format(training_method, SEED), 'w')
         f_time.write('Epoch, {}\n'.format(epoch))
         f_time.write('Random seed, {}, forward time, {}, inference time, {}, qp time, {}, backward_time, {}\n'.format(str(SEED), total_forward_time, total_inference_time, total_qp_time, total_backward_time))
         f_time.write('forward time,'   + ','.join([str(x) for x in forward_time_list]) + '\n')

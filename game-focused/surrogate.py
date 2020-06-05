@@ -102,7 +102,6 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
                 edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
                 phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
-                # phi_pred.require_grad = True
 
                 unbiased_probs_pred = phi2prob(G, phi_pred) if epoch >= 0 else unbiased_probs_true
                 biased_probs_pred = prob2unbiased(G, -coverage_prob,  unbiased_probs_pred, omega=omega) # feeding negative coverage to be biased
@@ -166,9 +165,6 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
 
                 # ============== normalize T matrix =================
                 T.data = normalize_matrix_positive(T.data)
-                # T.data = normalize_matrix_qr(T.data)
-                # s.data = normalize_vector(s.data, max_value=budget)
-                # print(s.data)
 
             # ========= scheduler using validation set ==========
             if (epoch > 0) and (mode == "validating"):
@@ -256,35 +252,19 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
 
     if training_mode and pred_optimal_res['success']:
         solver_option = 'default'
-        # I seriously don't know wherether to use 'default' or 'gurobi' now...
-        # Gurobi performs well when there is no noise but default performs well when there is noise
-        # But theoretically they should perform roughly the same...
-
-        # cut_size = 10
-        # edge_set = np.array(sorted(np.random.choice(range(m), size=cut_size, replace=False)))
         edge_set = list(range(m))
 
         hessian_start_time = time.time()
-        # Q = torch.eye(len(pred_optimal_coverage))
         Q = numerical_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), s.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega, edge_set=edge_set)
-        # Q = surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega, edge_set=edge_set)
-        # Q = np_surrogate_obj_hessian_matrix_form(pred_optimal_coverage, T.detach(), G, unbiased_probs_pred, U, initial_distribution, omega=omega)
         jac = torch_surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch, edge_set=edge_set)
-        # jac = surrogate_dobj_dx_matrix_form(pred_optimal_coverage, T, s, G, unbiased_probs_pred, U, initial_distribution, omega=omega, lib=torch, edge_set=edge_set)
         Q_sym = (Q + Q.t()) / 2
         hessian_time = time.time() - hessian_start_time
-        # print('Hessian time:', hessian_time)
     
         # ------------------ regularization -----------------------
         Q_regularized = Q_sym.clone()
         reg_const = 0.1
-        # eigenvalues, _ = torch.eig(Q_sym)
-        # eigenvalues = eigenvalues[:,0]
-        # Q_regularized = Q_sym + torch.eye(variable_size) * max(0, -min(eigenvalues) + reg_const)
         while True:
             # ------------------ eigen regularization -----------------------
-            # Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const)
-            # ----------------- diagonal regularization ---------------------
             Q_regularized[range(variable_size), range(variable_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
             try:
                 L = torch.cholesky(Q_regularized)
@@ -396,11 +376,10 @@ if __name__=='__main__':
     ###############################
     filename = args.filename
     if FIXED_GRAPH == 0:
-        filepath_data    =      "results/random/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
-        filepath_time    = "results/time/random/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
+        filepath_data = "results/performance/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
+        filepath_time = "results/time/{}_{}_{}_n{}_p{}_b{}_cut{}_noise{}.csv".format(filename, training_method, block_selection, GRAPH_N_LOW, GRAPH_E_PROB_LOW, DEFENDER_BUDGET, CUT_SIZE, NOISE_LEVEL)
     else:
-        filepath_data    = "results/fixed/{}_{}_test.csv"               .format(filename, training_method)
-        filepath_time    = "results/time/fixed/{}_{}_b{}.csv"           .format(filename, training_method, DEFENDER_BUDGET)
+        raise NotImplementedError
 
     ############################### Data genaration:
     train_data, validate_data, test_data = generateSyntheticData(feature_size, path_type=learning_model_type,
@@ -410,7 +389,7 @@ if __name__=='__main__':
             budget=DEFENDER_BUDGET, n_sources=NUMBER_OF_SOURCES, n_targets=NUMBER_OF_TARGETS,
             random_seed=SEED, noise_level=NOISE_LEVEL)
     
-    np.random.shuffle(train_data)
+    # np.random.shuffle(train_data)
 
     print("Training method: {}".format(training_method))
     print('Noise level: {}'.format(NOISE_LEVEL))
@@ -432,15 +411,6 @@ if __name__=='__main__':
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')
 
-    # ==================== recording all the information =====================
-    # f_save.write('Random seed, {}\n'.format(SEED))
-    # f_save.write("mode, epoch, average loss, defender utility\n")
-    # f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
-    # for epoch in range(-1, N_EPOCHS):
-    #     f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
-    #     f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
-    #     f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
-
     # ============== recording the important information only ================
     validating_loss = np.array(validating_loss)
     validating_defu = np.array(validating_defu)
@@ -460,7 +430,6 @@ if __name__=='__main__':
     f_time.close()
 
     ############################# Print the summary:
-    #print ("Now running: ", "Large graphs sizes")    
     all_params={"learning model": learning_model_type,
                 "Training method": training_method,
                 "Number of Epochs: ": N_EPOCHS, 

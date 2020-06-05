@@ -326,8 +326,8 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
             # random_column = torch.randint(init_T.shape[1], [1])
             # T[:,random_column] = init_T[:,random_column]
 
-            if batch_idx == 0:
-                plot_graph(labels.detach().numpy(), T.detach().numpy(), epoch)
+            # if batch_idx == 0:
+            #     plot_graph(labels.detach().numpy(), T.detach().numpy(), epoch)
 
             for (label, output) in zip(labels, outputs):
                 if training_method == 'surrogate':
@@ -426,7 +426,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                     covariance = computeCovariance(T.t())
                     T_loss     = torch.sum(covariance) - torch.sum(torch.diag(covariance))
                     T_optimizer.zero_grad()
-                    (-objective + T_loss).backward()
+                    (-objective).backward()
                     # T_loss.backward() # TODO: minimizing reparameterization loss
 
                     for parameter in net.parameters():

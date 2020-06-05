@@ -85,7 +85,6 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)
                 edge_index = torch.Tensor(list(nx.DiGraph(G).edges())).long().t()
                 phi_pred   = net2(Fv_torch, edge_index).view(-1) if epoch >= 0 else phi_true # when epoch < 0, testing the optimal loss and defender utility
-                # phi_pred.require_grad = True
 
                 unbiased_probs_pred = phi2prob(G, phi_pred) if epoch >= 0 else unbiased_probs_true
                 biased_probs_pred = prob2unbiased(G, -coverage_prob,  unbiased_probs_pred, omega=omega) # feeding negative coverage to be biased
@@ -149,17 +148,12 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                         if training_method == "two-stage" or epoch <= pretrain_epochs:
                             loss.backward()
                         elif training_method == "decision-focused" or training_method == "block-decision-focused" or training_method == 'corrected-block-decision-focused':
-                            # (-def_obj).backward()
                             (-def_obj * m / cut_size).backward()
                         elif training_method == "hybrid":
-                            # ((-def_obj) * df_weight + loss[0] * ts_weight).backward()
                             ((-def_obj * m / cut_size) * df_weight + loss * ts_weight).backward()
                         else:
                             raise TypeError("Not Implemented Method")
                         torch.nn.utils.clip_grad_norm_(net2.parameters(), max_norm=max_norm) # gradient clipping
-                        # print(torch.norm(net2.gcn1.weight.grad))
-                        # print(torch.norm(net2.gcn2.weight.grad))
-                        # print(torch.norm(net2.fc1.weight.grad))
                         optimizer.step()
                     except:
                         print("no grad is backpropagated...")
@@ -280,7 +274,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         edge_set = list(range(m))
     off_edge_set = sorted(list(set(range(m)) - set(edge_set)))
     # ========================== QP part ===========================
-
     # A_matrix, b_matrix = torch.Tensor(), torch.Tensor()
     # G_matrix = torch.cat((-torch.eye(cut_size), torch.eye(cut_size), torch.ones(1, cut_size)))
     # h_matrix = torch.cat((torch.zeros(cut_size), torch.ones(cut_size), torch.Tensor([sum(pred_optimal_coverage[edge_set])])))
@@ -292,24 +285,18 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
     if training_mode and pred_optimal_res['success']: # and sum(pred_optimal_coverage[edge_set]) > 0.1:
         
         solver_option = 'default'
-        # I seriously don't know wherether to use 'default' or 'gurobi' now...
-        # Gurobi performs well when there is no noise but default performs well when there is noise
-        # But theoretically they should perform roughly the same...
 
         hessian_start_time = time.time()
         Q = obj_hessian_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega)
         jac = dobj_dx_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, U, initial_distribution, edge_set, omega=omega, lib=torch)
         Q_sym = (Q + Q.t()) / 2
         hessian_time = time.time() - hessian_start_time
-        # print("Hessian time:", hessian_time)
     
         # ------------------ regularization -----------------------
         Q_regularized = Q_sym.clone()
         reg_const = 0.1
         while True:
             # ------------------ eigen regularization -----------------------
-            # Q_regularized = Q_sym + torch.eye(len(edge_set)) * max(0, -min(eigenvalues) + reg_const)
-            # ----------------- diagonal regularization ---------------------
             Q_regularized[range(cut_size), range(cut_size)] = torch.clamp(torch.diag(Q_sym), min=reg_const)
             try:
                 L = torch.cholesky(Q_regularized)
@@ -334,16 +321,6 @@ def getDefUtility(single_data, unbiased_probs_pred, path_model, cut_size, omega=
         full_coverage_qp_solution = pred_optimal_coverage.clone()
         pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
     qp_time = time.time() - qp_start_time
-
-    # ========================= Error message =========================
-    # if (torch.norm(pred_optimal_coverage - full_coverage_qp_solution) > 0.1): # or 0.01 for GUROBI, 0.1 for qpth
-    #     print('QP solution and scipy solution differ {} too much..., not backpropagating this instance'.format(torch.norm(pred_optimal_coverage - full_coverage_qp_solution)))
-    #     print("objective value (SLSQP): {}".format(objective_function_matrix_form(pred_optimal_coverage, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
-    #     print(pred_optimal_coverage)
-    #     print("objective value (QP): {}".format(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_pred, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega)))
-    #     print(full_coverage_qp_solution)
-    #     full_coverage_qp_solution = pred_optimal_coverage.clone()
-    #     pred_defender_utility  = -(objective_function_matrix_form(full_coverage_qp_solution, G, unbiased_probs_true, torch.Tensor(U), torch.Tensor(initial_distribution), edge_set, omega=omega))
 
     return pred_defender_utility, full_coverage_qp_solution, (inference_time, qp_time)
 
@@ -445,7 +422,6 @@ if __name__=='__main__':
     print('Block selection:', block_selection)
 
     ############################## Training the ML models:
-    # Learn the neural networks:
     net2, training_loss, validating_loss, testing_loss, training_defu, validating_defu, testing_defu, (forward_time, inference_time, qp_time, backward_time), epoch = train_model(
                                 train_data, validate_data, test_data,
                                 learning_model=learning_model_type, block_selection=block_selection,
@@ -454,15 +430,6 @@ if __name__=='__main__':
 
     f_save = open(filepath_data, 'a')
     f_time = open(filepath_time, 'a')
-
-    # ==================== recording all the information =====================
-    # f_save.write('Random seed, {}\n'.format(SEED))
-    # f_save.write("mode, epoch, average loss, defender utility\n")
-    # f_time.write('Random seed, {}, forward time, {}, qp time, {}, backward_time, {}\n'.format(SEED, forward_time, qp_time, backward_time))
-    # for epoch in range(-1, N_EPOCHS):
-    #     f_save.write("{}, {}, {}, {}, {}\n".format('training',   epoch, training_loss[epoch+1],   training_defu[epoch+1], 0))
-    #     f_save.write("{}, {}, {}, {}, {}\n".format('validating', epoch, validating_loss[epoch+1], validating_defu[epoch+1], 0))
-    #     f_save.write("{}, {}, {}, {}, {}\n".format('testing',    epoch, testing_loss[epoch+1],    testing_defu[epoch+1], 0))
 
     # ============== recording the important information only ================
     validating_loss = np.array(validating_loss)
@@ -486,7 +453,6 @@ if __name__=='__main__':
     f_time.close()
 
     ############################# Print the summary:
-    #print ("Now running: ", "Large graphs sizes")    
     all_params={"learning model": learning_model_type,
                 "Training method": training_method,
                 "Number of Epochs: ": N_EPOCHS, 
