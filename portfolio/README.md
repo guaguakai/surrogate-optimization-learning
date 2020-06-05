@@ -5,7 +5,7 @@ There are four methods implemented in this domain:
 2. decision-focused (DF)
 3. surrogate learning (surrogate)
 
-Before running the code, you should apply for an [Quandl API](https://docs.quandl.com/docs#section-authentication) in order to download all the data between 2004-2017 from Quandl.
+Before running the code, you should apply for an [Quandl API](https://docs.quandl.com/docs#section-authentication) in order to download all the data between 2004-2017 from Quandl. Once you have got your API key, you can create a file `key.py` with `API_KEY='YOUR_KEY'` to allow the code calling your API key.
 
 All TS, DF, and surrogate methods are implemented in `facilityUtils.py` file, which can be run by:
 
