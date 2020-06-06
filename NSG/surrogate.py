@@ -93,10 +93,10 @@ def train_model(train_data, validate_data, test_data, lr=0.1, learning_model='ra
                 budget = G.graph['budget']
 
                 # ==================== Visualization ===================
-                if iter_n == 0 and mode == 'training':
-                    from plot_utils import plot_graph, reduce_dimension
-                    T_reduced = T.detach().numpy() # reduce_dimension(T.detach().numpy())
-                    plot_graph(G, T_reduced, epoch)
+                # if iter_n == 0 and mode == 'training':
+                #     from plot_utils import plot_graph, reduce_dimension
+                #     T_reduced = T.detach().numpy() # reduce_dimension(T.detach().numpy())
+                #     plot_graph(G, T_reduced, epoch)
                 
                 # =============== Compute edge probabilities ===========
                 Fv_torch   = torch.as_tensor(Fv, dtype=torch.float)

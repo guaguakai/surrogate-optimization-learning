@@ -12,4 +12,5 @@ Here is a list of dependency:
 - scipy
 - tqdm
 - [quandl](https://pypi.org/project/Quandl/)
+- [pytorch-geometric](https://github.com/rusty1s/pytorch_geometric)
 
