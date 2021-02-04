@@ -1,0 +1,3 @@
+Random seed, 3, forward time, 2.3190057277679443, inference time, 84.96896243095398, qp time, 440.24289083480835, backward_time, 6.109385013580322, epoch, 7
+Random seed, 2, forward time, 6.92361044883728, inference time, 316.9270875453949, qp time, 1417.3652458190918, backward_time, 20.903372287750244, epoch, 27
+Random seed, 1, forward time, 5.212308883666992, inference time, 261.77519512176514, qp time, 2488.083125591278, backward_time, 22.585354566574097, epoch, 16
