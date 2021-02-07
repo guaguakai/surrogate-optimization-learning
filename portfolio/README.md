@@ -9,18 +9,18 @@ Before running the code, you should apply for an [Quandl API](https://docs.quand
 
 All TS, DF, and surrogate methods are implemented in `portifolio_utils.py` file, which can be run by:
 
-Two-stage method:
+- Two-stage method:
 ```
 python3 main.py --epochs=100 --filepath='test' --lr=0.01 --n=50 --num-samples=0 --seed=1 --method=0
 ```
 **REMARK**: it is normal to see `0` objective value in two-stage mode, where evaluating the performance is expensive and not necessary for two-stage training method. The performance is only evaluated at the final epoch.
 
-Decision-focused method
+- Decision-focused method
 ```
 python3 main.py --epochs=100 --filepath='test' --lr=0.01 --n=50 --num-samples=0 --seed=1 --method=1
 ```
 
-Surrogate learning method
+- Surrogate learning method
 ```
 python3 main.py --epochs=100 --filepath='test' --lr=0.01 --n=50 --num-samples=0 --seed=1 --T=5 --method=2
 ```

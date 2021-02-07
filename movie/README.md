@@ -9,17 +9,17 @@ Before running the code, you should download the MovieLens 25m data from [MovieL
 
 All TS, DF, and surrogate methods are implemented in `facilityUtils.py` file, which can be run by:
 
-Two-stage
+- Two-stage
 ```
 python3 main.py --epochs=100 --filepath='test' --budget=10 --lr=0.01 --n=50 --m=100 --features=200 --num-samples=0 --seed=1 --method=0
 ```
 
-Decision-focused
+- Decision-focused
 ```
 python3 main.py --epochs=100 --filepath='test' --budget=10 --lr=0.01 --n=50 --m=100 --features=200 --num-samples=0 --seed=1 --method=1
 ```
 
-Surrogate learning
+- Surrogate learning
 ```
 python3 main.py --epochs=100 --filepath='test' --budget=10 --lr=0.01 --n=50 --m=100 --features=200 --num-samples=0 --seed=1 --T=5 --method=2
 ```
