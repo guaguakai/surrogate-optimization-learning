@@ -9,7 +9,7 @@ from scipy.stats.stats import pearsonr
 import matplotlib.pyplot as plt
 import tqdm
 import argparse
-import qpthlocal
+import qpth
 import numpy as np
 from celluloid import Camera
 
@@ -275,8 +275,8 @@ def getDefUtility(single_data, T, s, unbiased_probs_pred, path_model, cut_size, 
         p = jac.view(1, -1) - Q_regularized @ pred_optimal_coverage
  
         try:
-            qp_solver = qpthlocal.qp.QPFunction()
-            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; not 1/2 x^T Q x + x^T p
+            qp_solver = qpth.qp.QPFunction(verbose=-1)
+            coverage_qp_solution = qp_solver(Q_regularized, p, G_matrix, h_matrix, A_matrix, b_matrix)[0]       # Default version takes 1/2 x^T Q x + x^T p; Gurobi: x^T Q x + x^T p
             full_coverage_qp_solution = pred_optimal_coverage.clone()
             full_coverage_qp_solution = coverage_qp_solution
         except:

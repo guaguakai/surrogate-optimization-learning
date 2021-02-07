@@ -7,7 +7,7 @@ import torch
 import torch.utils.data as data_utils
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from gurobipy import *
+# from gurobipy import *
 from types import SimpleNamespace
 
 from facilityNN import FacilityNN, FeatureNN

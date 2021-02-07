@@ -11,7 +11,7 @@ import torch.utils.data as data_utils
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from gurobipy import *
+# from gurobipy import *
 from types import SimpleNamespace
 
 from facilityUtils import createConstraintMatrix
@@ -63,12 +63,12 @@ if __name__ == '__main__':
 
     # ============= Loading Movie Data =============
     print('Loading MovieLens Dataset...')
-    # ml1m_dir  = 'data/ml-1m/ratings.csv'
-    # ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
-    # ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
+    ml1m_dir  = 'data/ml-1m/ratings.csv'
+    ml_rating = pd.read_csv(ml1m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp', 'userId', 'itemId'], engine='python')
+    ml_rating.drop(['userId', 'itemId'], axis=1, inplace=True)
 
-    ml25m_dir = 'data/ml-25m/ratings.csv'
-    ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
+    # ml25m_dir = 'data/ml-25m/ratings.csv'
+    # ml_rating = pd.read_csv(ml25m_dir, sep=',', header=0, names=['uid', 'mid', 'rating', 'timestamp'],  engine='python')
 
     # Reindex
     user_id = ml_rating[['uid']].drop_duplicates().reindex()
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     evaluate = False if training_method == 'two-stage' else True
     total_forward_time, total_inference_time, total_qp_time, total_backward_time = 0, 0, 0, 0
     forward_time_list, inference_time_list, qp_time_list, backward_time_list = [], [], [], []
-    for epoch in range(1, num_epochs):
+    for epoch in range(-1, num_epochs):
         if epoch == num_epochs - 1:
             evaluate = True
         start_time = time.time()
@@ -231,7 +231,7 @@ if __name__ == '__main__':
 
         # ============= early stopping criteria =============
         kk = 3
-        if epoch >= kk*2 -1:
+        if epoch >= kk*2:
             if training_method == 'two-stage':
                 if evaluate:
                     break

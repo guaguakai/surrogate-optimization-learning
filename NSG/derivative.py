@@ -9,7 +9,7 @@ from numpy.linalg import *
 from graphData import *
 import torch
 import autograd
-from gurobipy import *
+# from gurobipy import *
 from utils import phi2prob, prob2unbiased
 
 REG = 0.01

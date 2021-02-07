@@ -66,12 +66,12 @@ def generateFeatures(G, feature_length):
         lower_bounds=[r[0] for r in ranges]
         upper_bounds=[r[1] for r in ranges]
         node_features=np.random.uniform(lower_bounds, upper_bounds)
-        G.node[node]['node_features']=node_features
+        G.nodes[node]['node_features']=node_features
     
     # Generate features
     Fv=np.zeros((N,feature_length))
     for node in list(G.nodes()):
-            Fv[node]=G.node[node]['node_features']
+            Fv[node]=G.nodes[node]['node_features']
     return Fv        
 
 def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
@@ -89,7 +89,7 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
                 node_phi=5 if node == 15 else 0
             else:
                 node_phi=0
-            G.node[node]['node_phi']=node_phi
+            G.nodes[node]['node_phi']=node_phi
         # """
         # for node in list(G.nodes()):
         #     if node in sources:
@@ -111,11 +111,11 @@ def generatePhi(G, possible_ranges=[(0,0.5), (0.5,5), (5,8)], fixed_phi=0):
             # TODO: Use a better feature computation for a given node
             # node_phi = -dist_target + np.random.normal()
             node_phi = -dist_target + np.random.uniform(low=-1,high=1)
-            G.node[node]['node_phi']=node_phi
+            G.nodes[node]['node_phi']=node_phi
     
     phi=np.zeros(N)
     for node in list(G.nodes()):
-            phi[node]=G.node[node]['node_phi']
+            phi[node]=G.nodes[node]['node_phi']
     return phi        
 
 
@@ -163,7 +163,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         G.graph['U']=np.array([10, 0])
         G.graph['budget']=budget
         
-        G.node[target]['utility']=10
+        G.nodes[target]['utility']=10
         sources=G.graph['sources']
         nodes=list(G.nodes())
         transients=[node for node in nodes if not (node in G.graph['targets'])]
@@ -188,7 +188,7 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
 
         for idx, target in enumerate(targets):
             # random_payoff = 10
-            G.node[target]['utility'] = G.graph['U'][idx]
+            G.nodes[target]['utility'] = G.graph['U'][idx]
 
         # G.graph['U'].append(0)
         
@@ -218,8 +218,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
 
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
-            G.node[target]['utility']=np.random.randint(low=5, high=10)
-            G.graph['U'].append(G.node[target]['utility'])
+            G.nodes[target]['utility']=np.random.randint(low=5, high=10)
+            G.graph['U'].append(G.nodes[target]['utility'])
         G.graph['U'].append(0)
         G.graph['U']=np.array(G.graph['U'])
         
@@ -278,8 +278,8 @@ def returnGraph(fixed_graph=False, n_sources=1, n_targets=1, N_low=16, N_high=20
         
         # Randomly assign utilities to targets in the RANGE HARD-CODED below
         for target in G.graph['targets']:
-            G.node[target]['utility'] = 5 + 5 * np.random.random()
-            G.graph['U'].append(G.node[target]['utility'])
+            G.nodes[target]['utility'] = 5 + 5 * np.random.random()
+            G.graph['U'].append(G.nodes[target]['utility'])
         G.graph['U'].append(0) # no penalty
         G.graph['U']=np.array(G.graph['U'])
         
@@ -357,7 +357,7 @@ def attackerOracle(G, coverage_probs, phi, omega=4, num_paths=100):
         # path = getSimplePath(G, path) # TODO
         path_list.append(path)
 
-        defender_utility = -G.node[path[-1][1]]['utility']
+        defender_utility = -G.nodes[path[-1][1]]['utility']
         for e in path:
             defender_utility *= (1 - coverage_prob_matrix[e[0]][e[1]])
         simulated_defender_utility_list.append(defender_utility)

@@ -14,6 +14,7 @@ To run TS, DF, and block methods, please run the following commands respectively
 Two-stage method:
 ```
 python3 blockQP.py --number-nodes=50 --number-sources=5 --number-targets=5 --budget=3 --filename='test' --feature-size=16 --number-samples=50 --noise=0.2 --learning-rate=0.01 --epochs=100 --seed=1 --method=0
+**REMARK**: it is normal if you find the objective to be `-inf` in the two-stage mode. This is because we disable the computation of objective in the training epochs, where two-stage method does not need it and it is extremely slow to evaluate the objective/utility.
 ```
 
 Decision-focused method:
@@ -21,7 +22,7 @@ Decision-focused method:
 python3 blockQP.py --number-nodes=50 --number-sources=5 --number-targets=5 --budget=3 --filename='test' --feature-size=16 --number-samples=50 --noise=0.2 --learning-rate=0.01 --epochs=100 --seed=1 --method=1
 ```
 
-Surrogate learning method:
+Block decision-focused learning method:
 ```
 python3 blockQP.py --number-nodes=50 --number-sources=5 --number-targets=5 --budget=3 --filename='test' --feature-size=16 --number-samples=50 --noise=0.2 --learning-rate=0.01 --epochs=100 --seed=1 --method=2
 ```

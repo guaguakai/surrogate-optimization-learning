@@ -3,7 +3,7 @@ import tqdm
 import time
 import numpy as np
 import qpth
-import qpthlocal
+# import qpthlocal
 import random
 import scipy
 import autograd
@@ -12,7 +12,7 @@ import torch.utils.data as data_utils
 from torch.utils.data.sampler import SubsetRandomSampler
 from sklearn.metrics import pairwise_distances
 
-from gurobipy import *
+# from gurobipy import *
 from types import SimpleNamespace
 
 from facilityNN import FacilityNN, FeatureNN
@@ -219,7 +219,7 @@ def train_submodular(net, optimizer, epoch, sample_instance, dataset, lr=0.1, tr
                         L = torch.cholesky(Q)
                         jac = -getDerivative(optimal_x, n, m, output, d, f, create_graph=True, REG=REG)
                         p = jac - Q @ optimal_x
-                        qp_solver = qpth.qp.QPFunction()
+                        qp_solver = qpth.qp.QPFunction(verbose=-1)
                         x = qp_solver(Q, p, G, h, A, b)[0]
 
                         # if True:
@@ -350,7 +350,7 @@ def surrogate_train_submodular(net, init_T, optimizer, T_optimizer, epoch, sampl
                         L = torch.cholesky(Q)
                         jac = -getSurrogateDerivative(T, optimal_y, n, m, output, d, f, create_graph=True)
                         p = jac - Q @ optimal_y
-                        qp_solver = qpth.qp.QPFunction() # TODO unknown bug
+                        qp_solver = qpth.qp.QPFunction(verbose=-1) # TODO unknown bug
 
                         try:
                             y = qp_solver(Q, p, newG, newh, newA, newb)[0]

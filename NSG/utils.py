@@ -2,12 +2,9 @@ from scipy.optimize import minimize
 import networkx as nx
 import numpy as np
 import time
-# import autograd.numpy as np
 from numpy.linalg import *
 # from graphData import *
 import torch
-import autograd
-from gurobipy import *
 
 def normalize_matrix(T):
     return T / torch.norm(T, dim=0)

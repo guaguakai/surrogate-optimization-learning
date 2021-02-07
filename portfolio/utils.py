@@ -7,7 +7,7 @@ from numpy.linalg import *
 # from graphData import *
 import torch
 import autograd
-from gurobipy import *
+# from gurobipy import *
 
 def normalize_matrix(T):
     return T / torch.norm(T, dim=0)
